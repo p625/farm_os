@@ -51,6 +51,7 @@ function MoneyDisplay({ snapshot }: { snapshot: GameSnapshot }) {
 }
 
 export function GameHUD({ game, snapshot }: GameHUDProps) {
+  const [confirmReset, setConfirmReset] = useState(false)
   const selectedField = snapshot.fields.find(
     (field) => field.id === snapshot.selectedFieldId,
   )
@@ -66,7 +67,7 @@ export function GameHUD({ game, snapshot }: GameHUDProps) {
     <aside className="game-hud">
       <header className="game-hud__header">
         <h1 className="game-hud__title">FarmOS</h1>
-        <p className="game-hud__subtitle">Milestone 3 — Better Game Feel</p>
+        <p className="game-hud__subtitle">Milestone 4 — Save Game</p>
       </header>
 
       <section className="game-hud__panel">
@@ -196,6 +197,54 @@ export function GameHUD({ game, snapshot }: GameHUDProps) {
         {tractorBusy ? (
           <p className="game-hud__hint">Tractor is busy — wait for the current job.</p>
         ) : null}
+      </section>
+
+      <section className="game-hud__panel">
+        <h2 className="game-hud__section-title">Save Game</h2>
+        <div className="game-hud__actions game-hud__actions--row">
+          <button
+            type="button"
+            className="game-hud__button"
+            onClick={() => game.saveGame()}
+          >
+            Save
+          </button>
+          <button
+            type="button"
+            className="game-hud__button game-hud__button--danger"
+            onClick={() => setConfirmReset(true)}
+          >
+            Reset farm
+          </button>
+        </div>
+        {confirmReset ? (
+          <div className="game-hud__confirm">
+            <p className="game-hud__hint">
+              Reset money, fields, and progress to a fresh farm?
+            </p>
+            <div className="game-hud__confirm-actions">
+              <button
+                type="button"
+                className="game-hud__button game-hud__button--danger"
+                onClick={() => {
+                  game.resetFarm()
+                  setConfirmReset(false)
+                }}
+              >
+                Confirm reset
+              </button>
+              <button
+                type="button"
+                className="game-hud__button"
+                onClick={() => setConfirmReset(false)}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : (
+          <p className="game-hud__hint">Progress auto-saves after farm changes.</p>
+        )}
       </section>
 
       <section className="game-hud__panel">

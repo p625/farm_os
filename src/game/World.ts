@@ -11,6 +11,12 @@ export class World implements IInitializable, IUpdatable, IDisposable {
     this.gameSpeed = 1
   }
 
+  applySave(money: number, currentDay: number, gameSpeed: number): void {
+    this.money = money
+    this.currentDay = currentDay
+    this.setGameSpeed(gameSpeed)
+  }
+
   update(_deltaTime: number): void {
     // Global world tick reserved for future systems.
   }

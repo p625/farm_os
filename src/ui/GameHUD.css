@@ -79,6 +79,36 @@
   gap: 0.5rem;
 }
 
+.game-hud__actions--row {
+  flex-direction: row;
+}
+
+.game-hud__actions--row .game-hud__button {
+  flex: 1;
+}
+
+.game-hud__button--danger {
+  background: rgb(110 40 35 / 95%);
+}
+
+.game-hud__button--danger:hover:not(:disabled) {
+  background: rgb(140 50 42 / 95%);
+}
+
+.game-hud__confirm {
+  margin-top: 0.5rem;
+}
+
+.game-hud__confirm-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.game-hud__confirm-actions .game-hud__button {
+  flex: 1;
+}
+
 .game-hud__button {
   padding: 0.55rem 0.75rem;
   font-size: 0.9rem;

@@ -41,6 +41,37 @@ export class FieldSystem extends GameSystem {
     this.notifyChange()
   }
 
+  applySave(
+    fields: readonly {
+      id: string
+      state: Field['state']
+      growthPercent: number
+      cropId: string | null
+    }[],
+    selectedFieldId: string | null,
+  ): void {
+    for (const savedField of fields) {
+      const field = this.fields.get(savedField.id)
+      if (!field) {
+        continue
+      }
+      field.state = savedField.state
+      field.growthPercent = savedField.growthPercent
+      field.cropId = savedField.cropId
+    }
+
+    if (selectedFieldId && this.fields.has(selectedFieldId)) {
+      this.selectedFieldId = selectedFieldId
+    }
+
+    this.dayTimer = 0
+    this.notifyChange()
+  }
+
+  toSaveFields(): ReturnType<Field['toSnapshot']>[] {
+    return this.getFields().map((field) => field.toSnapshot())
+  }
+
   update(deltaTime: number): void {
     if (this.world.gameSpeed <= 0) {
       return

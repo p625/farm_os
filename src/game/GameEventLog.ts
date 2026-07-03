@@ -23,6 +23,10 @@ export class GameEventLog {
     return this.entries
   }
 
+  getNextId(): number {
+    return this.nextId
+  }
+
   getLatestMoneyGain(): MoneyGainEffect | null {
     return this.latestMoneyGain
   }
@@ -48,9 +52,24 @@ export class GameEventLog {
     }
   }
 
+  recordGameSaved(day: number): void {
+    this.push('Game saved', GameEventKind.GameSaved, day)
+  }
+
+  recordFarmReset(day: number): void {
+    this.push('Farm reset', GameEventKind.FarmReset, day)
+  }
+
+  restore(entries: readonly GameLogEntry[], nextId: number): void {
+    this.entries = [...entries].slice(0, MAX_ENTRIES)
+    this.nextId = Math.max(1, nextId)
+    this.latestMoneyGain = null
+  }
+
   clear(): void {
     this.entries = []
     this.latestMoneyGain = null
+    this.nextId = 1
   }
 
   private push(

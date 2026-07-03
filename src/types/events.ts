@@ -3,6 +3,8 @@ export const GameEventKind = {
   WheatSeeded: 'wheat_seeded',
   WheatReady: 'wheat_ready',
   HarvestSold: 'harvest_sold',
+  GameSaved: 'game_saved',
+  FarmReset: 'farm_reset',
 } as const
 
 export type GameEventKind =

@@ -1,6 +1,7 @@
 import { SoundManager } from '@audio/SoundManager.ts'
 import { World } from '@game/World.ts'
 import { GameEventLog } from '@game/GameEventLog.ts'
+import { SaveGameService } from '@game/SaveGameService.ts'
 import {
   CameraController,
   FieldOverlayPresentation,
@@ -10,9 +11,11 @@ import {
   TractorPresentation,
 } from '@rendering/index.ts'
 import { FieldSystem, TractorJobSystem } from '@systems/index.ts'
+import { SAVE_VERSION } from '@/config/save.ts'
 import type { GameConfig } from '@/types/index.ts'
 import { DEFAULT_GAME_CONFIG } from '@/types/index.ts'
 import type { IDisposable } from '@/types/index.ts'
+import type { GameSaveData } from '@/types/save.ts'
 import { EMPTY_GAME_SNAPSHOT, type GameSnapshot } from './GameSnapshot.ts'
 import { GameLoop } from './GameLoop.ts'
 
@@ -25,12 +28,14 @@ export class Game implements IDisposable {
   private readonly tractorJobSystem: TractorJobSystem
   private readonly eventLog: GameEventLog
   private readonly soundManager: SoundManager
+  private readonly saveGameService: SaveGameService
   private readonly fieldPresentation: FieldPresentation
   private readonly fieldOverlayPresentation: FieldOverlayPresentation
   private readonly tractorPresentation: TractorPresentation
   private readonly gameLoop: GameLoop
   private readonly listeners = new Set<() => void>()
   private cachedSnapshot: GameSnapshot = EMPTY_GAME_SNAPSHOT
+  private autoSaveEnabled = false
   private disposed = false
   private started = false
 
@@ -46,6 +51,7 @@ export class Game implements IDisposable {
     this.eventLog = new GameEventLog((entry) => {
       this.soundManager.playForGameEvent(entry.kind)
     })
+    this.saveGameService = new SaveGameService()
     this.fieldSystem = new FieldSystem(this.world)
     this.tractorJobSystem = new TractorJobSystem(this.fieldSystem)
     this.fieldPresentation = new FieldPresentation()
@@ -100,6 +106,26 @@ export class Game implements IDisposable {
 
   setGameSpeed(speed: number): void {
     this.world.setGameSpeed(speed)
+    this.autoSave()
+    this.notifyListeners()
+  }
+
+  saveGame(): void {
+    this.eventLog.recordGameSaved(this.world.currentDay)
+    this.persistSave()
+    this.notifyListeners()
+  }
+
+  resetFarm(): void {
+    this.saveGameService.clear()
+    this.world.initialize()
+    this.fieldSystem.initialize()
+    this.tractorJobSystem.initialize()
+    this.eventLog.clear()
+    this.eventLog.recordFarmReset(this.world.currentDay)
+    this.syncFieldVisuals()
+    this.tractorPresentation.syncVisuals()
+    this.persistSave()
     this.notifyListeners()
   }
 
@@ -120,6 +146,7 @@ export class Game implements IDisposable {
     this.fieldSystem.setEventLog(this.eventLog)
     this.fieldSystem.setOnChange(() => {
       this.syncFieldVisuals()
+      this.autoSave()
       this.notifyListeners()
     })
     this.fieldSystem.initialize()
@@ -136,6 +163,8 @@ export class Game implements IDisposable {
     })
     this.tractorJobSystem.initialize()
 
+    this.loadSavedGame()
+
     const scene = this.sceneManager.getScene()
     this.fieldPresentation.attach(scene, this.fieldSystem)
     this.fieldOverlayPresentation.attach(
@@ -145,7 +174,10 @@ export class Game implements IDisposable {
     )
     this.tractorPresentation.attach(scene, this.tractorJobSystem)
 
+    this.syncFieldVisuals()
+    this.tractorPresentation.syncVisuals()
     this.invalidateSnapshot()
+    this.autoSaveEnabled = true
     this.started = true
     this.gameLoop.start(() => this.sceneManager.render())
   }
@@ -160,6 +192,7 @@ export class Game implements IDisposable {
     }
 
     this.disposed = true
+    this.autoSaveEnabled = false
     this.stop()
     this.tractorPresentation.detach()
     this.fieldOverlayPresentation.detach()
@@ -174,6 +207,50 @@ export class Game implements IDisposable {
     this.listeners.clear()
     this.cachedSnapshot = EMPTY_GAME_SNAPSHOT
     this.started = false
+  }
+
+  private loadSavedGame(): void {
+    const saved = this.saveGameService.load()
+    if (!saved) {
+      return
+    }
+
+    this.applySaveData(saved)
+  }
+
+  private applySaveData(saved: GameSaveData): void {
+    this.autoSaveEnabled = false
+
+    this.world.applySave(saved.money, saved.currentDay, saved.gameSpeed)
+    this.fieldSystem.applySave(saved.fields, saved.selectedFieldId)
+    this.eventLog.restore(saved.eventLog, saved.eventLogNextId)
+    this.tractorJobSystem.initialize()
+
+    this.autoSaveEnabled = true
+  }
+
+  private captureSaveData(): GameSaveData {
+    return {
+      version: SAVE_VERSION,
+      money: this.world.money,
+      currentDay: this.world.currentDay,
+      gameSpeed: this.world.gameSpeed,
+      selectedFieldId: this.fieldSystem.getSelectedFieldId(),
+      fields: this.fieldSystem.toSaveFields(),
+      eventLog: [...this.eventLog.getEntries()],
+      eventLogNextId: this.eventLog.getNextId(),
+    }
+  }
+
+  private persistSave(): void {
+    this.saveGameService.save(this.captureSaveData())
+  }
+
+  private autoSave(): void {
+    if (!this.autoSaveEnabled) {
+      return
+    }
+    this.persistSave()
   }
 
   private syncFieldVisuals(): void {
