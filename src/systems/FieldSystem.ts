@@ -3,6 +3,8 @@ import { Field } from '@entities/Field.ts'
 import type { GameEventLog } from '@game/GameEventLog.ts'
 import type { World } from '@game/World.ts'
 import type { CropSystem } from './CropSystem.ts'
+import type { InventorySystem } from './InventorySystem.ts'
+import type { MarketSystem } from './MarketSystem.ts'
 import type { OwnershipSystem } from './OwnershipSystem.ts'
 import type { FieldLifecycleState } from '@/types/field.ts'
 import { FieldLifecycleState as States } from '@/types/field.ts'
@@ -16,6 +18,8 @@ export class FieldSystem extends GameSystem {
   private readonly fields = new Map<string, Field>()
   private ownershipSystem: OwnershipSystem | null = null
   private cropSystem: CropSystem | null = null
+  private inventorySystem: InventorySystem | null = null
+  private marketSystem: MarketSystem | null = null
   private selectedFieldId: string | null = null
   private dayTimer = 0
   private onChange: (() => void) | null = null
@@ -32,6 +36,14 @@ export class FieldSystem extends GameSystem {
 
   setCropSystem(cropSystem: CropSystem): void {
     this.cropSystem = cropSystem
+  }
+
+  setInventorySystem(inventorySystem: InventorySystem): void {
+    this.inventorySystem = inventorySystem
+  }
+
+  setMarketSystem(marketSystem: MarketSystem): void {
+    this.marketSystem = marketSystem
   }
 
   setEventLog(eventLog: GameEventLog): void {
@@ -239,15 +251,16 @@ export class FieldSystem extends GameSystem {
       return false
     }
 
-    const cropName = this.cropSystem.getCropName(cropId)
-    const harvestValue = this.cropSystem.getHarvestValue(cropId)
+    const yieldAmount = this.cropSystem.getYield(cropId)
 
-    this.world.addMoney(harvestValue)
+    if (!this.inventorySystem?.addCrop(cropId, yieldAmount, this.world.currentDay)) {
+      return false
+    }
+
     field.state = States.Grass
     field.growthPercent = 0
     field.cropId = null
     field.daysGrown = 0
-    this.eventLog?.recordCropHarvested(cropName, harvestValue, this.world.currentDay)
     this.notifyChange()
     return true
   }
@@ -258,10 +271,13 @@ export class FieldSystem extends GameSystem {
     this.eventLog = null
     this.ownershipSystem = null
     this.cropSystem = null
+    this.inventorySystem = null
+    this.marketSystem = null
   }
 
   private advanceDay(): void {
     this.world.advanceDay()
+    this.marketSystem?.advanceDay(this.world.currentDay)
 
     for (const field of this.fields.values()) {
       if (!this.isFieldUsable(field.id)) {

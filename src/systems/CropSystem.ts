@@ -97,6 +97,10 @@ export class CropSystem extends GameSystem {
     return crop.yield * crop.sellingPrice
   }
 
+  getYield(cropId: string): number {
+    return getCropDefinition(cropId)?.yield ?? 0
+  }
+
   getProfitEstimate(cropId: string): number {
     const crop = getCropDefinition(cropId)
     if (!crop) {

@@ -1,6 +1,8 @@
 export { GameSystem } from './GameSystem.ts'
 export { FieldSystem, formatFieldState } from './FieldSystem.ts'
 export { CropSystem } from './CropSystem.ts'
+export { InventorySystem } from './InventorySystem.ts'
+export { MarketSystem } from './MarketSystem.ts'
 export {
   OwnershipSystem,
   formatFieldOwnership,

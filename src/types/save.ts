@@ -15,6 +15,16 @@ export interface FieldOwnershipSaveData {
   ownership: FieldOwnership
 }
 
+export interface InventorySaveData {
+  cropId: string
+  quantity: number
+}
+
+export interface MarketPriceSaveData {
+  cropId: string
+  price: number
+}
+
 export interface GameSaveData {
   version: number
   money: number
@@ -23,6 +33,8 @@ export interface GameSaveData {
   selectedFieldId: string | null
   fields: FieldSaveData[]
   ownership: FieldOwnershipSaveData[]
+  inventory: InventorySaveData[]
+  marketPrices: MarketPriceSaveData[]
   eventLog: GameLogEntry[]
   eventLogNextId: number
 }

@@ -15,6 +15,8 @@ import {
 import {
   CropSystem,
   FieldSystem,
+  InventorySystem,
+  MarketSystem,
   OwnershipSystem,
   TractorJobSystem,
 } from '@systems/index.ts'
@@ -33,6 +35,8 @@ export class Game implements IDisposable {
   private readonly lightingSystem: LightingSystem
   private readonly world: World
   private readonly cropSystem: CropSystem
+  private readonly inventorySystem: InventorySystem
+  private readonly marketSystem: MarketSystem
   private readonly fieldSystem: FieldSystem
   private readonly ownershipSystem: OwnershipSystem
   private readonly tractorJobSystem: TractorJobSystem
@@ -65,10 +69,14 @@ export class Game implements IDisposable {
     })
     this.saveGameService = new SaveGameService()
     this.cropSystem = new CropSystem()
+    this.inventorySystem = new InventorySystem()
+    this.marketSystem = new MarketSystem()
     this.ownershipSystem = new OwnershipSystem(this.world)
     this.fieldSystem = new FieldSystem(this.world)
     this.fieldSystem.setOwnershipSystem(this.ownershipSystem)
     this.fieldSystem.setCropSystem(this.cropSystem)
+    this.fieldSystem.setInventorySystem(this.inventorySystem)
+    this.fieldSystem.setMarketSystem(this.marketSystem)
     this.tractorJobSystem = new TractorJobSystem(this.fieldSystem)
     this.tractorJobSystem.setCropSystem(this.cropSystem)
     this.fieldPresentation = new FieldPresentation()
@@ -117,6 +125,31 @@ export class Game implements IDisposable {
     if (fieldId) {
       this.tractorJobSystem.enqueueHarvest(fieldId)
     }
+  }
+
+  sellStoredCrop(cropId: string): void {
+    const quantity = this.inventorySystem.getQuantity(cropId)
+    if (quantity <= 0) {
+      return
+    }
+
+    const unitPrice = this.marketSystem.getPrice(cropId)
+    const total = quantity * unitPrice
+    const cropName = this.cropSystem.getCropName(cropId)
+
+    if (!this.inventorySystem.removeCrop(cropId, quantity)) {
+      return
+    }
+
+    this.world.addMoney(total)
+    this.eventLog.recordCropSold(
+      cropName,
+      quantity,
+      total,
+      this.world.currentDay,
+    )
+    this.autoSave()
+    this.notifyListeners()
   }
 
   selectField(fieldId: string): void {
@@ -169,6 +202,8 @@ export class Game implements IDisposable {
     this.saveGameService.clear()
     this.world.initialize()
     this.cropSystem.initialize()
+    this.inventorySystem.initialize()
+    this.marketSystem.initialize()
     this.ownershipSystem.initialize()
     this.fieldSystem.initialize()
     this.tractorJobSystem.initialize()
@@ -194,6 +229,20 @@ export class Game implements IDisposable {
     this.cameraController.initialize()
     this.world.initialize()
     this.cropSystem.initialize()
+
+    this.inventorySystem.setEventLog(this.eventLog)
+    this.inventorySystem.setOnChange(() => {
+      this.autoSave()
+      this.notifyListeners()
+    })
+    this.inventorySystem.initialize()
+
+    this.marketSystem.setEventLog(this.eventLog)
+    this.marketSystem.setOnChange(() => {
+      this.autoSave()
+      this.notifyListeners()
+    })
+    this.marketSystem.initialize()
 
     this.fieldSystem.setEventLog(this.eventLog)
     this.fieldSystem.setOnChange(() => {
@@ -271,6 +320,8 @@ export class Game implements IDisposable {
     this.tractorJobSystem.dispose()
     this.fieldSystem.dispose()
     this.ownershipSystem.dispose()
+    this.inventorySystem.dispose()
+    this.marketSystem.dispose()
     this.cropSystem.dispose()
     this.eventLog.clear()
     this.world.dispose()
@@ -296,6 +347,8 @@ export class Game implements IDisposable {
 
     this.world.applySave(saved.money, saved.currentDay, saved.gameSpeed)
     this.ownershipSystem.applySave(saved.ownership)
+    this.inventorySystem.applySave(saved.inventory)
+    this.marketSystem.applySave(saved.marketPrices)
     this.fieldSystem.applySave(saved.fields, saved.selectedFieldId)
     this.eventLog.restore(saved.eventLog, saved.eventLogNextId)
     this.tractorJobSystem.initialize()
@@ -312,6 +365,8 @@ export class Game implements IDisposable {
       selectedFieldId: this.fieldSystem.getSelectedFieldId(),
       fields: this.fieldSystem.toSaveFields(),
       ownership: this.ownershipSystem.toSaveOwnership(),
+      inventory: this.inventorySystem.toSaveInventory(),
+      marketPrices: this.marketSystem.toSavePrices(),
       eventLog: [...this.eventLog.getEntries()],
       eventLogNextId: this.eventLog.getNextId(),
     }
@@ -370,6 +425,8 @@ export class Game implements IDisposable {
       selectedFieldId: this.fieldSystem.getSelectedFieldId(),
       fields: this.buildFieldSnapshots(),
       crops: this.cropSystem.toSnapshots(),
+      inventory: this.inventorySystem.toSnapshots(),
+      marketPrices: this.marketSystem.toSnapshots(),
       tractor: this.tractorJobSystem.toSnapshot(),
       eventLog: this.eventLog.getEntries(),
       moneyGain: this.eventLog.getLatestMoneyGain(),

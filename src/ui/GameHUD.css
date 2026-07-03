@@ -330,3 +330,75 @@
 .game-hud__event-message {
   color: #dcecd6;
 }
+
+.game-hud__crop-swatch {
+  flex: 0 0 0.75rem;
+  width: 0.75rem;
+  height: 0.75rem;
+  border-radius: 3px;
+  border: 1px solid rgb(255 255 255 / 18%);
+}
+
+.game-hud__market-list,
+.game-hud__inventory-list {
+  display: grid;
+  gap: 0.45rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.game-hud__market-item {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 0.35rem 0.5rem;
+  align-items: center;
+  padding: 0.45rem 0.55rem;
+  font-size: 0.82rem;
+  background: rgb(0 0 0 / 18%);
+  border-radius: 6px;
+}
+
+.game-hud__market-name {
+  color: #e8f5e3;
+}
+
+.game-hud__market-price {
+  font-weight: 700;
+  color: #c8e8bc;
+}
+
+.game-hud__market-base {
+  grid-column: 2 / 4;
+  font-size: 0.72rem;
+  color: rgb(255 255 255 / 45%);
+}
+
+.game-hud__inventory-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.45rem 0.55rem;
+  background: rgb(0 0 0 / 18%);
+  border-radius: 6px;
+}
+
+.game-hud__inventory-details {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.82rem;
+  color: #e8f5e3;
+}
+
+.game-hud__inventory-value {
+  font-size: 0.75rem;
+  color: rgb(200 230 185 / 75%);
+}
+
+.game-hud__button--sell {
+  flex: 0 0 auto;
+  padding: 0.35rem 0.65rem;
+  font-size: 0.78rem;
+}

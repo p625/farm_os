@@ -27,8 +27,10 @@ export class SoundManager {
       case GameEventKind.CropReady:
         this.play(SoundEvent.Harvestable)
         break
-      case GameEventKind.CropHarvested:
+      case GameEventKind.HarvestStored:
         this.play(SoundEvent.Harvest)
+        break
+      case GameEventKind.CropSold:
         this.play(SoundEvent.Money)
         break
     }

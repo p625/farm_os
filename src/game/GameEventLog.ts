@@ -42,12 +42,29 @@ export class GameEventLog {
     this.push(`${cropName} ready to harvest`, GameEventKind.CropReady, day)
   }
 
-  recordCropHarvested(cropName: string, amount: number, day: number): void {
-    this.push(`Player harvested ${cropName}.`, GameEventKind.CropHarvested, day)
+  recordHarvestStored(cropName: string, quantity: number, day: number): void {
+    this.push(`Harvest stored: ${quantity} ${cropName}`, GameEventKind.HarvestStored, day)
+  }
+
+  recordCropSold(
+    cropName: string,
+    quantity: number,
+    total: number,
+    day: number,
+  ): void {
+    this.push(
+      `Sold ${quantity} ${cropName} for ₡${total.toLocaleString()}`,
+      GameEventKind.CropSold,
+      day,
+    )
     this.latestMoneyGain = {
-      amount,
+      amount: total,
       id: ++this.moneyGainSeq,
     }
+  }
+
+  recordPriceChanged(cropName: string, day: number): void {
+    this.push(`${cropName} price changed`, GameEventKind.PriceChanged, day)
   }
 
   recordFieldPurchased(fieldName: string, day: number): void {
