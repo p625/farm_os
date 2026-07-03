@@ -1,0 +1,13 @@
+.game-shell {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.game-shell__canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+  outline: none;
+}

@@ -1,0 +1,268 @@
+.game-hud {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  width: min(320px, 100%);
+  max-height: 100%;
+  padding: 1rem;
+  overflow-y: auto;
+  background: rgb(18 24 20 / 88%);
+  border-left: 1px solid rgb(255 255 255 / 8%);
+  backdrop-filter: blur(8px);
+}
+
+.game-hud__header {
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid rgb(255 255 255 / 8%);
+}
+
+.game-hud__title {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #b8e0b0;
+}
+
+.game-hud__subtitle {
+  margin: 0.25rem 0 0;
+  font-size: 0.75rem;
+  color: rgb(255 255 255 / 55%);
+}
+
+.game-hud__panel {
+  padding: 0.75rem;
+  background: rgb(0 0 0 / 22%);
+  border: 1px solid rgb(255 255 255 / 6%);
+  border-radius: 8px;
+}
+
+.game-hud__section-title {
+  margin: 0 0 0.5rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgb(255 255 255 / 50%);
+}
+
+.game-hud__stats {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0;
+}
+
+.game-hud__stat {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.game-hud__stat dt {
+  margin: 0;
+  color: rgb(255 255 255 / 55%);
+  font-size: 0.85rem;
+}
+
+.game-hud__stat dd {
+  margin: 0;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.game-hud__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.game-hud__button {
+  padding: 0.55rem 0.75rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #e8f5e3;
+  background: rgb(60 90 50 / 90%);
+  border: 1px solid rgb(255 255 255 / 10%);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.game-hud__button:hover:not(:disabled) {
+  background: rgb(74 110 60 / 95%);
+}
+
+.game-hud__button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.game-hud__button--primary {
+  background: rgb(140 110 30 / 95%);
+}
+
+.game-hud__button--primary:hover:not(:disabled) {
+  background: rgb(170 135 40 / 95%);
+}
+
+.game-hud__speeds {
+  display: flex;
+  gap: 0.35rem;
+  margin-bottom: 0.5rem;
+}
+
+.game-hud__speed {
+  flex: 1;
+  padding: 0.4rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #d8e8d4;
+  background: rgb(40 55 38 / 90%);
+  border: 1px solid rgb(255 255 255 / 8%);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.game-hud__speed--active {
+  color: #102010;
+  background: #9fd491;
+  border-color: #9fd491;
+}
+
+.game-hud__hint {
+  margin: 0;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: rgb(255 255 255 / 45%);
+}
+
+.game-hud__field-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.game-hud__field-item {
+  width: 100%;
+  padding: 0.45rem 0.55rem;
+  font-size: 0.8rem;
+  text-align: left;
+  color: #d8e8d4;
+  background: rgb(30 40 28 / 80%);
+  border: 1px solid transparent;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.game-hud__field-item:hover {
+  border-color: rgb(255 255 255 / 12%);
+}
+
+.game-hud__field-item--active {
+  border-color: #9fd491;
+  background: rgb(50 70 45 / 90%);
+}
+
+.game-hud__progress {
+  height: 6px;
+  margin-top: 0.5rem;
+  overflow: hidden;
+  background: rgb(0 0 0 / 30%);
+  border-radius: 3px;
+}
+
+.game-hud__progress-fill {
+  height: 100%;
+  background: #9fd491;
+  border-radius: 3px;
+  transition: width 0.1s linear;
+}
+
+.game-hud__stat--money {
+  align-items: flex-start;
+}
+
+.game-hud__money {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.game-hud__money dd {
+  margin: 0;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.game-hud__money-pop {
+  position: absolute;
+  top: -0.15rem;
+  right: 0;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #f5d76e;
+  pointer-events: none;
+  animation: money-pop 1.4s ease-out forwards;
+}
+
+@keyframes money-pop {
+  0% {
+    opacity: 0;
+    transform: translateY(0.4rem);
+  }
+
+  15% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  70% {
+    opacity: 1;
+    transform: translateY(-0.6rem);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateY(-1rem);
+  }
+}
+
+.game-hud__event-log {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  max-height: 8rem;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.game-hud__event {
+  display: grid;
+  gap: 0.1rem;
+  padding: 0.4rem 0.5rem;
+  font-size: 0.78rem;
+  line-height: 1.35;
+  background: rgb(0 0 0 / 18%);
+  border-left: 2px solid rgb(159 212 145 / 55%);
+  border-radius: 4px;
+}
+
+.game-hud__event-day {
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgb(255 255 255 / 40%);
+}
+
+.game-hud__event-message {
+  color: #d8e8d4;
+}

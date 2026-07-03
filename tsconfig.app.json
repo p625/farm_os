@@ -7,16 +7,27 @@
     "types": ["vite/client"],
     "allowArbitraryExtensions": true,
     "skipLibCheck": true,
-
-    /* Bundler mode */
+    "ignoreDeprecations": "6.0",
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"],
+      "@core/*": ["src/core/*"],
+      "@rendering/*": ["src/rendering/*"],
+      "@game/*": ["src/game/*"],
+      "@systems/*": ["src/systems/*"],
+      "@entities/*": ["src/entities/*"],
+      "@ui/*": ["src/ui/*"],
+      "@assets/*": ["src/assets/*"],
+      "@audio/*": ["src/audio/*"],
+      "@types/*": ["src/types/*"],
+      "@utils/*": ["src/utils/*"]
+    },
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,
     "verbatimModuleSyntax": true,
     "moduleDetection": "force",
     "noEmit": true,
     "jsx": "react-jsx",
-
-    /* Linting */
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "erasableSyntaxOnly": true,
