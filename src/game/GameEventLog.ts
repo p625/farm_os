@@ -1,4 +1,3 @@
-import { WHEAT_CROP } from '@/config/wheat.ts'
 import {
   GameEventKind,
   type GameEventKind as GameEventKindValue,
@@ -35,21 +34,32 @@ export class GameEventLog {
     this.push('Field plowed', GameEventKind.FieldPlowed, day)
   }
 
-  recordWheatSeeded(day: number): void {
-    this.push('Wheat seeded', GameEventKind.WheatSeeded, day)
+  recordCropPlanted(cropName: string, day: number): void {
+    this.push(`Player planted ${cropName}.`, GameEventKind.CropPlanted, day)
   }
 
-  recordWheatReady(day: number): void {
-    this.push('Wheat ready to harvest', GameEventKind.WheatReady, day)
+  recordCropReady(cropName: string, day: number): void {
+    this.push(`${cropName} ready to harvest`, GameEventKind.CropReady, day)
   }
 
-  recordHarvestSold(day: number): void {
-    const amount = WHEAT_CROP.harvestReward
-    this.push(`Harvest sold for ₡${amount}`, GameEventKind.HarvestSold, day)
+  recordCropHarvested(cropName: string, amount: number, day: number): void {
+    this.push(`Player harvested ${cropName}.`, GameEventKind.CropHarvested, day)
     this.latestMoneyGain = {
       amount,
       id: ++this.moneyGainSeq,
     }
+  }
+
+  recordFieldPurchased(fieldName: string, day: number): void {
+    this.push(
+      `Player purchased ${fieldName}.`,
+      GameEventKind.FieldPurchased,
+      day,
+    )
+  }
+
+  recordFieldLeased(fieldName: string, day: number): void {
+    this.push(`Player leased ${fieldName}.`, GameEventKind.FieldLeased, day)
   }
 
   recordGameSaved(day: number): void {

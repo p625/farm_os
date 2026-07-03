@@ -1,8 +1,9 @@
-import { WHEAT_CROP } from '@/config/wheat.ts'
-import { FIELD_DEFINITIONS } from '@/config/farm-layout.ts'
+import { FIELD_CATALOG } from '@/config/field-catalog.ts'
 import { Field } from '@entities/Field.ts'
 import type { GameEventLog } from '@game/GameEventLog.ts'
 import type { World } from '@game/World.ts'
+import type { CropSystem } from './CropSystem.ts'
+import type { OwnershipSystem } from './OwnershipSystem.ts'
 import type { FieldLifecycleState } from '@/types/field.ts'
 import { FieldLifecycleState as States } from '@/types/field.ts'
 import { GameSystem } from './GameSystem.ts'
@@ -13,6 +14,8 @@ export class FieldSystem extends GameSystem {
   readonly name = 'FieldSystem'
   private readonly world: World
   private readonly fields = new Map<string, Field>()
+  private ownershipSystem: OwnershipSystem | null = null
+  private cropSystem: CropSystem | null = null
   private selectedFieldId: string | null = null
   private dayTimer = 0
   private onChange: (() => void) | null = null
@@ -21,6 +24,14 @@ export class FieldSystem extends GameSystem {
   constructor(world: World) {
     super()
     this.world = world
+  }
+
+  setOwnershipSystem(ownershipSystem: OwnershipSystem): void {
+    this.ownershipSystem = ownershipSystem
+  }
+
+  setCropSystem(cropSystem: CropSystem): void {
+    this.cropSystem = cropSystem
   }
 
   setEventLog(eventLog: GameEventLog): void {
@@ -33,7 +44,7 @@ export class FieldSystem extends GameSystem {
 
   initialize(): void {
     this.fields.clear()
-    for (const definition of FIELD_DEFINITIONS) {
+    for (const definition of FIELD_CATALOG) {
       this.fields.set(definition.id, new Field(definition.id, definition.name))
     }
     this.selectedFieldId = 'field_1'
@@ -47,6 +58,7 @@ export class FieldSystem extends GameSystem {
       state: Field['state']
       growthPercent: number
       cropId: string | null
+      daysGrown?: number
     }[],
     selectedFieldId: string | null,
   ): void {
@@ -55,9 +67,26 @@ export class FieldSystem extends GameSystem {
       if (!field) {
         continue
       }
+
+      const cropId = this.cropSystem?.normalizePlantedCropId(
+        savedField.cropId,
+        savedField.state,
+      ) ?? savedField.cropId
+
       field.state = savedField.state
+      field.cropId = cropId
       field.growthPercent = savedField.growthPercent
-      field.cropId = savedField.cropId
+
+      if (typeof savedField.daysGrown === 'number') {
+        field.daysGrown = savedField.daysGrown
+      } else if (cropId && this.cropSystem) {
+        field.daysGrown = this.cropSystem.estimateDaysGrown(
+          cropId,
+          savedField.growthPercent,
+        )
+      } else {
+        field.daysGrown = 0
+      }
     }
 
     if (selectedFieldId && this.fields.has(selectedFieldId)) {
@@ -104,6 +133,15 @@ export class FieldSystem extends GameSystem {
     return this.fields.get(this.selectedFieldId)
   }
 
+  clearSelection(): void {
+    this.selectedFieldId = null
+    this.notifyChange()
+  }
+
+  isFieldUsable(fieldId: string): boolean {
+    return this.ownershipSystem?.canUseField(fieldId) ?? false
+  }
+
   selectField(id: string): boolean {
     if (!this.fields.has(id)) {
       return false
@@ -113,46 +151,37 @@ export class FieldSystem extends GameSystem {
     return true
   }
 
-  plowSelected(): boolean {
-    const field = this.getSelectedField()
-    if (!field) {
-      return false
-    }
-    return this.plowField(field.id)
-  }
-
-  seedSelected(): boolean {
-    const field = this.getSelectedField()
-    if (!field) {
-      return false
-    }
-    return this.seedField(field.id)
-  }
-
-  harvestSelected(): boolean {
-    const field = this.getSelectedField()
-    if (!field) {
-      return false
-    }
-    return this.harvestField(field.id)
-  }
-
   canPlow(fieldId: string): boolean {
+    if (!this.isFieldUsable(fieldId)) {
+      return false
+    }
     const field = this.fields.get(fieldId)
     return field?.state === States.Grass
   }
 
-  canSeed(fieldId: string): boolean {
+  canSeed(fieldId: string, cropId: string): boolean {
+    if (!this.isFieldUsable(fieldId) || !this.cropSystem) {
+      return false
+    }
     const field = this.fields.get(fieldId)
-    return field?.state === States.Plowed
+    if (!field) {
+      return false
+    }
+    return this.cropSystem.canPlant(cropId, field.state, this.world.money)
   }
 
   canHarvest(fieldId: string): boolean {
+    if (!this.isFieldUsable(fieldId)) {
+      return false
+    }
     const field = this.fields.get(fieldId)
     return field?.state === States.Harvestable
   }
 
   plowField(fieldId: string): boolean {
+    if (!this.isFieldUsable(fieldId)) {
+      return false
+    }
     const field = this.fields.get(fieldId)
     if (!field || field.state !== States.Grass) {
       return false
@@ -160,35 +189,65 @@ export class FieldSystem extends GameSystem {
     field.state = States.Plowed
     field.growthPercent = 0
     field.cropId = null
+    field.daysGrown = 0
     this.eventLog?.recordFieldPlowed(this.world.currentDay)
     this.notifyChange()
     return true
   }
 
-  seedField(fieldId: string): boolean {
-    const field = this.fields.get(fieldId)
-    if (!field || field.state !== States.Plowed) {
+  seedField(fieldId: string, cropId: string): boolean {
+    if (!this.isFieldUsable(fieldId) || !this.cropSystem) {
       return false
     }
+    const field = this.fields.get(fieldId)
+    if (!field || !this.cropSystem.canPlant(cropId, field.state, this.world.money)) {
+      return false
+    }
+
+    const crop = this.cropSystem.getCrop(cropId)
+    if (!crop) {
+      return false
+    }
+
+    if (!this.world.spendMoney(crop.seedCost)) {
+      return false
+    }
+
     field.state = States.Seeded
     field.growthPercent = 0
-    field.cropId = WHEAT_CROP.id
-    this.eventLog?.recordWheatSeeded(this.world.currentDay)
+    field.daysGrown = 0
+    field.cropId = crop.id
+    this.eventLog?.recordCropPlanted(crop.name, this.world.currentDay)
     this.notifyChange()
     return true
   }
 
   harvestField(fieldId: string): boolean {
+    if (!this.isFieldUsable(fieldId) || !this.cropSystem) {
+      return false
+    }
     const field = this.fields.get(fieldId)
     if (!field || field.state !== States.Harvestable) {
       return false
     }
 
-    this.world.addMoney(WHEAT_CROP.harvestReward)
+    const cropId = this.cropSystem.normalizePlantedCropId(
+      field.cropId,
+      field.state,
+    )
+    if (!cropId) {
+      return false
+    }
+
+    const cropName = this.cropSystem.getCropName(cropId)
+    const harvestValue = this.cropSystem.getHarvestValue(cropId)
+
+    this.world.addMoney(harvestValue)
     field.state = States.Grass
     field.growthPercent = 0
     field.cropId = null
-    this.eventLog?.recordHarvestSold(this.world.currentDay)
+    field.daysGrown = 0
+    this.eventLog?.recordCropHarvested(cropName, harvestValue, this.world.currentDay)
     this.notifyChange()
     return true
   }
@@ -197,12 +256,17 @@ export class FieldSystem extends GameSystem {
     this.fields.clear()
     this.onChange = null
     this.eventLog = null
+    this.ownershipSystem = null
+    this.cropSystem = null
   }
 
   private advanceDay(): void {
     this.world.advanceDay()
 
     for (const field of this.fields.values()) {
+      if (!this.isFieldUsable(field.id)) {
+        continue
+      }
       this.tickField(field)
     }
 
@@ -210,8 +274,17 @@ export class FieldSystem extends GameSystem {
   }
 
   private tickField(field: Field): void {
+    if (!this.cropSystem) {
+      return
+    }
+
     if (field.state === States.Seeded) {
       field.state = States.Growing
+      field.daysGrown = 1
+      field.growthPercent = this.cropSystem.computeGrowthPercent(
+        field.cropId ?? this.cropSystem.getDefaultCropId(),
+        field.daysGrown,
+      )
       return
     }
 
@@ -219,15 +292,27 @@ export class FieldSystem extends GameSystem {
       return
     }
 
-    field.growthPercent = Math.min(
-      100,
-      field.growthPercent + WHEAT_CROP.growthPerDay,
+    const cropId = this.cropSystem.normalizePlantedCropId(
+      field.cropId,
+      field.state,
+    )
+    if (!cropId) {
+      return
+    }
+
+    field.daysGrown += 1
+    field.growthPercent = this.cropSystem.computeGrowthPercent(
+      cropId,
+      field.daysGrown,
     )
 
-    if (field.growthPercent >= 100 && field.state === States.Growing) {
+    if (field.growthPercent >= 100) {
       field.state = States.Harvestable
       field.growthPercent = 100
-      this.eventLog?.recordWheatReady(this.world.currentDay)
+      this.eventLog?.recordCropReady(
+        this.cropSystem.getCropName(cropId),
+        this.world.currentDay,
+      )
     }
   }
 

@@ -9,31 +9,31 @@ import {
   type Scene,
 } from '@babylonjs/core'
 import { FIELD_DEFINITIONS, FIELD_POSITIONS } from '@/config/farm-layout.ts'
+import { FIELD_IDS } from '@/config/field-catalog.ts'
 import type { Field } from '@entities/Field.ts'
 import type { FieldSystem } from '@systems/FieldSystem.ts'
+import type { CropSystem } from '@systems/CropSystem.ts'
+import type { OwnershipSystem } from '@systems/OwnershipSystem.ts'
+import { getFieldVisualStyle } from './appearance/FieldAppearance.ts'
 import { FieldLifecycleState as States } from '@/types/field.ts'
 
-const FIELD_MESH_IDS = ['field_1', 'field_2', 'field_3'] as const
+const FIELD_MESH_IDS = FIELD_IDS
 
-const STATE_COLORS: Record<string, Color3> = {
-  [States.Grass]: new Color3(0.35, 0.55, 0.22),
-  [States.Plowed]: new Color3(0.38, 0.26, 0.14),
-  [States.Seeded]: new Color3(0.42, 0.3, 0.16),
-  [States.Growing]: new Color3(0.32, 0.5, 0.18),
-  [States.Harvestable]: new Color3(0.78, 0.62, 0.12),
-  [States.Harvested]: new Color3(0.45, 0.38, 0.2),
-}
-
-const HOVER_EMISSIVE = new Color3(0.08, 0.12, 0.04)
-const SELECT_EMISSIVE = new Color3(0.24, 0.32, 0.1)
+const HOVER_EMISSIVE = new Color3(0.1, 0.14, 0.05)
+const SELECT_EMISSIVE = new Color3(0.28, 0.36, 0.12)
 
 export class FieldPresentation {
   private scene: Scene | null = null
   private fieldSystem: FieldSystem | null = null
+  private cropSystem: CropSystem | null = null
   private hoveredFieldId: string | null = null
   private onVisualChange: (() => void) | null = null
   private pointerObserver: ReturnType<Scene['onPointerObservable']['add']> | null =
     null
+
+  setCropSystem(cropSystem: CropSystem): void {
+    this.cropSystem = cropSystem
+  }
 
   setOnVisualChange(listener: () => void): void {
     this.onVisualChange = listener
@@ -44,7 +44,8 @@ export class FieldPresentation {
     this.scene = scene
     this.fieldSystem = fieldSystem
     this.hoveredFieldId = null
-    this.syncVisuals()
+    this.syncBaseVisuals()
+    this.syncSelectionOverlay()
     this.pointerObserver = scene.onPointerObservable.add((pointerInfo) => {
       if (pointerInfo.type === PointerEventTypes.POINTERMOVE) {
         this.updateHover(pointerInfo.pickInfo?.pickedMesh ?? null)
@@ -63,12 +64,36 @@ export class FieldPresentation {
       const fieldId = this.resolveFieldId(pick.pickedMesh)
       if (fieldId) {
         this.fieldSystem?.selectField(fieldId)
-        this.syncVisuals()
+        this.syncSelectionOverlay()
       }
     })
   }
 
-  syncVisuals(): void {
+  syncBaseVisuals(): void {
+    if (!this.scene || !this.fieldSystem) {
+      return
+    }
+
+    for (const meshId of FIELD_MESH_IDS) {
+      const mesh = this.scene.getMeshByName(meshId)
+      const field = this.fieldSystem.getField(meshId)
+      if (!mesh?.material || !field) {
+        continue
+      }
+
+      if (this.cropSystem?.isCropActive(field)) {
+        continue
+      }
+
+      const material = mesh.material as StandardMaterial
+      const style = getFieldVisualStyle(field.state, field.growthPercent)
+      material.diffuseColor = style.diffuse.clone()
+      material.specularColor = style.specular.clone()
+      material.emissiveColor = style.emissive.clone()
+    }
+  }
+
+  syncSelectionOverlay(): void {
     if (!this.scene || !this.fieldSystem) {
       return
     }
@@ -83,9 +108,19 @@ export class FieldPresentation {
       }
 
       const material = mesh.material as StandardMaterial
-      material.diffuseColor = this.colorForField(field).clone()
-      material.emissiveColor = this.emissiveForField(meshId, selectedId)
+      const baseEmissive = this.cropSystem?.isCropActive(field)
+        ? material.emissiveColor.clone()
+        : getFieldVisualStyle(field.state, field.growthPercent).emissive.clone()
+
+      material.emissiveColor = this.emissiveForField(meshId, selectedId).add(
+        baseEmissive,
+      )
     }
+  }
+
+  syncVisuals(): void {
+    this.syncBaseVisuals()
+    this.syncSelectionOverlay()
   }
 
   getHoveredFieldId(): string | null {
@@ -101,6 +136,7 @@ export class FieldPresentation {
     this.onVisualChange = null
     this.scene = null
     this.fieldSystem = null
+    this.cropSystem = null
   }
 
   private updateHover(pickedMesh: AbstractMesh | null): void {
@@ -109,7 +145,7 @@ export class FieldPresentation {
       return
     }
     this.hoveredFieldId = fieldId
-    this.syncVisuals()
+    this.syncSelectionOverlay()
     this.onVisualChange?.()
   }
 
@@ -126,25 +162,11 @@ export class FieldPresentation {
     return Color3.Black()
   }
 
-  private colorForField(field: Field): Color3 {
-    if (field.state === States.Growing) {
-      const t = field.growthPercent / 100
-      const soil = STATE_COLORS[States.Seeded]
-      const crop = STATE_COLORS[States.Growing]
-      return Color3.Lerp(soil, crop, t)
-    }
-
-    return STATE_COLORS[field.state] ?? STATE_COLORS[States.Grass]
-  }
-
   private resolveFieldId(mesh: AbstractMesh): string | null {
-    if (FIELD_MESH_IDS.includes(mesh.name as (typeof FIELD_MESH_IDS)[number])) {
+    if (FIELD_MESH_IDS.includes(mesh.name)) {
       return mesh.name
     }
-    if (
-      mesh.parent &&
-      FIELD_MESH_IDS.includes(mesh.parent.name as (typeof FIELD_MESH_IDS)[number])
-    ) {
+    if (mesh.parent && FIELD_MESH_IDS.includes(mesh.parent.name)) {
       return mesh.parent.name
     }
     return null
@@ -155,16 +177,22 @@ export class FieldOverlayPresentation {
   private scene: Scene | null = null
   private fieldSystem: FieldSystem | null = null
   private fieldPresentation: FieldPresentation | null = null
+  private ownershipSystem: OwnershipSystem | null = null
+  private cropSystem: CropSystem | null = null
 
   attach(
     scene: Scene,
     fieldSystem: FieldSystem,
     fieldPresentation: FieldPresentation,
+    ownershipSystem: OwnershipSystem,
+    cropSystem: CropSystem,
   ): void {
     this.detach()
     this.scene = scene
     this.fieldSystem = fieldSystem
     this.fieldPresentation = fieldPresentation
+    this.ownershipSystem = ownershipSystem
+    this.cropSystem = cropSystem
     this.createOverlays()
     this.syncVisuals()
   }
@@ -183,7 +211,7 @@ export class FieldOverlayPresentation {
         continue
       }
 
-      this.updateLabel(definition.id, definition.name)
+      this.updateLabel(definition.id, this.getFieldLabel(field))
       this.updateGrowthOverlay(definition.id, field)
       this.updateOutline(definition.id, selectedId, hoveredId)
     }
@@ -194,6 +222,8 @@ export class FieldOverlayPresentation {
       this.scene = null
       this.fieldSystem = null
       this.fieldPresentation = null
+      this.ownershipSystem = null
+      this.cropSystem = null
       return
     }
 
@@ -212,6 +242,21 @@ export class FieldOverlayPresentation {
     this.scene = null
     this.fieldSystem = null
     this.fieldPresentation = null
+    this.ownershipSystem = null
+    this.cropSystem = null
+  }
+
+  private getFieldLabel(field: Field): string {
+    if (this.cropSystem?.isCropActive(field)) {
+      const cropId = this.cropSystem.normalizePlantedCropId(
+        field.cropId,
+        field.state,
+      )
+      if (cropId) {
+        return this.cropSystem.getCropName(cropId)
+      }
+    }
+    return field.name
   }
 
   private createOverlays(): void {
@@ -336,8 +381,10 @@ export class FieldOverlayPresentation {
       return
     }
 
-    const isGrowing =
-      field.state === States.Growing || field.state === States.Seeded
+    const isGrowing = Boolean(
+      this.ownershipSystem?.canUseField(fieldId) &&
+        (field.state === States.Growing || field.state === States.Seeded),
+    )
     bg.setEnabled(isGrowing)
     fill.setEnabled(isGrowing)
 

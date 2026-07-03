@@ -6,52 +6,64 @@
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
-  width: min(320px, 100%);
+  width: min(340px, 100%);
   max-height: 100%;
-  padding: 1rem;
+  padding: 1rem 1rem 1.1rem;
   overflow-y: auto;
-  background: rgb(18 24 20 / 88%);
-  border-left: 1px solid rgb(255 255 255 / 8%);
-  backdrop-filter: blur(8px);
+  background: linear-gradient(
+    165deg,
+    rgb(22 30 24 / 94%) 0%,
+    rgb(14 20 16 / 92%) 100%
+  );
+  border-left: 1px solid rgb(180 220 160 / 12%);
+  box-shadow: -8px 0 28px rgb(0 0 0 / 28%);
+  backdrop-filter: blur(12px);
 }
 
 .game-hud__header {
-  padding-bottom: 0.5rem;
-  border-bottom: 1px solid rgb(255 255 255 / 8%);
+  padding-bottom: 0.65rem;
+  border-bottom: 1px solid rgb(255 255 255 / 10%);
 }
 
 .game-hud__title {
   margin: 0;
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: #b8e0b0;
+  font-size: 1.35rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  color: #c8e8bc;
+  text-shadow: 0 1px 0 rgb(0 0 0 / 25%);
 }
 
 .game-hud__subtitle {
-  margin: 0.25rem 0 0;
+  margin: 0.3rem 0 0;
   font-size: 0.75rem;
-  color: rgb(255 255 255 / 55%);
+  color: rgb(255 255 255 / 58%);
 }
 
 .game-hud__panel {
-  padding: 0.75rem;
-  background: rgb(0 0 0 / 22%);
-  border: 1px solid rgb(255 255 255 / 6%);
-  border-radius: 8px;
+  padding: 0.8rem 0.85rem;
+  background: linear-gradient(
+    180deg,
+    rgb(255 255 255 / 6%) 0%,
+    rgb(0 0 0 / 14%) 100%
+  );
+  border: 1px solid rgb(255 255 255 / 8%);
+  border-radius: 10px;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 4%);
 }
 
 .game-hud__section-title {
-  margin: 0 0 0.5rem;
-  font-size: 0.7rem;
-  font-weight: 600;
-  letter-spacing: 0.06em;
+  margin: 0 0 0.55rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: rgb(255 255 255 / 50%);
+  color: rgb(200 230 185 / 70%);
 }
 
 .game-hud__stats {
   display: grid;
-  gap: 0.35rem;
+  gap: 0.4rem;
   margin: 0;
 }
 
@@ -63,14 +75,15 @@
 
 .game-hud__stat dt {
   margin: 0;
-  color: rgb(255 255 255 / 55%);
+  color: rgb(255 255 255 / 58%);
   font-size: 0.85rem;
 }
 
 .game-hud__stat dd {
   margin: 0;
   font-weight: 600;
-  font-size: 0.9rem;
+  font-size: 0.92rem;
+  color: #edf7e8;
 }
 
 .game-hud__actions {
@@ -88,15 +101,17 @@
 }
 
 .game-hud__button--danger {
-  background: rgb(110 40 35 / 95%);
+  background: linear-gradient(180deg, rgb(140 52 45) 0%, rgb(105 36 32) 100%);
 }
 
 .game-hud__button--danger:hover:not(:disabled) {
-  background: rgb(140 50 42 / 95%);
+  background: linear-gradient(180deg, rgb(165 62 52) 0%, rgb(125 44 38) 100%);
 }
 
 .game-hud__confirm {
-  margin-top: 0.5rem;
+  margin-top: 0.55rem;
+  padding-top: 0.55rem;
+  border-top: 1px solid rgb(255 255 255 / 8%);
 }
 
 .game-hud__confirm-actions {
@@ -110,31 +125,41 @@
 }
 
 .game-hud__button {
-  padding: 0.55rem 0.75rem;
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: #e8f5e3;
-  background: rgb(60 90 50 / 90%);
-  border: 1px solid rgb(255 255 255 / 10%);
-  border-radius: 6px;
+  padding: 0.58rem 0.8rem;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #f0faec;
+  background: linear-gradient(180deg, rgb(72 108 58) 0%, rgb(52 82 42) 100%);
+  border: 1px solid rgb(255 255 255 / 12%);
+  border-radius: 8px;
+  box-shadow: 0 2px 0 rgb(0 0 0 / 18%);
   cursor: pointer;
+  transition:
+    transform 0.12s ease,
+    filter 0.12s ease;
 }
 
 .game-hud__button:hover:not(:disabled) {
-  background: rgb(74 110 60 / 95%);
+  filter: brightness(1.06);
+  transform: translateY(-1px);
+}
+
+.game-hud__button:active:not(:disabled) {
+  transform: translateY(0);
 }
 
 .game-hud__button:disabled {
-  opacity: 0.4;
+  opacity: 0.38;
   cursor: not-allowed;
+  box-shadow: none;
 }
 
 .game-hud__button--primary {
-  background: rgb(140 110 30 / 95%);
+  background: linear-gradient(180deg, rgb(168 132 42) 0%, rgb(128 98 28) 100%);
 }
 
 .game-hud__button--primary:hover:not(:disabled) {
-  background: rgb(170 135 40 / 95%);
+  filter: brightness(1.08);
 }
 
 .game-hud__speeds {
@@ -145,27 +170,29 @@
 
 .game-hud__speed {
   flex: 1;
-  padding: 0.4rem;
-  font-size: 0.85rem;
-  font-weight: 600;
+  padding: 0.42rem;
+  font-size: 0.84rem;
+  font-weight: 700;
   color: #d8e8d4;
-  background: rgb(40 55 38 / 90%);
-  border: 1px solid rgb(255 255 255 / 8%);
-  border-radius: 6px;
+  background: rgb(34 48 32 / 92%);
+  border: 1px solid rgb(255 255 255 / 10%);
+  border-radius: 8px;
   cursor: pointer;
+  transition: background 0.12s ease;
 }
 
 .game-hud__speed--active {
   color: #102010;
-  background: #9fd491;
-  border-color: #9fd491;
+  background: linear-gradient(180deg, #b4e0a8 0%, #8ec882 100%);
+  border-color: #b4e0a8;
+  box-shadow: 0 0 0 1px rgb(255 255 255 / 15%) inset;
 }
 
 .game-hud__hint {
   margin: 0;
   font-size: 0.75rem;
-  line-height: 1.4;
-  color: rgb(255 255 255 / 45%);
+  line-height: 1.45;
+  color: rgb(255 255 255 / 48%);
 }
 
 .game-hud__field-list {
@@ -179,37 +206,43 @@
 
 .game-hud__field-item {
   width: 100%;
-  padding: 0.45rem 0.55rem;
+  padding: 0.48rem 0.6rem;
   font-size: 0.8rem;
   text-align: left;
-  color: #d8e8d4;
-  background: rgb(30 40 28 / 80%);
+  color: #dcecd6;
+  background: rgb(28 38 26 / 82%);
   border: 1px solid transparent;
-  border-radius: 6px;
+  border-radius: 8px;
   cursor: pointer;
+  transition:
+    border-color 0.12s ease,
+    background 0.12s ease;
 }
 
 .game-hud__field-item:hover {
-  border-color: rgb(255 255 255 / 12%);
+  border-color: rgb(255 255 255 / 14%);
+  background: rgb(36 50 32 / 88%);
 }
 
 .game-hud__field-item--active {
-  border-color: #9fd491;
-  background: rgb(50 70 45 / 90%);
+  border-color: #a8d89c;
+  background: linear-gradient(180deg, rgb(56 78 48) 0%, rgb(44 62 38) 100%);
+  box-shadow: 0 0 0 1px rgb(168 216 156 / 20%) inset;
 }
 
 .game-hud__progress {
-  height: 6px;
-  margin-top: 0.5rem;
+  height: 7px;
+  margin-top: 0.55rem;
   overflow: hidden;
-  background: rgb(0 0 0 / 30%);
-  border-radius: 3px;
+  background: rgb(0 0 0 / 32%);
+  border-radius: 4px;
+  box-shadow: inset 0 1px 2px rgb(0 0 0 / 25%);
 }
 
 .game-hud__progress-fill {
   height: 100%;
-  background: #9fd491;
-  border-radius: 3px;
+  background: linear-gradient(90deg, #7fbf6a 0%, #b4e08e 100%);
+  border-radius: 4px;
   transition: width 0.1s linear;
 }
 
@@ -226,8 +259,9 @@
 
 .game-hud__money dd {
   margin: 0;
-  font-weight: 600;
-  font-size: 0.9rem;
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: #f5e6a8;
 }
 
 .game-hud__money-pop {
@@ -276,23 +310,23 @@
 
 .game-hud__event {
   display: grid;
-  gap: 0.1rem;
-  padding: 0.4rem 0.5rem;
+  gap: 0.12rem;
+  padding: 0.45rem 0.55rem;
   font-size: 0.78rem;
   line-height: 1.35;
-  background: rgb(0 0 0 / 18%);
-  border-left: 2px solid rgb(159 212 145 / 55%);
-  border-radius: 4px;
+  background: rgb(0 0 0 / 22%);
+  border-left: 3px solid rgb(168 216 156 / 65%);
+  border-radius: 6px;
 }
 
 .game-hud__event-day {
-  font-size: 0.68rem;
-  font-weight: 600;
-  letter-spacing: 0.04em;
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
-  color: rgb(255 255 255 / 40%);
+  color: rgb(255 255 255 / 42%);
 }
 
 .game-hud__event-message {
-  color: #d8e8d4;
+  color: #dcecd6;
 }

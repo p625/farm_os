@@ -19,6 +19,8 @@ export interface TractorJobSnapshot {
   type: JobType
   fieldId: string
   fieldName: string
+  cropId?: string
+  cropName?: string
 }
 
 export interface TractorSnapshot {

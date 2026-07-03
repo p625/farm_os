@@ -1,5 +1,10 @@
 export { GameSystem } from './GameSystem.ts'
 export { FieldSystem, formatFieldState } from './FieldSystem.ts'
+export { CropSystem } from './CropSystem.ts'
+export {
+  OwnershipSystem,
+  formatFieldOwnership,
+} from './OwnershipSystem.ts'
 export {
   TractorJobSystem,
   formatTractorState,

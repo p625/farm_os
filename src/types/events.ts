@@ -1,8 +1,10 @@
 export const GameEventKind = {
   FieldPlowed: 'field_plowed',
-  WheatSeeded: 'wheat_seeded',
-  WheatReady: 'wheat_ready',
-  HarvestSold: 'harvest_sold',
+  CropPlanted: 'crop_planted',
+  CropReady: 'crop_ready',
+  CropHarvested: 'crop_harvested',
+  FieldPurchased: 'field_purchased',
+  FieldLeased: 'field_leased',
   GameSaved: 'game_saved',
   FarmReset: 'farm_reset',
 } as const

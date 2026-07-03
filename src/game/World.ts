@@ -25,6 +25,14 @@ export class World implements IInitializable, IUpdatable, IDisposable {
     this.money += amount
   }
 
+  spendMoney(amount: number): boolean {
+    if (amount < 0 || this.money < amount) {
+      return false
+    }
+    this.money -= amount
+    return true
+  }
+
   advanceDay(): void {
     this.currentDay += 1
   }

@@ -1,4 +1,5 @@
 import type { FieldSnapshot } from '@/types/field.ts'
+import type { CropSnapshot } from '@/types/crop.ts'
 import type { GameLogEntry, MoneyGainEffect } from '@/types/events.ts'
 import { TractorState, type TractorSnapshot } from '@/types/tractor.ts'
 
@@ -8,6 +9,7 @@ export interface GameSnapshot {
   gameSpeed: number
   selectedFieldId: string | null
   fields: readonly FieldSnapshot[]
+  crops: readonly CropSnapshot[]
   tractor: TractorSnapshot
   eventLog: readonly GameLogEntry[]
   moneyGain: MoneyGainEffect | null
@@ -19,6 +21,7 @@ export const EMPTY_GAME_SNAPSHOT: GameSnapshot = {
   gameSpeed: 1,
   selectedFieldId: null,
   fields: [],
+  crops: [],
   tractor: {
     state: TractorState.Idle,
     activeJob: null,

@@ -5,6 +5,7 @@ import {
   TRACTOR_HOME_ROTATION_Y,
   TRACTOR_MOVE_SPEED,
 } from '@/config/farm-layout.ts'
+import type { CropSystem } from './CropSystem.ts'
 import type { FieldSystem } from './FieldSystem.ts'
 import { GameSystem } from './GameSystem.ts'
 import {
@@ -17,6 +18,7 @@ import {
 interface ActiveJob {
   type: JobTypeValue
   fieldId: string
+  cropId?: string
 }
 
 interface Vec3 {
@@ -30,6 +32,7 @@ const ARRIVAL_THRESHOLD = 0.15
 export class TractorJobSystem extends GameSystem {
   readonly name = 'TractorJobSystem'
   private readonly fieldSystem: FieldSystem
+  private cropSystem: CropSystem | null = null
   private state: TractorState = TractorState.Idle
   private position: Vec3 = { ...TRACTOR_HOME }
   private rotationY = TRACTOR_HOME_ROTATION_Y
@@ -42,6 +45,10 @@ export class TractorJobSystem extends GameSystem {
   constructor(fieldSystem: FieldSystem) {
     super()
     this.fieldSystem = fieldSystem
+  }
+
+  setCropSystem(cropSystem: CropSystem): void {
+    this.cropSystem = cropSystem
   }
 
   setOnChange(listener: () => void): void {
@@ -117,8 +124,8 @@ export class TractorJobSystem extends GameSystem {
     return this.enqueueJob(JobType.Plow, fieldId)
   }
 
-  enqueueSeed(fieldId: string): boolean {
-    return this.enqueueJob(JobType.Seed, fieldId)
+  enqueueSeed(fieldId: string, cropId: string): boolean {
+    return this.enqueueJob(JobType.Seed, fieldId, cropId)
   }
 
   enqueueHarvest(fieldId: string): boolean {
@@ -145,6 +152,10 @@ export class TractorJobSystem extends GameSystem {
             type: this.activeJob.type,
             fieldId: this.activeJob.fieldId,
             fieldName: field?.name ?? this.activeJob.fieldId,
+            cropId: this.activeJob.cropId,
+            cropName: this.activeJob.cropId
+              ? this.cropSystem?.getCropName(this.activeJob.cropId)
+              : undefined,
           }
         : null,
       workProgress:
@@ -158,30 +169,39 @@ export class TractorJobSystem extends GameSystem {
     this.activeJob = null
     this.onChange = null
     this.onVisualChange = null
+    this.cropSystem = null
   }
 
-  private enqueueJob(type: JobTypeValue, fieldId: string): boolean {
+  private enqueueJob(
+    type: JobTypeValue,
+    fieldId: string,
+    cropId?: string,
+  ): boolean {
     if (this.isBusy()) {
       return false
     }
 
-    if (!this.canPerformJob(type, fieldId)) {
+    if (!this.canPerformJob(type, fieldId, cropId)) {
       return false
     }
 
-    this.activeJob = { type, fieldId }
+    this.activeJob = { type, fieldId, cropId }
     this.state = TractorState.MovingToField
     this.workTimer = 0
     this.notifyChange()
     return true
   }
 
-  private canPerformJob(type: JobTypeValue, fieldId: string): boolean {
+  private canPerformJob(
+    type: JobTypeValue,
+    fieldId: string,
+    cropId?: string,
+  ): boolean {
     switch (type) {
       case JobType.Plow:
         return this.fieldSystem.canPlow(fieldId)
       case JobType.Seed:
-        return this.fieldSystem.canSeed(fieldId)
+        return cropId ? this.fieldSystem.canSeed(fieldId, cropId) : false
       case JobType.Harvest:
         return this.fieldSystem.canHarvest(fieldId)
       default:
@@ -194,13 +214,15 @@ export class TractorJobSystem extends GameSystem {
       return
     }
 
-    const { type, fieldId } = this.activeJob
+    const { type, fieldId, cropId } = this.activeJob
     switch (type) {
       case JobType.Plow:
         this.fieldSystem.plowField(fieldId)
         break
       case JobType.Seed:
-        this.fieldSystem.seedField(fieldId)
+        if (cropId) {
+          this.fieldSystem.seedField(fieldId, cropId)
+        }
         break
       case JobType.Harvest:
         this.fieldSystem.harvestField(fieldId)
@@ -251,12 +273,15 @@ export function formatTractorState(state: TractorState): string {
   }
 }
 
-export function formatJobType(type: JobTypeValue): string {
+export function formatJobType(
+  type: JobTypeValue,
+  cropName?: string,
+): string {
   switch (type) {
     case JobType.Plow:
       return 'Plow'
     case JobType.Seed:
-      return 'Seed wheat'
+      return cropName ? `Seed ${cropName}` : 'Seed crop'
     case JobType.Harvest:
       return 'Harvest'
     default:

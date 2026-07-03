@@ -4,13 +4,21 @@ import { GameEventLog } from '@game/GameEventLog.ts'
 import { SaveGameService } from '@game/SaveGameService.ts'
 import {
   CameraController,
+  CropPresentation,
   FieldOverlayPresentation,
   FieldPresentation,
   LightingSystem,
+  OwnershipPresentation,
   SceneManager,
   TractorPresentation,
 } from '@rendering/index.ts'
-import { FieldSystem, TractorJobSystem } from '@systems/index.ts'
+import {
+  CropSystem,
+  FieldSystem,
+  OwnershipSystem,
+  TractorJobSystem,
+} from '@systems/index.ts'
+import { getFieldCatalogEntry } from '@/config/field-catalog.ts'
 import { SAVE_VERSION } from '@/config/save.ts'
 import type { GameConfig } from '@/types/index.ts'
 import { DEFAULT_GAME_CONFIG } from '@/types/index.ts'
@@ -24,13 +32,17 @@ export class Game implements IDisposable {
   private readonly cameraController: CameraController
   private readonly lightingSystem: LightingSystem
   private readonly world: World
+  private readonly cropSystem: CropSystem
   private readonly fieldSystem: FieldSystem
+  private readonly ownershipSystem: OwnershipSystem
   private readonly tractorJobSystem: TractorJobSystem
   private readonly eventLog: GameEventLog
   private readonly soundManager: SoundManager
   private readonly saveGameService: SaveGameService
   private readonly fieldPresentation: FieldPresentation
+  private readonly cropPresentation: CropPresentation
   private readonly fieldOverlayPresentation: FieldOverlayPresentation
+  private readonly ownershipPresentation: OwnershipPresentation
   private readonly tractorPresentation: TractorPresentation
   private readonly gameLoop: GameLoop
   private readonly listeners = new Set<() => void>()
@@ -52,10 +64,17 @@ export class Game implements IDisposable {
       this.soundManager.playForGameEvent(entry.kind)
     })
     this.saveGameService = new SaveGameService()
+    this.cropSystem = new CropSystem()
+    this.ownershipSystem = new OwnershipSystem(this.world)
     this.fieldSystem = new FieldSystem(this.world)
+    this.fieldSystem.setOwnershipSystem(this.ownershipSystem)
+    this.fieldSystem.setCropSystem(this.cropSystem)
     this.tractorJobSystem = new TractorJobSystem(this.fieldSystem)
+    this.tractorJobSystem.setCropSystem(this.cropSystem)
     this.fieldPresentation = new FieldPresentation()
+    this.cropPresentation = new CropPresentation()
     this.fieldOverlayPresentation = new FieldOverlayPresentation()
+    this.ownershipPresentation = new OwnershipPresentation()
     this.tractorPresentation = new TractorPresentation()
     this.gameLoop = new GameLoop([
       this.world,
@@ -86,10 +105,10 @@ export class Game implements IDisposable {
     }
   }
 
-  seedSelectedField(): void {
+  plantSelectedField(cropId: string): void {
     const fieldId = this.fieldSystem.getSelectedFieldId()
     if (fieldId) {
-      this.tractorJobSystem.enqueueSeed(fieldId)
+      this.tractorJobSystem.enqueueSeed(fieldId, cropId)
     }
   }
 
@@ -102,6 +121,36 @@ export class Game implements IDisposable {
 
   selectField(fieldId: string): void {
     this.fieldSystem.selectField(fieldId)
+  }
+
+  purchaseSelectedField(): void {
+    const fieldId = this.fieldSystem.getSelectedFieldId()
+    if (!fieldId) {
+      return
+    }
+    if (this.ownershipSystem.purchaseField(fieldId)) {
+      this.syncFieldVisuals()
+      this.autoSave()
+      this.notifyListeners()
+    }
+  }
+
+  leaseSelectedField(): void {
+    const fieldId = this.fieldSystem.getSelectedFieldId()
+    if (!fieldId) {
+      return
+    }
+    if (this.ownershipSystem.leaseField(fieldId)) {
+      this.syncFieldVisuals()
+      this.autoSave()
+      this.notifyListeners()
+    }
+  }
+
+  cancelFieldExpansion(): void {
+    this.fieldSystem.clearSelection()
+    this.syncFieldVisuals()
+    this.notifyListeners()
   }
 
   setGameSpeed(speed: number): void {
@@ -119,6 +168,8 @@ export class Game implements IDisposable {
   resetFarm(): void {
     this.saveGameService.clear()
     this.world.initialize()
+    this.cropSystem.initialize()
+    this.ownershipSystem.initialize()
     this.fieldSystem.initialize()
     this.tractorJobSystem.initialize()
     this.eventLog.clear()
@@ -142,6 +193,7 @@ export class Game implements IDisposable {
     this.lightingSystem.initialize()
     this.cameraController.initialize()
     this.world.initialize()
+    this.cropSystem.initialize()
 
     this.fieldSystem.setEventLog(this.eventLog)
     this.fieldSystem.setOnChange(() => {
@@ -151,6 +203,15 @@ export class Game implements IDisposable {
     })
     this.fieldSystem.initialize()
 
+    this.ownershipSystem.setEventLog(this.eventLog)
+    this.ownershipSystem.setOnChange(() => {
+      this.syncFieldVisuals()
+      this.autoSave()
+      this.notifyListeners()
+    })
+    this.ownershipSystem.initialize()
+
+    this.fieldPresentation.setCropSystem(this.cropSystem)
     this.fieldPresentation.setOnVisualChange(() => {
       this.fieldOverlayPresentation.syncVisuals()
     })
@@ -167,10 +228,18 @@ export class Game implements IDisposable {
 
     const scene = this.sceneManager.getScene()
     this.fieldPresentation.attach(scene, this.fieldSystem)
+    this.cropPresentation.attach(scene, this.fieldSystem, this.cropSystem)
     this.fieldOverlayPresentation.attach(
       scene,
       this.fieldSystem,
       this.fieldPresentation,
+      this.ownershipSystem,
+      this.cropSystem,
+    )
+    this.ownershipPresentation.attach(
+      scene,
+      this.fieldSystem,
+      this.ownershipSystem,
     )
     this.tractorPresentation.attach(scene, this.tractorJobSystem)
 
@@ -195,10 +264,14 @@ export class Game implements IDisposable {
     this.autoSaveEnabled = false
     this.stop()
     this.tractorPresentation.detach()
+    this.ownershipPresentation.detach()
+    this.cropPresentation.detach()
     this.fieldOverlayPresentation.detach()
     this.fieldPresentation.detach()
     this.tractorJobSystem.dispose()
     this.fieldSystem.dispose()
+    this.ownershipSystem.dispose()
+    this.cropSystem.dispose()
     this.eventLog.clear()
     this.world.dispose()
     this.cameraController.dispose()
@@ -222,6 +295,7 @@ export class Game implements IDisposable {
     this.autoSaveEnabled = false
 
     this.world.applySave(saved.money, saved.currentDay, saved.gameSpeed)
+    this.ownershipSystem.applySave(saved.ownership)
     this.fieldSystem.applySave(saved.fields, saved.selectedFieldId)
     this.eventLog.restore(saved.eventLog, saved.eventLogNextId)
     this.tractorJobSystem.initialize()
@@ -237,6 +311,7 @@ export class Game implements IDisposable {
       gameSpeed: this.world.gameSpeed,
       selectedFieldId: this.fieldSystem.getSelectedFieldId(),
       fields: this.fieldSystem.toSaveFields(),
+      ownership: this.ownershipSystem.toSaveOwnership(),
       eventLog: [...this.eventLog.getEntries()],
       eventLogNextId: this.eventLog.getNextId(),
     }
@@ -254,8 +329,33 @@ export class Game implements IDisposable {
   }
 
   private syncFieldVisuals(): void {
-    this.fieldPresentation.syncVisuals()
+    this.fieldPresentation.syncBaseVisuals()
+    this.cropPresentation.syncVisuals()
+    this.ownershipPresentation.syncVisuals()
+    this.fieldPresentation.syncSelectionOverlay()
     this.fieldOverlayPresentation.syncVisuals()
+  }
+
+  private buildFieldSnapshots() {
+    return this.fieldSystem.getFields().map((field) => {
+      const catalog = getFieldCatalogEntry(field.id)
+      const ownership = this.ownershipSystem.getOwnership(field.id)
+      const cropId = this.cropSystem.normalizePlantedCropId(
+        field.cropId,
+        field.state,
+      )
+      return {
+        ...field.toSnapshot(),
+        cropId,
+        cropName: cropId ? this.cropSystem.getCropName(cropId) : null,
+        ownership,
+        purchasePrice: catalog?.purchasePrice ?? 0,
+        leasePrice: catalog?.leasePrice ?? 0,
+        area: catalog?.area ?? 0,
+        fertility: catalog?.fertility ?? 0,
+        usable: this.ownershipSystem.canUseField(field.id),
+      }
+    })
   }
 
   private invalidateSnapshot(): void {
@@ -268,7 +368,8 @@ export class Game implements IDisposable {
       currentDay: this.world.currentDay,
       gameSpeed: this.world.gameSpeed,
       selectedFieldId: this.fieldSystem.getSelectedFieldId(),
-      fields: this.fieldSystem.getFields().map((field) => field.toSnapshot()),
+      fields: this.buildFieldSnapshots(),
+      crops: this.cropSystem.toSnapshots(),
       tractor: this.tractorJobSystem.toSnapshot(),
       eventLog: this.eventLog.getEntries(),
       moneyGain: this.eventLog.getLatestMoneyGain(),

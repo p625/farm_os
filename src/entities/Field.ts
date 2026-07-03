@@ -7,6 +7,7 @@ export class Field implements FieldData {
   state: FieldLifecycleState
   growthPercent: number
   cropId: string | null
+  daysGrown: number
 
   constructor(id: string, name: string) {
     this.id = id
@@ -14,6 +15,7 @@ export class Field implements FieldData {
     this.state = States.Grass
     this.growthPercent = 0
     this.cropId = null
+    this.daysGrown = 0
   }
 
   toSnapshot(): FieldData {
@@ -23,6 +25,7 @@ export class Field implements FieldData {
       state: this.state,
       growthPercent: this.growthPercent,
       cropId: this.cropId,
+      daysGrown: this.daysGrown,
     }
   }
 }

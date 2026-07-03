@@ -1,0 +1,131 @@
+.choose-crop-dialog {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.choose-crop-dialog__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgb(0 0 0 / 45%);
+}
+
+.choose-crop-dialog__panel {
+  position: relative;
+  width: min(420px, 100%);
+  max-height: min(80vh, 640px);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(
+    165deg,
+    rgb(24 32 26 / 98%) 0%,
+    rgb(14 20 16 / 98%) 100%
+  );
+  border: 1px solid rgb(180 220 160 / 18%);
+  border-radius: 12px;
+  box-shadow: 0 16px 48px rgb(0 0 0 / 40%);
+}
+
+.choose-crop-dialog__header {
+  padding: 1rem 1.1rem 0.75rem;
+  border-bottom: 1px solid rgb(255 255 255 / 8%);
+}
+
+.choose-crop-dialog__title {
+  margin: 0;
+  font-size: 1.1rem;
+  color: #c8e8bc;
+}
+
+.choose-crop-dialog__subtitle {
+  margin: 0.35rem 0 0;
+  font-size: 0.82rem;
+  color: rgb(255 255 255 / 58%);
+}
+
+.choose-crop-dialog__list {
+  display: grid;
+  gap: 0.55rem;
+  margin: 0;
+  padding: 0.85rem 1rem;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.choose-crop-dialog__option {
+  display: flex;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.7rem 0.75rem;
+  text-align: left;
+  background: rgb(255 255 255 / 5%);
+  border: 1px solid rgb(255 255 255 / 8%);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.choose-crop-dialog__option:hover:not(:disabled) {
+  background: rgb(255 255 255 / 9%);
+  border-color: rgb(200 230 185 / 28%);
+}
+
+.choose-crop-dialog__option:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.choose-crop-dialog__swatch {
+  flex: 0 0 1.1rem;
+  width: 1.1rem;
+  height: 1.1rem;
+  margin-top: 0.15rem;
+  border-radius: 4px;
+  border: 1px solid rgb(255 255 255 / 20%);
+}
+
+.choose-crop-dialog__details {
+  display: grid;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.choose-crop-dialog__name {
+  font-weight: 700;
+  color: #e8f5e3;
+}
+
+.choose-crop-dialog__meta,
+.choose-crop-dialog__economics {
+  font-size: 0.78rem;
+  color: rgb(255 255 255 / 62%);
+}
+
+.choose-crop-dialog__economics {
+  color: rgb(200 230 185 / 78%);
+}
+
+.choose-crop-dialog__footer {
+  padding: 0.75rem 1rem 1rem;
+  border-top: 1px solid rgb(255 255 255 / 8%);
+}
+
+.choose-crop-dialog__cancel {
+  width: 100%;
+  padding: 0.55rem 0.75rem;
+  font: inherit;
+  color: #e8f5e3;
+  background: rgb(255 255 255 / 6%);
+  border: 1px solid rgb(255 255 255 / 12%);
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.choose-crop-dialog__cancel:hover {
+  background: rgb(255 255 255 / 10%);
+}

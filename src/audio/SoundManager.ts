@@ -21,13 +21,13 @@ export class SoundManager {
       case GameEventKind.FieldPlowed:
         this.play(SoundEvent.Plow)
         break
-      case GameEventKind.WheatSeeded:
+      case GameEventKind.CropPlanted:
         this.play(SoundEvent.Seed)
         break
-      case GameEventKind.WheatReady:
+      case GameEventKind.CropReady:
         this.play(SoundEvent.Harvestable)
         break
-      case GameEventKind.HarvestSold:
+      case GameEventKind.CropHarvested:
         this.play(SoundEvent.Harvest)
         this.play(SoundEvent.Money)
         break
