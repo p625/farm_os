@@ -4,22 +4,19 @@ import {
   MeshBuilder,
   StandardMaterial,
   Vector3,
-  type AbstractMesh,
   type Mesh,
 } from '@babylonjs/core'
 import type { StudioCameraController } from '@/studio/core/StudioCameraController.ts'
-import {
-  STUDIO_ROAD_POINT_KEY,
-  getStudioMetadata,
-  type StudioRoadPointMetadata,
-} from '@/studio/io/MapSceneBuilder.ts'
+import { STUDIO_ROAD_POINT_KEY, type StudioRoadPointMetadata } from '@/studio/io/MapSceneBuilder.ts'
 import type { MapSceneBuilder } from '@/studio/io/MapSceneBuilder.ts'
 import type { StudioStore } from '@/studio/core/StudioStore.ts'
 import { getRoadKind, getRoadPoints } from '@/studio/road/roadObject.ts'
 import {
-  isJunctionPoint,
-  trySnapRoadPoint,
-} from '@/studio/road/RoadJunction.ts'
+  createJunctionHandleMesh,
+  pickRoadPlacementPoint,
+  RoadSnapPreview,
+} from '@/studio/road/RoadPlacementPick.ts'
+import { isJunctionPoint, previewSnap, trySnapRoadPoint } from '@/studio/road/RoadJunction.ts'
 import type { RoadControlPoint, RoadKind } from '@/types/road.ts'
 
 const HANDLE_RADIUS = 0.35
@@ -38,6 +35,7 @@ export class StudioRoadEditor {
   private readonly canvas: HTMLCanvasElement
   private readonly deps: StudioRoadEditorDeps
   private readonly handles = new Map<string, Mesh>()
+  private readonly snapPreview = new RoadSnapPreview()
   private attached = false
   private dragging = false
   private dragRoadId: string | null = null
@@ -70,12 +68,14 @@ export class StudioRoadEditor {
     this.canvas.removeEventListener('pointerup', this.onPointerUp)
     this.canvas.removeEventListener('pointercancel', this.onPointerUp)
     this.disposeHandles()
+    this.snapPreview.dispose()
     this.endDrag()
   }
 
   syncModuleState(scene: Scene | null): void {
     if (!scene || this.deps.store.getSnapshot().activeModuleId !== 'roads') {
       this.disposeHandles()
+      this.snapPreview.dispose()
       return
     }
     this.syncHandles(scene)
@@ -109,48 +109,54 @@ export class StudioRoadEditor {
         const key = `${roadId}:${index}`
         wanted.add(key)
         const point = points[index]
+        const junction = isJunctionPoint(point)
         let handle = this.handles.get(key)
+        const handleIsJunction = Boolean(handle?.name.startsWith('road_junction_'))
+
+        if (handle && junction !== handleIsJunction) {
+          handle.dispose(false, true)
+          this.handles.delete(key)
+          handle = undefined
+        }
+
         if (!handle || handle.isDisposed()) {
-          handle = MeshBuilder.CreateSphere(
-            `road_handle_${key}`,
-            { diameter: HANDLE_RADIUS * 2, segments: 10 },
-            scene,
-          )
-          handle.isPickable = true
-          const material = new StandardMaterial(`road_handle_mat_${key}`, scene)
-          material.diffuseColor = isDraft
-            ? new Color3(0.95, 0.85, 0.35)
-            : new Color3(0.55, 0.75, 0.95)
-          material.emissiveColor = material.diffuseColor.scale(0.25)
-          handle.material = material
+          if (junction) {
+            handle = createJunctionHandleMesh(scene, key, point.junction!.join)
+          } else {
+            handle = MeshBuilder.CreateSphere(
+              `road_handle_${key}`,
+              { diameter: HANDLE_RADIUS * 2, segments: 10 },
+              scene,
+            )
+            handle.isPickable = true
+            handle.renderingGroupId = 3
+            const material = new StandardMaterial(`road_handle_mat_${key}`, scene)
+            material.diffuseColor = isDraft
+              ? new Color3(0.95, 0.85, 0.35)
+              : new Color3(0.55, 0.75, 0.95)
+            material.emissiveColor = material.diffuseColor.scale(0.35)
+            material.disableLighting = true
+            handle.material = material
+          }
           this.handles.set(key, handle)
         }
 
-        handle.position = new Vector3(point.x, point.y + 0.12, point.z)
+        handle.position = new Vector3(point.x, point.y + 0.15, point.z)
         const selected =
           snapshot.roadSelection?.roadId === roadId &&
           snapshot.roadSelection.pointIndex === index
-        if (handle.material instanceof StandardMaterial) {
-          if (isJunctionPoint(point)) {
-            const join = point.junction!.join
-            handle.material.diffuseColor =
-              join === 'merge'
-                ? new Color3(0.95, 0.62, 0.22)
-                : new Color3(0.32, 0.88, 0.52)
-            handle.material.emissiveColor = selected
-              ? new Color3(0.9, 0.95, 0.5)
-              : handle.material.diffuseColor.scale(0.2)
-          } else {
-            handle.material.diffuseColor = isDraft
-              ? new Color3(0.95, 0.85, 0.35)
-              : new Color3(0.55, 0.75, 0.95)
-            handle.material.emissiveColor = selected
-              ? new Color3(0.9, 0.95, 0.5)
-              : isDraft
-                ? new Color3(0.24, 0.2, 0.08)
-                : new Color3(0.14, 0.18, 0.24)
-          }
+
+        if (!junction && handle.material instanceof StandardMaterial) {
+          handle.material.diffuseColor = isDraft
+            ? new Color3(0.95, 0.85, 0.35)
+            : new Color3(0.55, 0.75, 0.95)
+          handle.material.emissiveColor = selected
+            ? new Color3(0.9, 0.95, 0.5)
+            : isDraft
+              ? new Color3(0.24, 0.2, 0.08)
+              : new Color3(0.14, 0.18, 0.24)
         }
+
         handle.scaling = new Vector3(
           selected ? 1.25 : 1,
           selected ? 1.25 : 1,
@@ -181,7 +187,11 @@ export class StudioRoadEditor {
     }
 
     if (snapshot.roadDraft) {
-      addHandles(DRAFT_ROAD_ID, snapshot.roadDraft.points, true)
+      const draftSnapped = this.deps.mapSceneBuilder.snapRoadPoints(
+        this.deps.store.getMap(),
+        snapshot.roadDraft.points,
+      )
+      addHandles(DRAFT_ROAD_ID, draftSnapped, true)
     }
 
     for (const [key, handle] of this.handles) {
@@ -255,7 +265,7 @@ export class StudioRoadEditor {
       return
     }
 
-    const hit = this.pickTerrainPoint(scene, coords.x, coords.y)
+    const hit = pickRoadPlacementPoint(scene, coords.x, coords.y)
     if (!hit) {
       return
     }
@@ -264,22 +274,30 @@ export class StudioRoadEditor {
     const { roadKind } = this.deps.store.getSnapshot()
     const point = this.resolvePlacedPoint(hit.x, hit.z, roadKind)
     this.deps.store.addRoadDraftPoint(point)
+    this.snapPreview.hide()
     this.syncModuleState(scene)
     this.deps.requestRender()
   }
 
   private readonly onPointerMove = (event: PointerEvent): void => {
-    if (!this.dragging) {
-      return
-    }
-
     const scene = this.deps.getScene()
     if (!scene) {
       return
     }
 
     const coords = this.canvasCoords(event)
-    const hit = this.pickTerrainPoint(scene, coords.x, coords.y)
+    const snapshot = this.deps.store.getSnapshot()
+
+    if (!this.dragging && snapshot.roadTool === 'draw') {
+      this.updateSnapPreview(scene, coords.x, coords.y)
+      return
+    }
+
+    if (!this.dragging) {
+      return
+    }
+
+    const hit = pickRoadPlacementPoint(scene, coords.x, coords.y)
     if (!hit || this.dragPointIndex < 0) {
       return
     }
@@ -313,6 +331,32 @@ export class StudioRoadEditor {
       )
       this.syncHandles(scene)
     }
+    this.deps.requestRender()
+  }
+
+  private updateSnapPreview(scene: Scene, canvasX: number, canvasY: number): void {
+    const hit = pickRoadPlacementPoint(scene, canvasX, canvasY)
+    if (!hit) {
+      this.snapPreview.hide()
+      this.deps.requestRender()
+      return
+    }
+
+    const { roadKind } = this.deps.store.getSnapshot()
+    const map = this.deps.store.getMap()
+    const preview = previewSnap(map, hit.x, hit.z, roadKind)
+    if (!preview) {
+      this.snapPreview.hide()
+      this.deps.requestRender()
+      return
+    }
+
+    const terrainPoint = this.deps.mapSceneBuilder.sampleTerrainPoint(
+      map,
+      preview.snap.x,
+      preview.snap.z,
+    )
+    this.snapPreview.update(scene, terrainPoint, preview.join)
     this.deps.requestRender()
   }
 
@@ -369,18 +413,6 @@ export class StudioRoadEditor {
       }
     }
     return this.deps.store.getSnapshot().roadKind
-  }
-
-  private pickTerrainPoint(
-    scene: Scene,
-    canvasX: number,
-    canvasY: number,
-  ): Vector3 | null {
-    const pick = scene.pick(canvasX, canvasY, (mesh) => {
-      const metadata = getStudioMetadata(mesh as AbstractMesh)
-      return metadata?.objectId === 'terrain_ground'
-    })
-    return pick?.pickedPoint ?? null
   }
 
   private pickRoadHandle(

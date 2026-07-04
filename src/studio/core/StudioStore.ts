@@ -17,7 +17,8 @@ import {
   type TerrainHeightfield,
   ensureTerrainHeightfield,
 } from '@/studio/terrain/TerrainHeightmap.ts'
-import { createRoadObject } from '@/studio/road/roadObject.ts'
+import { createRoadObject, getRoadKind } from '@/studio/road/roadObject.ts'
+import { applyJunctionsToAnchorRoads } from '@/studio/road/RoadJunction.ts'
 
 export type StudioModuleId = 'transform' | 'terrain' | 'roads'
 export type RoadToolMode = 'draw' | 'select'
@@ -301,10 +302,15 @@ export class StudioStore {
       return false
     }
     const road = createRoadObject(this.roadDraft.points, this.roadDraft.roadKind)
-    this.map = {
-      ...this.map,
-      objects: [...this.map.objects, road],
-    }
+    this.map = applyJunctionsToAnchorRoads(
+      {
+        ...this.map,
+        objects: [...this.map.objects, road],
+      },
+      road.id,
+      this.roadDraft.roadKind,
+      this.roadDraft.points,
+    )
     this.roadDraft = null
     this.dirty = true
     this.log('success', `Created ${road.name}`)
@@ -331,6 +337,7 @@ export class StudioStore {
       return
     }
     const current = this.map.objects[index]
+    const roadKind = getRoadKind(current)
     const objects = [...this.map.objects]
     objects[index] = {
       ...current,
@@ -342,7 +349,11 @@ export class StudioStore {
         })),
       },
     }
-    this.map = { ...this.map, objects }
+    let map = { ...this.map, objects }
+    if (roadKind) {
+      map = applyJunctionsToAnchorRoads(map, roadId, roadKind, points)
+    }
+    this.map = map
     this.dirty = true
     this.emit()
   }

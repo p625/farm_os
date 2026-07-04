@@ -2,11 +2,11 @@ import type { WorldMapDocument } from '@/types/world-map.ts'
 import type { RoadControlPoint, RoadKind, RoadPointJunction } from '@/types/road.ts'
 import { getRoadKind, getRoadObjects, getRoadPoints } from '@/studio/road/roadObject.ts'
 import { getRoadTypeDefinition } from '@/studio/road/RoadTypePalette.ts'
-import { sampleRoadSpline } from '@/studio/road/RoadSpline.ts'
+import { sampleRoadSpline, type SplineSample } from '@/studio/road/RoadSpline.ts'
 
-const CONTROL_SNAP_RADIUS = 1.8
-const SPLINE_SNAP_RADIUS = 3.5
-const SPLINE_SAMPLES_PER_SEGMENT = 14
+const CONTROL_SNAP_RADIUS = 2.5
+const BASE_SPLINE_SNAP_RADIUS = 6
+const SPLINE_SAMPLES_PER_SEGMENT = 24
 
 export function isAsphaltKind(kind: RoadKind): boolean {
   return kind === 'asphalt_wide' || kind === 'asphalt_narrow'
@@ -29,12 +29,21 @@ export function getJunctionTrimDistance(junction: RoadPointJunction): number {
   return getRoadTypeDefinition(junction.roadKind).width * 0.5
 }
 
+export function snapSearchRadius(newRoadKind: RoadKind): number {
+  const ownHalf = getRoadTypeDefinition(newRoadKind).width * 0.5
+  return Math.max(BASE_SPLINE_SNAP_RADIUS, ownHalf + 5)
+}
+
 export interface RoadSnapHit {
   roadId: string
   roadKind: RoadKind
   x: number
   z: number
   distance: number
+}
+
+function roadSnapTolerance(roadKind: RoadKind, baseRadius: number): number {
+  return baseRadius + getRoadTypeDefinition(roadKind).width * 0.5
 }
 
 export function findNearestRoadSnap(
@@ -44,11 +53,14 @@ export function findNearestRoadSnap(
   options: {
     excludeRoadIds?: readonly string[]
     maxDistance?: number
+    newRoadKind?: RoadKind
   } = {},
 ): RoadSnapHit | null {
   const exclude = new Set(options.excludeRoadIds ?? [])
+  const baseRadius =
+    options.maxDistance ??
+    (options.newRoadKind ? snapSearchRadius(options.newRoadKind) : BASE_SPLINE_SNAP_RADIUS)
   let best: RoadSnapHit | null = null
-  const maxDistance = options.maxDistance ?? SPLINE_SNAP_RADIUS
 
   for (const road of getRoadObjects(map)) {
     if (exclude.has(road.id)) {
@@ -60,9 +72,11 @@ export function findNearestRoadSnap(
       continue
     }
 
+    const tolerance = roadSnapTolerance(roadKind, baseRadius)
+
     for (const point of points) {
       const distance = Math.hypot(point.x - worldX, point.z - worldZ)
-      if (distance > CONTROL_SNAP_RADIUS) {
+      if (distance > Math.max(CONTROL_SNAP_RADIUS, tolerance * 0.35)) {
         continue
       }
       if (!best || distance < best.distance) {
@@ -79,7 +93,7 @@ export function findNearestRoadSnap(
     const samples = sampleRoadSpline(points, SPLINE_SAMPLES_PER_SEGMENT)
     for (const sample of samples) {
       const distance = Math.hypot(sample.x - worldX, sample.z - worldZ)
-      if (distance > maxDistance) {
+      if (distance > tolerance) {
         continue
       }
       if (!best || distance < best.distance) {
@@ -97,31 +111,16 @@ export function findNearestRoadSnap(
   return best
 }
 
-export function buildSnappedRoadPoint(
-  baseY: number,
-  newRoadKind: RoadKind,
-  snap: RoadSnapHit,
-): RoadControlPoint {
-  const join = resolveJunctionJoin(newRoadKind, snap.roadKind)
-  return {
-    x: snap.x,
-    y: baseY,
-    z: snap.z,
-    junction: {
-      roadId: snap.roadId,
-      roadKind: snap.roadKind,
-      join,
-    },
-  }
-}
-
 export function trySnapRoadPoint(
   map: WorldMapDocument,
   point: RoadControlPoint,
   newRoadKind: RoadKind,
   excludeRoadIds: readonly string[] = [],
 ): RoadControlPoint {
-  const snap = findNearestRoadSnap(map, point.x, point.z, { excludeRoadIds })
+  const snap = findNearestRoadSnap(map, point.x, point.z, {
+    excludeRoadIds,
+    newRoadKind,
+  })
   if (!snap) {
     const { junction: _junction, ...rest } = point
     return rest
@@ -198,4 +197,148 @@ export function trimControlPointsForMesh(
 
 export function isJunctionPoint(point: RoadControlPoint): boolean {
   return Boolean(point.junction)
+}
+
+function distanceSquaredXZ(
+  a: { x: number; z: number },
+  b: { x: number; z: number },
+): number {
+  const dx = a.x - b.x
+  const dz = a.z - b.z
+  return dx * dx + dz * dz
+}
+
+function findInsertIndexOnPolyline(
+  points: readonly RoadControlPoint[],
+  worldX: number,
+  worldZ: number,
+): number {
+  if (points.length < 2) {
+    return points.length
+  }
+
+  let bestIndex = 1
+  let bestDistance = Number.POSITIVE_INFINITY
+
+  for (let index = 1; index < points.length; index++) {
+    const start = points[index - 1]
+    const end = points[index]
+    const dx = end.x - start.x
+    const dz = end.z - start.z
+    const lengthSquared = dx * dx + dz * dz
+    let t = 0.5
+    if (lengthSquared > 1e-6) {
+      t = ((worldX - start.x) * dx + (worldZ - start.z) * dz) / lengthSquared
+      t = Math.min(1, Math.max(0, t))
+    }
+    const projected = {
+      x: start.x + dx * t,
+      z: start.z + dz * t,
+    }
+    const distance = distanceSquaredXZ(projected, { x: worldX, z: worldZ })
+    if (distance < bestDistance) {
+      bestDistance = distance
+      bestIndex = index
+    }
+  }
+
+  return bestIndex
+}
+
+/** Mirror junction onto anchor road so connection points appear on both roads. */
+export function applyJunctionsToAnchorRoads(
+  map: WorldMapDocument,
+  sourceRoadId: string,
+  sourceKind: RoadKind,
+  points: readonly RoadControlPoint[],
+): WorldMapDocument {
+  let objects = [...map.objects]
+
+  for (const point of points) {
+    if (!point.junction) {
+      continue
+    }
+
+    const anchorId = point.junction.roadId
+    if (anchorId === sourceRoadId) {
+      continue
+    }
+
+    const anchorIndex = objects.findIndex((object) => object.id === anchorId)
+    if (anchorIndex < 0) {
+      continue
+    }
+
+    const anchor = objects[anchorIndex]
+    const anchorKind = getRoadKind(anchor)
+    const anchorPoints = getRoadPoints(anchor)
+    if (!anchorKind || !anchorPoints) {
+      continue
+    }
+
+    const reciprocalJoin = resolveJunctionJoin(anchorKind, sourceKind)
+    const reciprocal: RoadPointJunction = {
+      roadId: sourceRoadId,
+      roadKind: sourceKind,
+      join: reciprocalJoin,
+    }
+
+    const nextPoints = anchorPoints.map((entry) => ({ ...entry }))
+    const nearIndex = nextPoints.findIndex(
+      (entry) => distanceSquaredXZ(entry, point) < 1.5 * 1.5,
+    )
+
+    if (nearIndex >= 0) {
+      nextPoints[nearIndex] = {
+        ...nextPoints[nearIndex],
+        x: point.x,
+        z: point.z,
+        y: point.y,
+        junction: reciprocal,
+      }
+    } else {
+      const insertAt = findInsertIndexOnPolyline(nextPoints, point.x, point.z)
+      nextPoints.splice(insertAt, 0, {
+        x: point.x,
+        y: point.y,
+        z: point.z,
+        junction: reciprocal,
+      })
+    }
+
+    objects = [...objects]
+    objects[anchorIndex] = {
+      ...anchor,
+      properties: {
+        ...anchor.properties,
+        points: nextPoints,
+      },
+    }
+  }
+
+  return { ...map, objects }
+}
+
+export function previewSnap(
+  map: WorldMapDocument,
+  worldX: number,
+  worldZ: number,
+  newRoadKind: RoadKind,
+  excludeRoadIds: readonly string[] = [],
+): { snap: RoadSnapHit; join: RoadPointJunction['join'] } | null {
+  const snap = findNearestRoadSnap(map, worldX, worldZ, {
+    excludeRoadIds,
+    newRoadKind,
+  })
+  if (!snap) {
+    return null
+  }
+  return {
+    snap,
+    join: resolveJunctionJoin(newRoadKind, snap.roadKind),
+  }
+}
+
+export function splineSamplesForRoad(points: readonly RoadControlPoint[]): SplineSample[] {
+  return sampleRoadSpline(points, SPLINE_SAMPLES_PER_SEGMENT)
 }

@@ -79,6 +79,7 @@ export function createRoadRibbonMesh(
   mesh.createNormals(true)
   mesh.refreshBoundingInfo()
   mesh.renderingGroupId = 1
+  mesh.isPickable = true
 
   const [r, g, b] = roadType.color
   const material = new StandardMaterial(`mat_${name}`, scene)
