@@ -11,7 +11,6 @@ import {
   applyTerrainBrush,
   brushRadiusWorldUnits,
   ensureTerrainHeightfield,
-  mergeTerrainIntoDocument,
   type TerrainHeightfield,
 } from '@/studio/terrain/TerrainHeightmap.ts'
 import { TerrainBrushPreview } from '@/studio/terrain/TerrainBrushPreview.ts'
@@ -22,6 +21,7 @@ export interface StudioTerrainEditorDeps {
   cameraController: StudioCameraController
   mapSceneBuilder: MapSceneBuilder
   getScene: () => Scene | null
+  requestRender: () => void
   onCommit: () => void
 }
 
@@ -176,7 +176,7 @@ export class StudioTerrainEditor {
     }
 
     const brush = this.deps.store.getSnapshot().terrainBrush
-    applyTerrainBrush(
+    const bounds = applyTerrainBrush(
       this.draftField,
       this.originX,
       this.originZ,
@@ -184,12 +184,32 @@ export class StudioTerrainEditor {
       worldZ,
       brush,
     )
-
-    const draftMap = {
-      ...this.deps.store.getMap(),
-      terrain: mergeTerrainIntoDocument(this.deps.store.getMap().terrain, this.draftField),
+    if (!bounds) {
+      return
     }
-    this.deps.mapSceneBuilder.refreshTerrainMesh(scene, draftMap)
+
+    const ground = this.deps.store.findObject('terrain_ground')
+    if (!ground) {
+      return
+    }
+
+    if (brush.mode === 'paint') {
+      this.deps.mapSceneBuilder.refreshTerrainFromField(
+        scene,
+        this.draftField,
+        ground.transform.position.y,
+        { normals: false },
+      )
+    } else {
+      this.deps.mapSceneBuilder.refreshTerrainFromField(
+        scene,
+        this.draftField,
+        ground.transform.position.y,
+        { positionBounds: bounds, normals: true },
+      )
+    }
+
+    this.deps.requestRender()
   }
 
   private commitDraft(): void {
@@ -198,6 +218,19 @@ export class StudioTerrainEditor {
     }
 
     this.deps.store.setTerrainField(this.draftField)
+
+    const scene = this.deps.getScene()
+    const ground = this.deps.store.findObject('terrain_ground')
+    if (scene && ground) {
+      this.deps.mapSceneBuilder.refreshTerrainFromField(
+        scene,
+        this.draftField,
+        ground.transform.position.y,
+        { normals: false },
+      )
+      this.deps.requestRender()
+    }
+
     this.deps.onCommit()
     this.deps.store.log('info', 'Terrain updated')
   }

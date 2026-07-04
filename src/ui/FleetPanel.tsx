@@ -46,6 +46,7 @@ export function FleetPanel({ game, open, fleet }: FleetPanelProps) {
                 key={machine.machineId}
                 machine={machine}
                 onSelect={() => game.selectMachineFromFleet(machine.machineId)}
+                onCancelGps={() => game.cancelMachineCommand(machine.machineId)}
               />
             ))}
           </div>

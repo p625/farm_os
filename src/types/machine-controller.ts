@@ -7,6 +7,7 @@ import type { GrainBin } from '@systems/GrainBin.ts'
 export interface IMachineController {
   readonly machineId: MachineId
   issueCommand(command: MachineCommand): boolean
+  cancelActiveCommand(): void
   getCapabilities(): readonly MachineCapability[]
   isBusy(): boolean
   toSnapshot(): TractorSnapshot

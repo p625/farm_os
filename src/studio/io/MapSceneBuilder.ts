@@ -9,10 +9,13 @@ import {
 import { FarmEnvironment } from '@rendering/FarmEnvironment.ts'
 import {
   createTerrainGroundMesh,
+  prepareTerrainMeshForLiveEdit,
   syncTerrainMesh,
-  tintTerrainMaterial,
+  syncTerrainMeshField,
+  type SyncTerrainMeshOptions,
 } from '@/studio/terrain/TerrainMeshSync.ts'
 import { ensureTerrainHeightfield } from '@/studio/terrain/TerrainHeightmap.ts'
+import type { TerrainHeightfield } from '@/studio/terrain/TerrainHeightmap.ts'
 import type { MapObject, StudioLayerId, WorldMapDocument } from '@/types/world-map.ts'
 
 export const STUDIO_METADATA_KEY = 'farmosStudio'
@@ -137,7 +140,7 @@ export class MapSceneBuilder {
     mesh.receiveShadows = object.layer === 'terrain' || object.layer === 'fields'
 
     if (object.layer === 'terrain' && object.kind === 'ground') {
-      tintTerrainMaterial(mesh as Mesh)
+      prepareTerrainMeshForLiveEdit(mesh as Mesh)
       syncTerrainMesh(mesh as Mesh, map.terrain, object.transform.position.y)
     }
 
@@ -166,14 +169,36 @@ export class MapSceneBuilder {
     this.createObjectMesh(scene, root, object, this.lastMap)
   }
 
-  refreshTerrainMesh(scene: Scene, map: WorldMapDocument): void {
+  refreshTerrainMesh(
+    scene: Scene,
+    map: WorldMapDocument,
+    options?: SyncTerrainMeshOptions,
+  ): void {
     this.lastMap = map
     const mesh = findStudioMeshByObjectId(scene, 'terrain_ground')
     const ground = map.objects.find((entry) => entry.id === 'terrain_ground')
     if (!mesh || !ground) {
       return
     }
-    syncTerrainMesh(mesh as Mesh, map.terrain, ground.transform.position.y)
+    syncTerrainMesh(mesh as Mesh, map.terrain, ground.transform.position.y, options)
+  }
+
+  refreshTerrainFromField(
+    scene: Scene,
+    field: TerrainHeightfield,
+    baseY: number,
+    options?: SyncTerrainMeshOptions,
+  ): void {
+    const mesh = findStudioMeshByObjectId(scene, 'terrain_ground')
+    if (!mesh) {
+      return
+    }
+    syncTerrainMeshField(
+      mesh as Mesh,
+      field,
+      baseY,
+      options,
+    )
   }
 }
 

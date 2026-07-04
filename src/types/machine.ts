@@ -94,6 +94,23 @@ export interface FieldContextMenuSnapshot {
   actions: readonly FieldRadialActionKind[]
 }
 
+export const FieldWorkModeActionKind = {
+  PerformManually: 'perform_manually',
+  AutomaticGps: 'automatic_gps',
+  Cancel: 'cancel',
+} as const
+
+export type FieldWorkModeActionKind =
+  (typeof FieldWorkModeActionKind)[keyof typeof FieldWorkModeActionKind]
+
+export interface FieldWorkModeMenuSnapshot {
+  fieldId: string
+  taskKind: FieldRadialActionKind
+  screenX: number
+  screenY: number
+  actions: readonly FieldWorkModeActionKind[]
+}
+
 export interface MachineContextMenuSnapshot {
   targetMachineId: MachineId
   screenX: number

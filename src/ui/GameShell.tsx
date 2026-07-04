@@ -6,6 +6,10 @@ import { clampRadialAnchor } from '@/utils/radial-menu-position.ts'
 import { GameHUD } from './GameHUD.tsx'
 import { ChooseCropRadialMenu } from './ChooseCropRadialMenu.tsx'
 import { RadialContextMenu } from './RadialContextMenu.tsx'
+import {
+  FieldWorkModeRadialMenu,
+  getFieldWorkTaskLabel,
+} from './FieldWorkModeRadialMenu.tsx'
 import { AttachmentRadialMenu } from './AttachmentRadialMenu.tsx'
 import { MachineRadialMenu } from './MachineRadialMenu.tsx'
 import { InteractionRadialMenu } from './InteractionRadialMenu.tsx'
@@ -23,15 +27,18 @@ interface GameShellProps {
   onSwitchToStudio?: () => void
 }
 
+interface PendingSeedWork {
+  fieldId: string
+  screenX: number
+  screenY: number
+  useGps: boolean
+}
+
 export function GameShell({ onSwitchToStudio }: GameShellProps) {
   const shellRef = useRef<HTMLDivElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [game, setGame] = useState<Game | null>(null)
-  const [pendingSeed, setPendingSeed] = useState<{
-    fieldId: string
-    screenX: number
-    screenY: number
-  } | null>(null)
+  const [pendingSeed, setPendingSeed] = useState<PendingSeedWork | null>(null)
 
   useEffect(() => {
     const shell = shellRef.current
@@ -94,6 +101,7 @@ export function GameShell({ onSwitchToStudio }: GameShellProps) {
 
     const hasRadialUi =
       snapshot.fieldContextMenu !== null ||
+      snapshot.fieldWorkModeMenu !== null ||
       snapshot.attachmentContextMenu !== null ||
       snapshot.machineContextMenu !== null ||
       snapshot.interactionContextMenu !== null ||
@@ -107,6 +115,7 @@ export function GameShell({ onSwitchToStudio }: GameShellProps) {
         return
       }
       game.closeFieldContextMenu()
+      game.closeFieldWorkModeMenu()
       game.closeAttachmentContextMenu()
       game.closeMachineContextMenu()
       game.closeInteractionContextMenu()
@@ -117,7 +126,15 @@ export function GameShell({ onSwitchToStudio }: GameShellProps) {
     return () => {
       window.removeEventListener('keydown', onKeyDown)
     }
-  }, [game, snapshot.fieldContextMenu, snapshot.attachmentContextMenu, snapshot.machineContextMenu, snapshot.interactionContextMenu, pendingSeed])
+  }, [
+    game,
+    snapshot.fieldContextMenu,
+    snapshot.fieldWorkModeMenu,
+    snapshot.attachmentContextMenu,
+    snapshot.machineContextMenu,
+    snapshot.interactionContextMenu,
+    pendingSeed,
+  ])
 
   return (
     <div
@@ -150,37 +167,54 @@ export function GameShell({ onSwitchToStudio }: GameShellProps) {
           menu={snapshot.fieldContextMenu}
           onDismiss={() => game.closeFieldContextMenu()}
           onAction={(action) => {
-            const fieldId = snapshot.fieldContextMenu!.fieldId
-            switch (action) {
-              case FieldRadialActionKind.Plow:
-                game.plowField(fieldId)
-                break
-              case FieldRadialActionKind.Seed: {
-                const anchor = clampRadialAnchor(
-                  snapshot.fieldContextMenu!.screenX,
-                  snapshot.fieldContextMenu!.screenY,
-                )
-                setPendingSeed({
-                  fieldId,
-                  screenX: anchor.x,
-                  screenY: anchor.y,
-                })
-                game.closeFieldContextMenu()
-                break
-              }
-              case FieldRadialActionKind.Harvest:
-                game.harvestField(fieldId)
-                break
-              case FieldRadialActionKind.Fertilize:
-                game.fertilizeField(fieldId)
-                break
-              case FieldRadialActionKind.Spray:
-                game.sprayField(fieldId)
-                break
-              case FieldRadialActionKind.Cancel:
-                game.closeFieldContextMenu()
-                break
+            const menu = snapshot.fieldContextMenu!
+            if (action === FieldRadialActionKind.Cancel) {
+              game.closeFieldContextMenu()
+              return
             }
+            game.openFieldWorkModeMenu(
+              menu.fieldId,
+              action,
+              menu.screenX,
+              menu.screenY,
+            )
+          }}
+        />
+      ) : null}
+      {game && snapshot.fieldWorkModeMenu ? (
+        <FieldWorkModeRadialMenu
+          menu={snapshot.fieldWorkModeMenu}
+          taskLabel={getFieldWorkTaskLabel(snapshot.fieldWorkModeMenu.taskKind)}
+          onDismiss={() => game.closeFieldWorkModeMenu()}
+          onPerformManually={() => {
+            const menu = snapshot.fieldWorkModeMenu!
+            if (menu.taskKind === FieldRadialActionKind.Seed) {
+              const anchor = clampRadialAnchor(menu.screenX, menu.screenY)
+              setPendingSeed({
+                fieldId: menu.fieldId,
+                screenX: anchor.x,
+                screenY: anchor.y,
+                useGps: false,
+              })
+              game.closeFieldWorkModeMenu()
+              return
+            }
+            game.performFieldWorkManually(menu.fieldId, menu.taskKind)
+          }}
+          onAutomaticGps={() => {
+            const menu = snapshot.fieldWorkModeMenu!
+            if (menu.taskKind === FieldRadialActionKind.Seed) {
+              const anchor = clampRadialAnchor(menu.screenX, menu.screenY)
+              setPendingSeed({
+                fieldId: menu.fieldId,
+                screenX: anchor.x,
+                screenY: anchor.y,
+                useGps: true,
+              })
+              game.closeFieldWorkModeMenu()
+              return
+            }
+            game.performFieldWorkGps(menu.fieldId, menu.taskKind)
           }}
         />
       ) : null}
@@ -191,7 +225,15 @@ export function GameShell({ onSwitchToStudio }: GameShellProps) {
           crops={snapshot.crops}
           money={snapshot.money}
           onSelect={(cropId) => {
-            game.plantField(pendingSeed.fieldId, cropId)
+            if (pendingSeed.useGps) {
+              game.performFieldWorkGps(
+                pendingSeed.fieldId,
+                FieldRadialActionKind.Seed,
+                cropId,
+              )
+            } else {
+              game.plantField(pendingSeed.fieldId, cropId)
+            }
             setPendingSeed(null)
           }}
           onCancel={() => setPendingSeed(null)}

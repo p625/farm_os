@@ -15,6 +15,8 @@ export const GameEventKind = {
   FarmReset: 'farm_reset',
   LogisticsFailed: 'logistics_failed',
   ProductPurchased: 'product_purchased',
+  GpsWorkCompleted: 'gps_work_completed',
+  GpsWorkCancelled: 'gps_work_cancelled',
 } as const
 
 export type GameEventKind =

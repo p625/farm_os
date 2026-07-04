@@ -28,6 +28,7 @@ import {
   MachineRegistry,
   MachineTickSystem,
   MarketSystem,
+  MachineAutomationRegistry,
   MachineCapabilityResolver,
   OwnershipSystem,
   ProductionSystem,
@@ -56,11 +57,13 @@ import type { ProcessedProductId } from '@/types/production.ts'
 import {
   EMPTY_SELECTED_ENTITY,
   FieldRadialActionKind,
+  FieldWorkModeActionKind,
   MachineCapability,
   MachineId,
   MachineRadialActionKind,
   SelectedEntityKind,
   type FieldContextMenuSnapshot,
+  type FieldWorkModeMenuSnapshot,
   type MachineCommand,
   type MachineContextMenuSnapshot,
   type SelectedEntitySnapshot,
@@ -70,6 +73,16 @@ import {
   InteractionRadialActionKind,
   type InteractionContextMenuSnapshot,
 } from '@/types/interaction-point.ts'
+import {
+  CommandOwner,
+  type AutomationTaskKind,
+  type IssueMachineCommandContext,
+} from '@/types/machine-automation.ts'
+import {
+  buildFieldWorkCommand,
+  fieldRadialActionToAutomationTask,
+  formatAutomationTaskLabel,
+} from '@systems/MachineAutomationRegistry.ts'
 import { getInteractionPointDefinition } from '@/config/interaction-point-catalog.ts'
 import {
   AttachmentLifecycleState,
@@ -103,6 +116,7 @@ export class Game implements IDisposable {
   private readonly logisticsSystem: LogisticsSystem
   private readonly capabilityResolver: MachineCapabilityResolver
   private readonly machineRegistry: MachineRegistry
+  private readonly machineAutomationRegistry: MachineAutomationRegistry
   private readonly machineTickSystem: MachineTickSystem
   private readonly eventLog: GameEventLog
   private readonly soundManager: SoundManager
@@ -120,6 +134,7 @@ export class Game implements IDisposable {
   private cachedSnapshot: GameSnapshot = EMPTY_GAME_SNAPSHOT
   private selectedEntity: SelectedEntitySnapshot = EMPTY_SELECTED_ENTITY
   private fieldContextMenu: FieldContextMenuSnapshot | null = null
+  private fieldWorkModeMenu: FieldWorkModeMenuSnapshot | null = null
   private attachmentContextMenu: AttachmentContextMenuSnapshot | null = null
   private machineContextMenu: MachineContextMenuSnapshot | null = null
   private interactionContextMenu: InteractionContextMenuSnapshot | null = null
@@ -193,6 +208,7 @@ export class Game implements IDisposable {
       system.setCapabilityResolver(this.capabilityResolver)
     }
     this.machineRegistry = new MachineRegistry()
+    this.machineAutomationRegistry = new MachineAutomationRegistry()
     this.machineRegistry.register(this.tractorJobSystem)
     this.machineRegistry.register(this.grainCombineJobSystem)
     this.machineRegistry.register(this.cornCombineJobSystem)
@@ -355,6 +371,7 @@ export class Game implements IDisposable {
     screenX: number,
     screenY: number,
   ): void {
+    this.closeFieldWorkModeMenu()
     this.closeAttachmentContextMenu()
     this.closeMachineContextMenu()
     this.closeInteractionContextMenu()
@@ -378,6 +395,150 @@ export class Game implements IDisposable {
       return
     }
     this.fieldContextMenu = null
+    this.notifyListeners()
+  }
+
+  openFieldWorkModeMenu(
+    fieldId: string,
+    taskKind: FieldRadialActionKind,
+    screenX: number,
+    screenY: number,
+  ): void {
+    if (taskKind === FieldRadialActionKind.Cancel) {
+      return
+    }
+
+    const machineId = this.getSelectedMachineId()
+    if (!machineId || this.isMachineBusy(machineId)) {
+      return
+    }
+
+    this.closeFieldContextMenu()
+    const anchor = clampRadialAnchor(screenX, screenY)
+    this.fieldWorkModeMenu = {
+      fieldId,
+      taskKind,
+      screenX: anchor.x,
+      screenY: anchor.y,
+      actions: [
+        FieldWorkModeActionKind.PerformManually,
+        FieldWorkModeActionKind.AutomaticGps,
+        FieldWorkModeActionKind.Cancel,
+      ],
+    }
+    this.notifyListeners()
+  }
+
+  closeFieldWorkModeMenu(): void {
+    if (!this.fieldWorkModeMenu) {
+      return
+    }
+    this.fieldWorkModeMenu = null
+    this.notifyListeners()
+  }
+
+  performFieldWorkManually(
+    fieldId: string,
+    taskKind: FieldRadialActionKind,
+  ): void {
+    this.closeFieldWorkModeMenu()
+    switch (taskKind) {
+      case FieldRadialActionKind.Plow:
+        this.plowField(fieldId)
+        break
+      case FieldRadialActionKind.Harvest:
+        this.harvestField(fieldId)
+        break
+      case FieldRadialActionKind.Fertilize:
+        this.fertilizeField(fieldId)
+        break
+      case FieldRadialActionKind.Spray:
+        this.sprayField(fieldId)
+        break
+      default:
+        break
+    }
+  }
+
+  performFieldWorkGps(
+    fieldId: string,
+    taskKind: FieldRadialActionKind,
+    cropId?: string,
+  ): void {
+    const machineId = this.getSelectedMachineId()
+    if (!machineId) {
+      return
+    }
+
+    const automationTask = fieldRadialActionToAutomationTask(taskKind)
+    if (!automationTask) {
+      return
+    }
+
+    this.closeFieldWorkModeMenu()
+    this.startGpsFieldWork(machineId, fieldId, automationTask, cropId)
+  }
+
+  startGpsFieldWork(
+    machineId: MachineId,
+    fieldId: string,
+    taskKind: AutomationTaskKind,
+    cropId?: string,
+  ): boolean {
+    if (this.isMachineBusy(machineId)) {
+      return false
+    }
+
+    const command = buildFieldWorkCommand(fieldId, taskKind, cropId)
+    if (!command) {
+      return false
+    }
+
+    const session = {
+      owner: CommandOwner.Gps,
+      fieldId,
+      taskKind,
+      cropId,
+      startedAtDay: this.world.currentDay,
+    }
+    this.machineAutomationRegistry.setAutomation(
+      machineId,
+      CommandOwner.Gps,
+      session,
+    )
+
+    const accepted = this.issueMachineCommand(machineId, command, {
+      commandOwner: CommandOwner.Gps,
+    })
+    if (!accepted) {
+      this.machineAutomationRegistry.clearAutomation(machineId)
+    }
+    return accepted
+  }
+
+  cancelMachineCommand(machineId: MachineId): void {
+    const controller = this.machineRegistry.get(machineId)
+    if (!controller) {
+      return
+    }
+
+    const wasGps =
+      this.machineAutomationRegistry.getCommandOwner(machineId) ===
+      CommandOwner.Gps
+    const wasBusy = controller.isBusy()
+
+    controller.cancelActiveCommand()
+
+    if (wasGps && wasBusy) {
+      const catalog = getMachineCatalogEntry(machineId)
+      this.eventLog.recordGpsWorkCancelled(
+        catalog?.name ?? machineId,
+        this.world.currentDay,
+      )
+    }
+
+    this.machineAutomationRegistry.clearAutomation(machineId)
+    this.autoSave()
     this.notifyListeners()
   }
 
@@ -970,9 +1131,31 @@ export class Game implements IDisposable {
     return bin.quantity + yieldAmount <= bin.capacity
   }
 
-  issueMachineCommand(machineId: MachineId, command: MachineCommand): boolean {
+  issueMachineCommand(
+    machineId: MachineId,
+    command: MachineCommand,
+    context?: IssueMachineCommandContext,
+  ): boolean {
+    const commandOwner = context?.commandOwner ?? CommandOwner.Player
+
+    if (commandOwner === CommandOwner.Player) {
+      if (this.isMachineBusy(machineId)) {
+        this.cancelMachineCommand(machineId)
+      }
+      this.machineAutomationRegistry.clearAutomation(machineId)
+    } else if (this.isMachineBusy(machineId)) {
+      return false
+    }
+
     const accepted = this.machineRegistry.issueCommand(machineId, command)
     if (accepted) {
+      if (commandOwner !== CommandOwner.Player) {
+        this.machineAutomationRegistry.setAutomation(
+          machineId,
+          commandOwner,
+          this.machineAutomationRegistry.getSession(machineId),
+        )
+      }
       this.autoSave()
       this.notifyListeners()
     }
@@ -1077,6 +1260,32 @@ export class Game implements IDisposable {
     }
   }
 
+  private reconcileMachineAutomation(machineId: MachineId): void {
+    const session = this.machineAutomationRegistry.getSession(machineId)
+    if (!session || session.owner !== CommandOwner.Gps) {
+      return
+    }
+
+    const controller = this.machineRegistry.get(machineId)
+    if (!controller || controller.isBusy()) {
+      return
+    }
+
+    const field = this.fieldSystem.getField(session.fieldId)
+    const catalog = getMachineCatalogEntry(machineId)
+    const cropName = session.cropId
+      ? this.cropSystem.getCropName(session.cropId)
+      : undefined
+
+    this.eventLog.recordGpsWorkCompleted(
+      catalog?.name ?? machineId,
+      field?.name ?? session.fieldId,
+      formatAutomationTaskLabel(session.taskKind, cropName),
+      this.world.currentDay,
+    )
+    this.machineAutomationRegistry.clearAutomation(machineId)
+  }
+
   private wireMachineController(controller: IMachineController): void {
     const system = controller as TractorJobSystem & {
       setOnChange?: (listener: () => void) => void
@@ -1084,6 +1293,7 @@ export class Game implements IDisposable {
     }
 
     system.setOnChange?.(() => {
+      this.reconcileMachineAutomation(controller.machineId)
       this.autoSave()
       this.notifyListeners()
     })
@@ -1216,10 +1426,12 @@ export class Game implements IDisposable {
     this.attachmentSystem.initialize()
     this.selectedEntity = EMPTY_SELECTED_ENTITY
     this.fieldContextMenu = null
+    this.fieldWorkModeMenu = null
     this.attachmentContextMenu = null
     this.machineContextMenu = null
     this.interactionContextMenu = null
     this.machinePresentation.setSelectedMachine(null)
+    this.machineAutomationRegistry.clearAll()
     this.eventLog.clear()
     this.eventLog.recordFarmReset(this.world.currentDay)
     this.syncFieldVisuals()
@@ -1315,6 +1527,7 @@ export class Game implements IDisposable {
     this.attachmentSystem.initialize()
     this.selectedEntity = EMPTY_SELECTED_ENTITY
     this.fieldContextMenu = null
+    this.fieldWorkModeMenu = null
     this.attachmentContextMenu = null
     this.machineContextMenu = null
     this.interactionContextMenu = null
@@ -1440,6 +1653,7 @@ export class Game implements IDisposable {
     this.grainCombineJobSystem.applySave(machines[MachineId.GrainCombine1])
     this.cornCombineJobSystem.applySave(machines[MachineId.CornCombine1])
     this.farmStoreSystem.applySave(saved.farmStore)
+    this.machineAutomationRegistry.applySave(saved.machineAutomation)
     this.pendingPurchasedMachineSave = machines
     this.attachmentSystem.applySave(
       this.saveGameService.normalizeAttachmentsSave(saved.attachments),
@@ -1456,12 +1670,28 @@ export class Game implements IDisposable {
       this.selectedEntity = EMPTY_SELECTED_ENTITY
     }
     this.fieldContextMenu = null
+    this.fieldWorkModeMenu = null
     this.attachmentContextMenu = null
     this.machineContextMenu = null
     this.interactionContextMenu = null
     this.machinePresentation.setSelectedMachine(null)
+    this.reconcileAutomationAfterLoad()
 
     this.autoSaveEnabled = true
+  }
+
+  private reconcileAutomationAfterLoad(): void {
+    for (const controller of this.machineRegistry.getAll()) {
+      const machineId = controller.machineId
+      const session = this.machineAutomationRegistry.getSession(machineId)
+      if (!session || session.owner !== CommandOwner.Gps) {
+        continue
+      }
+
+      if (!controller.isBusy()) {
+        this.reconcileMachineAutomation(machineId)
+      }
+    }
   }
 
   private captureSaveData(): GameSaveData {
@@ -1485,6 +1715,7 @@ export class Game implements IDisposable {
       ),
       attachments: this.attachmentSystem.toSaveData(),
       farmStore: this.farmStoreSystem.toSaveData(),
+      machineAutomation: this.machineAutomationRegistry.toSaveData(),
       eventLog: [...this.eventLog.getEntries()],
       eventLogNextId: this.eventLog.getNextId(),
     }
@@ -1583,6 +1814,7 @@ export class Game implements IDisposable {
       selectedFieldId: this.fieldSystem.getSelectedFieldId(),
       selectedEntity: this.selectedEntity,
       fieldContextMenu: this.fieldContextMenu,
+      fieldWorkModeMenu: this.fieldWorkModeMenu,
       attachmentContextMenu: this.attachmentContextMenu,
       machineContextMenu: this.machineContextMenu,
       interactionContextMenu: this.interactionContextMenu,
@@ -1603,6 +1835,10 @@ export class Game implements IDisposable {
         fields: this.buildFieldSnapshots(),
         selectedMachineId: this.getSelectedMachineId(),
         getCropName: (cropId) => this.cropSystem.getCropName(cropId),
+        getCommandOwner: (machineId) =>
+          this.machineAutomationRegistry.getCommandOwner(machineId),
+        getEffectiveCapabilities: (machineId) =>
+          this.capabilityResolver.getEffectiveCapabilities(machineId),
       }),
       eventLog: this.eventLog.getEntries(),
       moneyGain: this.eventLog.getLatestMoneyGain(),
@@ -1650,6 +1886,7 @@ export class Game implements IDisposable {
       activeJob: null,
       activeLogisticsLabel: null,
       workProgress: 0,
+      workRemainingSeconds: null,
       position: EMPTY_GAME_SNAPSHOT.selectedMachine.position,
       rotationY: EMPTY_GAME_SNAPSHOT.selectedMachine.rotationY,
     }
@@ -1672,6 +1909,7 @@ export class Game implements IDisposable {
         catalog?.name ?? machineId,
         operation,
         controller?.getGrainBinSnapshot?.() ?? null,
+        this.machineAutomationRegistry.getCommandOwner(machineId),
       ),
       machineAttachments:
         this.attachmentSystem.toMachineAttachmentsSnapshot(machineId),

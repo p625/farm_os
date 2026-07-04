@@ -292,6 +292,14 @@ export class CombineJobSystem extends GameSystem implements IMachineController {
     }
   }
 
+  cancelActiveCommand(): void {
+    if (this.state === TractorState.Idle) {
+      return
+    }
+    this.finishCommand()
+    this.notifyChange()
+  }
+
   isBusy(): boolean {
     return this.state !== TractorState.Idle
   }
@@ -342,6 +350,10 @@ export class CombineJobSystem extends GameSystem implements IMachineController {
         this.state === TractorState.Working
           ? Math.min(1, this.workTimer / this.workDuration)
           : 0,
+      workRemainingSeconds:
+        this.state === TractorState.Working
+          ? Math.max(0, this.workDuration - this.workTimer)
+          : null,
     }
   }
 

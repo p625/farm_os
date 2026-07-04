@@ -13,6 +13,7 @@ import {
   DEFAULT_ATTACHMENT_SPAWNS,
   getAttachmentCatalogEntry,
 } from '@/config/attachment-catalog.ts'
+import type { MachineAutomationSaveData } from '@/types/machine-automation.ts'
 import { MachineId } from '@/types/machine.ts'
 import { AttachmentLifecycleState, AttachmentWorkPosition } from '@/types/attachment.ts'
 import { PROCESSED_CATALOG } from '@/config/production-catalog.ts'
@@ -35,12 +36,16 @@ import type {
   ProductionSaveData,
 } from '@/types/save.ts'
 
-type LegacySaveData = Omit<GameSaveData, 'machines' | 'attachments' | 'farmStore'> & {
+type LegacySaveData = Omit<
+  GameSaveData,
+  'machines' | 'attachments' | 'farmStore' | 'machineAutomation'
+> & {
   version?: number
   machine?: MachineSaveData
   machines?: MachinesSaveData
   attachments?: AttachmentsSaveData
   farmStore?: FarmStoreSaveData
+  machineAutomation?: MachineAutomationSaveData[]
 }
 
 export class SaveGameService {
@@ -114,6 +119,12 @@ export class SaveGameService {
         return null
       }
       return this.repairSave(this.migrateFromV10(data as LegacySaveData))
+    }
+    if (data.version === 11) {
+      if (!this.isValidCoreSave(data)) {
+        return null
+      }
+      return this.repairSave(this.migrateFromV11(data as LegacySaveData))
     }
     if (!this.isValidCoreSave(data)) {
       return null
@@ -415,6 +426,29 @@ export class SaveGameService {
       farmStore: this.normalizeFarmStoreSave(data.farmStore),
       eventLog: data.eventLog,
       eventLogNextId: data.eventLogNextId,
+      machineAutomation: this.normalizeMachineAutomationSave(data.machineAutomation),
+    }
+  }
+
+  private normalizeMachineAutomationSave(
+    saved: unknown,
+  ): MachineAutomationSaveData[] {
+    if (!Array.isArray(saved)) {
+      return []
+    }
+    return saved.filter(
+      (entry): entry is MachineAutomationSaveData =>
+        !!entry &&
+        typeof entry === 'object' &&
+        typeof (entry as MachineAutomationSaveData).machineId === 'string',
+    )
+  }
+
+  private migrateFromV11(data: LegacySaveData): LegacySaveData {
+    return {
+      ...data,
+      version: SAVE_VERSION,
+      machineAutomation: [],
     }
   }
 

@@ -48,6 +48,9 @@ export class StudioEngine {
       cameraController: this.cameraController,
       mapSceneBuilder: this.mapSceneBuilder,
       getScene: () => this.scene,
+      requestRender: () => {
+        this.scene?.render()
+      },
       onCommit: () => this.syncAfterTerrainEdit(),
     }
 
@@ -158,7 +161,8 @@ export class StudioEngine {
       return
     }
     const map = this.store.getMap()
-    this.mapSceneBuilder.refreshTerrainMesh(this.scene, map)
+    this.mapSceneBuilder.refreshTerrainMesh(this.scene, map, { normals: false })
+    this.scene.render()
     this.syncModules()
   }
 

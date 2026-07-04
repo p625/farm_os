@@ -90,6 +90,13 @@ function brushFalloff(distance: number, radius: number): number {
   return t * t
 }
 
+export interface TerrainCellBounds {
+  minI: number
+  maxI: number
+  minJ: number
+  maxJ: number
+}
+
 export function applyTerrainBrush(
   field: TerrainHeightfield,
   originX: number,
@@ -97,13 +104,35 @@ export function applyTerrainBrush(
   worldX: number,
   worldZ: number,
   brush: TerrainBrushSettings,
-): void {
-  const center = worldToTerrainCell(field, originX, originZ, worldX, worldZ)
-  if (!center) {
-    return
+): TerrainCellBounds | null {
+  if (
+    worldX < originX - field.width * 0.5 ||
+    worldX > originX + field.width * 0.5 ||
+    worldZ < originZ - field.height * 0.5 ||
+    worldZ > originZ + field.height * 0.5
+  ) {
+    return null
   }
 
-  const { resolution, heights, surfaces } = field
+  if (brush.mode === 'paint') {
+    const worldRadius = brushRadiusWorldUnits(field, brush.radius)
+    return applyPaintBrush(
+      field,
+      originX,
+      originZ,
+      worldX,
+      worldZ,
+      worldRadius,
+      brush.surfaceId,
+    )
+  }
+
+  const center = worldToTerrainCell(field, originX, originZ, worldX, worldZ)
+  if (!center) {
+    return null
+  }
+
+  const { resolution, heights } = field
   const radiusCells = Math.max(1, Math.ceil(brush.radius))
   const minI = Math.max(0, center.i - radiusCells)
   const maxI = Math.min(resolution - 1, center.i + radiusCells)
@@ -119,11 +148,6 @@ export function applyTerrainBrush(
       }
 
       const index = cellIndex(i, j, resolution)
-      if (brush.mode === 'paint') {
-        surfaces[index] = brush.surfaceId
-        continue
-      }
-
       if (brush.mode === 'raise') {
         heights[index] += brush.strength * falloff
       } else if (brush.mode === 'lower') {
@@ -145,16 +169,98 @@ export function applyTerrainBrush(
       }
     }
   }
+
+  return { minI, maxI, minJ, maxJ }
+}
+
+export function terrainVertexWorldPosition(
+  field: TerrainHeightfield,
+  originX: number,
+  originZ: number,
+  i: number,
+  j: number,
+): { x: number; z: number } {
+  const subdivisions = Math.max(1, field.resolution - 1)
+  const stepX = field.width / subdivisions
+  const stepZ = field.height / subdivisions
+  const halfW = field.width * 0.5
+  const halfH = field.height * 0.5
+  return {
+    x: originX - halfW + i * stepX,
+    z: originZ - halfH + j * stepZ,
+  }
 }
 
 export function brushRadiusWorldUnits(
   terrain: Pick<TerrainHeightfield, 'width' | 'height' | 'resolution'>,
   radiusCells: number,
 ): number {
-  const cellW = terrain.width / terrain.resolution
-  const cellH = terrain.height / terrain.resolution
-  const cellSize = (cellW + cellH) * 0.5
-  return Math.max(0.1, radiusCells * cellSize)
+  const subdivisions = Math.max(1, terrain.resolution - 1)
+  const stepX = terrain.width / subdivisions
+  const stepZ = terrain.height / subdivisions
+  const step = (stepX + stepZ) * 0.5
+  return Math.max(0.1, radiusCells * step)
+}
+
+function paintBrushBounds(
+  field: TerrainHeightfield,
+  originX: number,
+  originZ: number,
+  worldX: number,
+  worldZ: number,
+  worldRadius: number,
+): TerrainCellBounds {
+  const subdivisions = Math.max(1, field.resolution - 1)
+  const stepX = field.width / subdivisions
+  const stepZ = field.height / subdivisions
+  const halfW = field.width * 0.5
+  const halfH = field.height * 0.5
+  const localX = worldX - originX + halfW
+  const localZ = worldZ - originZ + halfH
+  const resolution = field.resolution
+
+  const minI = Math.max(0, Math.floor((localX - worldRadius) / stepX))
+  const maxI = Math.min(resolution - 1, Math.ceil((localX + worldRadius) / stepX))
+  const minJ = Math.max(0, Math.floor((localZ - worldRadius) / stepZ))
+  const maxJ = Math.min(resolution - 1, Math.ceil((localZ + worldRadius) / stepZ))
+
+  return { minI, maxI, minJ, maxJ }
+}
+
+function applyPaintBrush(
+  field: TerrainHeightfield,
+  originX: number,
+  originZ: number,
+  worldX: number,
+  worldZ: number,
+  worldRadius: number,
+  surfaceId: number,
+): TerrainCellBounds {
+  const { resolution, surfaces } = field
+  const bounds = paintBrushBounds(
+    field,
+    originX,
+    originZ,
+    worldX,
+    worldZ,
+    worldRadius,
+  )
+
+  for (let j = bounds.minJ; j <= bounds.maxJ; j++) {
+    for (let i = bounds.minI; i <= bounds.maxI; i++) {
+      const vertex = terrainVertexWorldPosition(field, originX, originZ, i, j)
+      const distance = Math.hypot(vertex.x - worldX, vertex.z - worldZ)
+      // Include half a grid step so vertex-colored quads fill the brush circle.
+      const subdivisions = Math.max(1, field.resolution - 1)
+      const gridPad = Math.max(field.width / subdivisions, field.height / subdivisions) * 0.5
+      if (distance > worldRadius + gridPad) {
+        continue
+      }
+      surfaces[cellIndex(i, j, resolution)] = surfaceId
+    }
+  }
+
+  return bounds
 }
 
 export function sampleTerrainHeightAt(

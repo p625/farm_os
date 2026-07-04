@@ -29,6 +29,13 @@ export { FarmStoreSystem } from './FarmStoreSystem.ts'
 export { WorldObjectFactory } from './WorldObjectFactory.ts'
 export { MachineTickSystem } from './MachineTickSystem.ts'
 export {
+  MachineAutomationRegistry,
+  buildFieldWorkCommand,
+  fieldRadialActionToAutomationTask,
+  formatAutomationTaskLabel,
+  machineSupportsGpsFieldWork,
+} from './MachineAutomationRegistry.ts'
+export {
   initializeMachineInstanceRegistry,
   registerMachineInstance,
   unregisterMachineInstance,

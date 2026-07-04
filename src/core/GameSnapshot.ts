@@ -15,6 +15,7 @@ import {
   EMPTY_SELECTED_ENTITY,
   MachineId,
   type FieldContextMenuSnapshot,
+  type FieldWorkModeMenuSnapshot,
   type MachineCapability as MachineCapabilityValue,
   type MachineContextMenuSnapshot,
   type MachineId as MachineIdValue,
@@ -29,6 +30,7 @@ import type { CargoContainerSnapshot } from '@/types/cargo.ts'
 import type { FarmStoreSnapshot } from '@/types/farm-store.ts'
 import type { InteractionContextMenuSnapshot } from '@/types/interaction-point.ts'
 import type { FleetMachineSnapshot } from '@/types/machine-fleet.ts'
+import { CommandOwner } from '@/types/machine-automation.ts'
 import { ProductCategory } from '@/types/product.ts'
 import {
   TractorState,
@@ -43,9 +45,11 @@ export interface SelectedMachineSnapshot {
   activeJob: TractorJobSnapshot | null
   activeLogisticsLabel: string | null
   workProgress: number
+  workRemainingSeconds: number | null
   position: { x: number; y: number; z: number }
   rotationY: number
   grainBin: GrainBinSnapshot | null
+  commandOwner: CommandOwner
 }
 
 export interface GameSnapshot {
@@ -55,6 +59,7 @@ export interface GameSnapshot {
   selectedFieldId: string | null
   selectedEntity: SelectedEntitySnapshot
   fieldContextMenu: FieldContextMenuSnapshot | null
+  fieldWorkModeMenu: FieldWorkModeMenuSnapshot | null
   attachmentContextMenu: AttachmentContextMenuSnapshot | null
   machineContextMenu: MachineContextMenuSnapshot | null
   interactionContextMenu: InteractionContextMenuSnapshot | null
@@ -87,9 +92,11 @@ const DEFAULT_SELECTED_MACHINE: SelectedMachineSnapshot = {
   activeJob: null,
   activeLogisticsLabel: null,
   workProgress: 0,
+  workRemainingSeconds: null,
   position: { x: 6, y: 0, z: 10 },
   rotationY: -Math.PI / 6,
   grainBin: null,
+  commandOwner: CommandOwner.Player,
 }
 
 export const EMPTY_GAME_SNAPSHOT: GameSnapshot = {
@@ -99,6 +106,7 @@ export const EMPTY_GAME_SNAPSHOT: GameSnapshot = {
   selectedFieldId: null,
   selectedEntity: EMPTY_SELECTED_ENTITY,
   fieldContextMenu: null,
+  fieldWorkModeMenu: null,
   attachmentContextMenu: null,
   machineContextMenu: null,
   interactionContextMenu: null,
@@ -147,6 +155,7 @@ export function buildSelectedMachineSnapshot(
   machineName: string,
   operation: TractorSnapshot,
   grainBin: GrainBinSnapshot | null,
+  commandOwner: CommandOwner = CommandOwner.Player,
 ): SelectedMachineSnapshot {
   return {
     machineId,
@@ -155,8 +164,10 @@ export function buildSelectedMachineSnapshot(
     activeJob: operation.activeJob,
     activeLogisticsLabel: operation.activeLogisticsLabel,
     workProgress: operation.workProgress,
+    workRemainingSeconds: operation.workRemainingSeconds,
     position: operation.position,
     rotationY: operation.rotationY,
     grainBin,
+    commandOwner,
   }
 }

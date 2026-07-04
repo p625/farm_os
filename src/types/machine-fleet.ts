@@ -1,8 +1,13 @@
 import type { CargoContainerSnapshot } from '@/types/cargo.ts'
 import type { GrainBinSnapshot } from '@/types/grain-bin.ts'
+import {
+  CommandOwner,
+} from '@/types/machine-automation.ts'
 import type { MachineTemplateId } from '@/types/machine-template.ts'
 import type { MachineId } from '@/types/machine.ts'
+import type { MachineCapability } from '@/types/machine.ts'
 import { TractorState, type TractorJobSnapshot, type TractorSnapshot } from '@/types/tractor.ts'
+import { machineSupportsGpsFieldWork } from '@systems/MachineAutomationRegistry.ts'
 
 export const MachineFleetStatus = {
   Idle: 'idle',
@@ -18,11 +23,6 @@ export const MachineFleetStatus = {
 export type MachineFleetStatus =
   (typeof MachineFleetStatus)[keyof typeof MachineFleetStatus]
 
-/**
- * Reserved for Phase 16B — manual vs GPS/worker control. No effect in 16A.
- */
-export type MachineFleetControlMode = 'manual'
-
 export interface FleetMachineSnapshot {
   machineId: MachineId
   displayName: string
@@ -35,16 +35,15 @@ export interface FleetMachineSnapshot {
   destinationLabel: string | null
   logisticsLabel: string | null
   workProgress: number
+  workRemainingSeconds: number | null
   grainBin: GrainBinSnapshot | null
   trailerFill: CargoContainerSnapshot | null
   selected: boolean
-  /** Reserved — Phase 16B worker assignment. */
-  controlMode: MachineFleetControlMode
-  /** Reserved — Phase 16B worker display name. */
+  commandOwner: CommandOwner
+  gpsAvailable: boolean
+  /** Reserved — Phase 16C worker display name. */
   workerName: null
-  /** Reserved — Phase 16B GPS availability. */
-  gpsAvailable: false
-  /** Reserved — future fuel system. Display only in 16A. */
+  /** Reserved — future fuel system. Display only. */
   fuelLabel: '—'
 }
 
@@ -96,16 +95,49 @@ export function formatMachineFleetStatus(status: MachineFleetStatus): string {
 export function getFleetHeadlineLabel(
   status: MachineFleetStatus,
   activeJob: TractorJobSnapshot | null,
+  commandOwner: CommandOwner,
 ): string {
+  if (commandOwner === CommandOwner.Gps) {
+    if (status === MachineFleetStatus.Moving) {
+      return 'GPS Moving'
+    }
+    if (status === MachineFleetStatus.Working) {
+      if (activeJob?.type === 'harvest') {
+        return 'GPS Harvesting'
+      }
+      return 'GPS Working'
+    }
+  }
+
   if (status === MachineFleetStatus.Working && activeJob?.type === 'harvest') {
     return 'Harvesting'
   }
   return formatMachineFleetStatus(status)
 }
 
-export function getFleetReadyStatusLabel(status: MachineFleetStatus): string {
-  if (status === MachineFleetStatus.Idle) {
+export function getFleetReadyStatusLabel(
+  status: MachineFleetStatus,
+  commandOwner: CommandOwner,
+): string {
+  if (status === MachineFleetStatus.Idle && commandOwner === CommandOwner.Player) {
     return 'Ready'
   }
   return formatMachineFleetStatus(status)
+}
+
+export function isGpsAutomationActive(
+  commandOwner: CommandOwner,
+  status: MachineFleetStatus,
+): boolean {
+  return (
+    commandOwner === CommandOwner.Gps &&
+    (status === MachineFleetStatus.Moving ||
+      status === MachineFleetStatus.Working)
+  )
+}
+
+export function resolveGpsAvailable(
+  capabilities: readonly MachineCapability[],
+): boolean {
+  return machineSupportsGpsFieldWork(capabilities)
 }

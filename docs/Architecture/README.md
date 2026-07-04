@@ -24,6 +24,7 @@
 | [009_Phase14_WorldExpansion.md](./009_Phase14_WorldExpansion.md) | Specification | Phase 14 world expansion |
 | [010_Phase16_Automation.md](./010_Phase16_Automation.md) | Specification | Phase 16 automation (approved, deferred) |
 | [011_Phase15_CropCare.md](./011_Phase15_CropCare.md) | Specification | Phase 15 crop care |
+| [012_Phase16B_GpsAutowork.md](./012_Phase16B_GpsAutowork.md) | Specification | Phase 16B GPS Autowork |
 
 ## Change Policy
 

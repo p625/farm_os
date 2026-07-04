@@ -4,6 +4,7 @@ import type { GrainBinSaveData } from '@/types/grain-bin.ts'
 import type { FieldLifecycleState } from '@/types/field.ts'
 import type { FieldCropCare } from '@/types/crop-care.ts'
 import type { FieldOwnership } from '@/types/ownership.ts'
+import type { MachineAutomationSaveData } from '@/types/machine-automation.ts'
 
 export interface FieldSaveData {
   id: string
@@ -139,4 +140,5 @@ export interface GameSaveData {
   farmStore: FarmStoreSaveData
   eventLog: GameLogEntry[]
   eventLogNextId: number
+  machineAutomation: MachineAutomationSaveData[]
 }

@@ -128,6 +128,27 @@ export class GameEventLog {
     this.push(`Purchased ${productName}.`, GameEventKind.ProductPurchased, day)
   }
 
+  recordGpsWorkCompleted(
+    machineName: string,
+    fieldName: string,
+    taskLabel: string,
+    day: number,
+  ): void {
+    this.push(
+      `GPS finished ${taskLabel} on ${fieldName} (${machineName}).`,
+      GameEventKind.GpsWorkCompleted,
+      day,
+    )
+  }
+
+  recordGpsWorkCancelled(machineName: string, day: number): void {
+    this.push(
+      `GPS cancelled on ${machineName}.`,
+      GameEventKind.GpsWorkCancelled,
+      day,
+    )
+  }
+
   restore(entries: readonly GameLogEntry[], nextId: number): void {
     this.entries = [...entries].slice(0, MAX_ENTRIES)
     this.nextId = Math.max(1, nextId)

@@ -31,6 +31,22 @@
   pointer-events: none;
 }
 
+.radial-context-menu__task-label {
+  position: absolute;
+  left: 0;
+  top: -2.4rem;
+  transform: translateX(-50%);
+  padding: 0.2rem 0.55rem;
+  border-radius: 6px;
+  background: rgb(18 24 16 / 92%);
+  border: 1px solid rgb(200 230 185 / 25%);
+  color: #d8f0cc;
+  font-size: 0.78rem;
+  font-weight: 700;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
 .radial-context-menu__action {
   position: absolute;
   left: 0;

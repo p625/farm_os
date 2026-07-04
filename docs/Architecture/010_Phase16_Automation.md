@@ -4,20 +4,16 @@
 
 | Field | Value |
 |-------|-------|
-| **Status** | Architecture approved — **deferred** |
-| **Implementation** | After Phase 15 (Crop Care) |
-
-## Purpose
-
-Document the approved automation stack before implementation. **No types, save fields, or UI exist in code until Phase 16.**
+| **Status** | Partially implemented — 16A Fleet, 16B GPS |
+| **Implementation** | 16A complete; 16B GPS Autowork |
 
 ## Execution path
 
 ```text
-Player / GPS module / Farm Worker
+Player / GPS module / Farm Worker (future)
         │
         ▼
-Game.issueMachineCommand(command, { controlMode, issuedBy })
+Game.issueMachineCommand(machineId, command, { commandOwner })
         │
         ▼
 MachineRegistry (thin)
@@ -32,36 +28,31 @@ MachineController (unchanged — TractorJobSystem, CombineJobSystem, …)
 - No duplicate controller or job system
 - Workers never execute field logic directly — they issue commands only
 
-## ControlMode (future)
+## CommandOwner
 
 ```typescript
-type ControlMode = 'manual' | 'gps_autowork'
+type CommandOwner = 'player' | 'gps' | 'worker'  // worker reserved
 ```
 
-GPS Autowork uses the same `MachineCommand` path as manual play.
+Describes who issued the command. GPS Autowork uses the same `MachineCommand` path as manual play.
 
-## issuedBy metadata (future)
+## AutomationSession
 
-```typescript
-type CommandIssuer = 'player' | 'worker' | 'gps_module'
-```
-
-Attached to command context for logging, fleet UI, and debugging.
-
-## Fleet snapshot (future)
-
-Read-only presentation aggregate:
+Generalized automation metadata. Phase 16B implements GPS only.
 
 ```typescript
-interface MachineFleetEntrySnapshot {
-  machineId: string
-  templateId: string
-  controlMode: ControlMode
-  position: { x: number; z: number }
-  state: string
-  activeJobLabel: string | null
+interface AutomationSession {
+  owner: CommandOwner
+  fieldId: string
+  taskKind: string
+  cropId?: string
+  startedAtDay: number
 }
 ```
+
+## Fleet snapshot
+
+Read-only presentation aggregate — see Phase 16A `FleetMachineSnapshot` with `commandOwner`.
 
 ## Worker assignment (future)
 
@@ -74,17 +65,15 @@ interface WorkerAssignment {
 }
 ```
 
-Worker tick resolves assignment → `Game.issueMachineCommand(...)`.
+Worker tick resolves assignment → `Game.issueMachineCommand(..., { commandOwner: 'worker' })`.
 
 ## Phase 16 sub-phases
 
 | Sub-phase | Feature |
 |-----------|---------|
-| 16A | GPS Autowork |
-| 16B | Fleet Overview |
+| 16A | Fleet Overview |
+| 16B | GPS Autowork |
 | 16C | Farm Workers |
 | 16D | Farm Manager |
 
-## Prerequisite
-
-Phase 14 World Expansion must create workload (distance, field count, area-scaled work) so automation solves a real player problem.
+See [012_Phase16B_GpsAutowork.md](./012_Phase16B_GpsAutowork.md) for GPS specification.

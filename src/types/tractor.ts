@@ -29,6 +29,7 @@ export interface TractorSnapshot {
   activeJob: TractorJobSnapshot | null
   activeLogisticsLabel: string | null
   workProgress: number
+  workRemainingSeconds: number | null
   position: { x: number; y: number; z: number }
   rotationY: number
 }

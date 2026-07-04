@@ -7,13 +7,15 @@ import { getMachineTemplateId } from '@systems/MachineInstanceRegistry.ts'
 import type { FieldSnapshot } from '@/types/field.ts'
 import {
   deriveMachineFleetStatus,
+  resolveGpsAvailable,
   type FleetMachineSnapshot,
 } from '@/types/machine-fleet.ts'
+import { CommandOwner } from '@/types/machine-automation.ts'
 import {
   MachineTemplateId,
   type MachineTemplateId as MachineTemplateIdValue,
 } from '@/types/machine-template.ts'
-import type { MachineId } from '@/types/machine.ts'
+import type { MachineCapability, MachineId } from '@/types/machine.ts'
 import { MachineSlotId } from '@/types/attachment.ts'
 import type { MachineAttachmentsSnapshot } from '@/types/attachment.ts'
 import { TractorState, type TractorJobSnapshot } from '@/types/tractor.ts'
@@ -143,6 +145,8 @@ export function buildFleetSnapshots(options: {
   fields: readonly FieldSnapshot[]
   selectedMachineId: MachineId | null
   getCropName: (cropId: string) => string
+  getCommandOwner: (machineId: MachineId) => CommandOwner
+  getEffectiveCapabilities: (machineId: MachineId) => readonly MachineCapability[]
 }): readonly FleetMachineSnapshot[] {
   const {
     machineRegistry,
@@ -150,6 +154,8 @@ export function buildFleetSnapshots(options: {
     fields,
     selectedMachineId,
     getCropName,
+    getCommandOwner,
+    getEffectiveCapabilities,
   } = options
 
   const snapshots: FleetMachineSnapshot[] = []
@@ -171,6 +177,9 @@ export function buildFleetSnapshots(options: {
       fields,
     )
 
+    const commandOwner = getCommandOwner(machineId)
+    const capabilities = getEffectiveCapabilities(machineId)
+
     snapshots.push({
       machineId,
       displayName: catalog?.name ?? machineId,
@@ -186,15 +195,16 @@ export function buildFleetSnapshots(options: {
       ),
       logisticsLabel: operation.activeLogisticsLabel,
       workProgress: operation.workProgress,
+      workRemainingSeconds: operation.workRemainingSeconds,
       grainBin: controller.getGrainBinSnapshot?.() ?? null,
       trailerFill: attachmentSystem.getMountedTrailerCargoSnapshot(
         machineId,
         getCropName,
       ),
       selected: selectedMachineId === machineId,
-      controlMode: 'manual',
+      commandOwner,
+      gpsAvailable: resolveGpsAvailable(capabilities),
       workerName: null,
-      gpsAvailable: false,
       fuelLabel: '—',
     })
   }

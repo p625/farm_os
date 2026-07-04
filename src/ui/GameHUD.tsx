@@ -16,6 +16,7 @@ import {
 } from '@/types/crop-care.ts'
 import { FieldOwnership } from '@/types/ownership.ts'
 import { TractorState } from '@/types/tractor.ts'
+import { CommandOwner } from '@/types/machine-automation.ts'
 import {
   formatMachineCapability,
   getFieldWorkRequirementHint,
@@ -136,12 +137,21 @@ export function GameHUD({ game, snapshot }: GameHUDProps) {
   const activeLogisticsLabel = machineSelected
     ? snapshot.selectedMachine.activeLogisticsLabel
     : null
+  const gpsActive =
+    machineSelected &&
+    snapshot.selectedMachine.commandOwner === CommandOwner.Gps &&
+    (snapshot.selectedMachine.state === TractorState.Moving ||
+      snapshot.selectedMachine.state === TractorState.Working)
+  const selectedMachineId =
+    snapshot.selectedEntity.kind === 'machine'
+      ? snapshot.selectedEntity.machineId
+      : null
 
   return (
     <aside className="game-hud">
       <header className="game-hud__header">
         <h1 className="game-hud__title">FarmOS</h1>
-        <p className="game-hud__subtitle">Phase 16A — Fleet Overview</p>
+        <p className="game-hud__subtitle">Phase 16B — GPS Autowork</p>
       </header>
 
       <section className="game-hud__panel">
@@ -202,6 +212,12 @@ export function GameHUD({ game, snapshot }: GameHUDProps) {
         ) : (
           <>
             <dl className="game-hud__stats">
+              {gpsActive ? (
+                <div className="game-hud__stat game-hud__stat--gps">
+                  <dt>GPS</dt>
+                  <dd>Active</dd>
+                </div>
+              ) : null}
               <div className="game-hud__stat">
                 <dt>Selection</dt>
                 <dd>
@@ -239,6 +255,15 @@ export function GameHUD({ game, snapshot }: GameHUDProps) {
                       </dd>
                     </div>
                   ) : null}
+                  {snapshot.selectedMachine.state === TractorState.Working &&
+                  snapshot.selectedMachine.workRemainingSeconds !== null ? (
+                    <div className="game-hud__stat">
+                      <dt>Remaining</dt>
+                      <dd>
+                        {Math.ceil(snapshot.selectedMachine.workRemainingSeconds)}s
+                      </dd>
+                    </div>
+                  ) : null}
                 </>
               ) : activeLogisticsLabel ? (
                 <>
@@ -265,6 +290,17 @@ export function GameHUD({ game, snapshot }: GameHUDProps) {
                     width: `${snapshot.selectedMachine.workProgress * 100}%`,
                   }}
                 />
+              </div>
+            ) : null}
+            {gpsActive && selectedMachineId ? (
+              <div className="game-hud__actions">
+                <button
+                  type="button"
+                  className="game-hud__button game-hud__button--danger"
+                  onClick={() => game.cancelMachineCommand(selectedMachineId)}
+                >
+                  Cancel GPS
+                </button>
               </div>
             ) : null}
             {snapshot.machineAttachments ? (

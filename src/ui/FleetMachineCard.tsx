@@ -2,6 +2,7 @@ import type { FleetMachineSnapshot } from '@/types/machine-fleet.ts'
 import {
   getFleetHeadlineLabel,
   getFleetReadyStatusLabel,
+  isGpsAutomationActive,
 } from '@/types/machine-fleet.ts'
 import {
   MachineTemplateId,
@@ -12,6 +13,7 @@ import { formatJobType } from '@systems/TractorJobSystem.ts'
 interface FleetMachineCardProps {
   machine: FleetMachineSnapshot
   onSelect: () => void
+  onCancelGps?: () => void
 }
 
 function getFleetMachineIcon(templateId: MachineTemplateIdValue): string {
@@ -34,9 +36,17 @@ function formatFillPercent(fill: { fillPercent: number } | null): string | null 
   return `${Math.round(fill.fillPercent * 100)}%`
 }
 
-export function FleetMachineCard({ machine, onSelect }: FleetMachineCardProps) {
+export function FleetMachineCard({
+  machine,
+  onSelect,
+  onCancelGps,
+}: FleetMachineCardProps) {
   const icon = getFleetMachineIcon(machine.templateId)
-  const headline = getFleetHeadlineLabel(machine.status, machine.activeJob)
+  const headline = getFleetHeadlineLabel(
+    machine.status,
+    machine.activeJob,
+    machine.commandOwner,
+  )
   const grainBinLabel = formatFillPercent(machine.grainBin)
   const trailerFillLabel = formatFillPercent(machine.trailerFill)
   const workProgressLabel =
@@ -51,6 +61,10 @@ export function FleetMachineCard({ machine, onSelect }: FleetMachineCardProps) {
     (machine.status === 'working' ||
       machine.status === 'loading' ||
       machine.status === 'unloading')
+
+  const showCancelGps =
+    onCancelGps !== undefined &&
+    isGpsAutomationActive(machine.commandOwner, machine.status)
 
   return (
     <button
@@ -135,9 +149,21 @@ export function FleetMachineCard({ machine, onSelect }: FleetMachineCardProps) {
         </div>
         <div className="fleet-machine-card__row">
           <dt>Status</dt>
-          <dd>{getFleetReadyStatusLabel(machine.status)}</dd>
+          <dd>{getFleetReadyStatusLabel(machine.status, machine.commandOwner)}</dd>
         </div>
       </dl>
+      {showCancelGps ? (
+        <button
+          type="button"
+          className="fleet-machine-card__cancel game-hud__button game-hud__button--danger"
+          onClick={(event) => {
+            event.stopPropagation()
+            onCancelGps?.()
+          }}
+        >
+          Cancel GPS
+        </button>
+      ) : null}
     </button>
   )
 }
