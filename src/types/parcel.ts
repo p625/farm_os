@@ -1,5 +1,18 @@
 import type { FieldBlockId } from '@/config/map-01-layout.ts'
 import type { MapObject } from '@/types/world-map.ts'
+import {
+  parseFieldTestState,
+  serializeFieldTestState,
+  type FieldTestState,
+} from '@/types/field-test-state.ts'
+
+export type { FieldTestState } from '@/types/field-test-state.ts'
+export {
+  DEFAULT_FIELD_TEST_STATE,
+  FIELD_TEST_PRESETS,
+  parseFieldTestState,
+  serializeFieldTestState,
+} from '@/types/field-test-state.ts'
 
 export const PARCEL_BLOCK_IDS = ['A', 'B', 'C', 'M'] as const
 
@@ -20,6 +33,7 @@ export interface FieldParcelProperties {
   catalogId?: string
   parcelId?: string
   roadAccess?: string
+  fieldTestState?: FieldTestState
 }
 
 export interface ParcelFootprint {
@@ -47,13 +61,36 @@ export function parseFieldParcelProperties(
     typeof properties.roadAccess === 'string' ? properties.roadAccess : undefined
   const parcelId =
     typeof properties.parcelId === 'string' ? properties.parcelId : undefined
+  const fieldTestState = parseFieldTestState(properties)
   return {
     parcelBlock: properties.parcelBlock,
     fertility,
+    fieldTestState,
     ...(catalogId ? { catalogId } : {}),
     ...(parcelId ? { parcelId } : {}),
     ...(roadAccess ? { roadAccess } : {}),
   }
+}
+
+export function patchFieldParcelProperties(
+  properties: Record<string, unknown>,
+  patch: {
+    parcelBlock?: ParcelBlockId
+    fertility?: number
+    fieldTestState?: FieldTestState
+  },
+): Record<string, unknown> {
+  const next = { ...properties }
+  if (patch.parcelBlock !== undefined) {
+    next.parcelBlock = patch.parcelBlock
+  }
+  if (patch.fertility !== undefined) {
+    next.fertility = Math.max(0, Math.min(100, patch.fertility))
+  }
+  if (patch.fieldTestState !== undefined) {
+    next.fieldTestState = serializeFieldTestState(patch.fieldTestState)
+  }
+  return next
 }
 
 export function getFieldParcelFootprint(object: MapObject): ParcelFootprint | null {

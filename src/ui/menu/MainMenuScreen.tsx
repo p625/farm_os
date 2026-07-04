@@ -45,7 +45,10 @@ export function MainMenuScreen({ onStartGame, onOpenStudio }: MainMenuScreenProp
   const [pendingDeleteSlotId, setPendingDeleteSlotId] = useState<string | null>(null)
   const [pendingOverwriteSlotId, setPendingOverwriteSlotId] = useState<string | null>(null)
 
-  const [maps, setMaps] = useState(() => defaultMapPackageRegistry.getSummaries())
+  const [maps, setMaps] = useState(() => {
+    loadExportedMapsIntoRegistry(defaultMapPackageRegistry)
+    return defaultMapPackageRegistry.getSummaries()
+  })
   const lastPlayedSlotId = saveSlotManager.getLastPlayedSlotId()
   const canContinue =
     lastPlayedSlotId !== null && saveSlotManager.slotOccupied(lastPlayedSlotId)
@@ -64,7 +67,6 @@ export function MainMenuScreen({ onStartGame, onOpenStudio }: MainMenuScreenProp
   }, [])
 
   useEffect(() => {
-    refreshMaps()
     const onExportsChanged = () => {
       refreshMaps()
     }
@@ -78,12 +80,6 @@ export function MainMenuScreen({ onStartGame, onOpenStudio }: MainMenuScreenProp
       window.removeEventListener('focus', onWindowFocus)
     }
   }, [refreshMaps])
-
-  useEffect(() => {
-    if (view === 'new-game') {
-      refreshMaps()
-    }
-  }, [view, refreshMaps])
 
   const startSession = (session: GameSessionConfig) => {
     onStartGame(session)
@@ -330,7 +326,13 @@ export function MainMenuScreen({ onStartGame, onOpenStudio }: MainMenuScreenProp
           <button type="button" disabled={!canContinue} onClick={handleContinue}>
             Continue
           </button>
-          <button type="button" onClick={() => setView('new-game')}>
+          <button
+            type="button"
+            onClick={() => {
+              refreshMaps()
+              setView('new-game')
+            }}
+          >
             New Game
           </button>
           <button

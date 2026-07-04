@@ -2,8 +2,22 @@ import type { FieldBlockId } from '@/config/map-01-layout.ts'
 import type { StudioStore } from '@/studio/core/StudioStore.ts'
 import type { ParcelToolMode } from '@/studio/core/StudioStore.ts'
 import { useStudioStore } from '@/studio/hooks/useStudioStore.ts'
+import { STUDIO_CROP_OPTIONS } from '@/studio/catalog/StudioPlacementCatalog.ts'
 import { PARCEL_BLOCK_IDS } from '@/types/parcel.ts'
 import { parseFieldParcelProperties } from '@/types/parcel.ts'
+import {
+  FIELD_TEST_PRESETS,
+  FIELD_WORK_STATES,
+  STUDIO_GROWTH_STAGES,
+  STUDIO_SOIL_STATES,
+  applyGrowthStage,
+  applySoilState,
+  growthStageFromTestState,
+  soilStateFromTestState,
+  type FieldTestState,
+  FieldWorkState,
+} from '@/types/field-test-state.ts'
+import { FieldLifecycleState as States } from '@/types/field.ts'
 
 interface ParcelToolsPanelProps {
   store: StudioStore
@@ -14,6 +28,18 @@ const TOOLS: { id: ParcelToolMode; label: string }[] = [
   { id: 'draw', label: 'Draw' },
   { id: 'select', label: 'Select' },
 ]
+
+function refreshFieldVisual(
+  store: StudioStore,
+  field: { id: string },
+  onSceneRefresh: () => void,
+): void {
+  onSceneRefresh()
+  const selected = store.getSnapshot().selectedObject
+  if (selected?.id === field.id) {
+    store.selectObject(selected)
+  }
+}
 
 export function ParcelToolsPanel({ store, onSceneRefresh }: ParcelToolsPanelProps) {
   const {
@@ -36,6 +62,24 @@ export function ParcelToolsPanel({ store, onSceneRefresh }: ParcelToolsPanelProp
   const selectedProps = selectedField
     ? parseFieldParcelProperties(selectedField.properties)
     : null
+  const fieldState = selectedProps?.fieldTestState
+
+  const updateFieldState = (patch: Partial<FieldTestState>) => {
+    if (!selectedField || !fieldState) {
+      return
+    }
+    const next: FieldTestState = { ...fieldState, ...patch }
+    if (!next.cropEnabled) {
+      next.cropId = null
+    } else if (!next.cropId) {
+      next.cropId = 'wheat'
+    }
+    if (
+      store.updateFieldParcel(selectedField.id, { fieldTestState: next })
+    ) {
+      refreshFieldVisual(store, selectedField, onSceneRefresh)
+    }
+  }
 
   return (
     <div className="studio-panel studio-panel--parcels">
@@ -101,7 +145,7 @@ export function ParcelToolsPanel({ store, onSceneRefresh }: ParcelToolsPanelProp
         </>
       ) : null}
 
-      {parcelTool === 'select' && selectedField ? (
+      {parcelTool === 'select' && selectedField && fieldState ? (
         <div className="studio-parcel-actions">
           <h3 className="studio-panel__subtitle">Selected field</h3>
           <p className="studio-hint studio-kv__mono">{selectedField.id}</p>
@@ -170,6 +214,127 @@ export function ParcelToolsPanel({ store, onSceneRefresh }: ParcelToolsPanelProp
               }}
             />
           </label>
+
+          <h3 className="studio-panel__subtitle">Field State</h3>
+          <label className="studio-field studio-field--wide">
+            <span className="studio-field__label">
+              <input
+                type="checkbox"
+                checked={fieldState.cropEnabled}
+                onChange={(event) =>
+                  updateFieldState({ cropEnabled: event.target.checked })
+                }
+              />{' '}
+              Crop enabled
+            </span>
+          </label>
+          <label className="studio-field studio-field--wide">
+            <span className="studio-field__label">Crop type</span>
+            <select
+              className="studio-input"
+              value={fieldState.cropId ?? ''}
+              disabled={!fieldState.cropEnabled}
+              onChange={(event) =>
+                updateFieldState({
+                  cropId: event.target.value || null,
+                })
+              }
+            >
+              {STUDIO_CROP_OPTIONS.map((crop) => (
+                <option key={crop.id || 'none'} value={crop.id}>
+                  {crop.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="studio-field studio-field--wide">
+            <span className="studio-field__label">Growth stage</span>
+            <select
+              className="studio-input"
+              value={growthStageFromTestState(fieldState)}
+              onChange={(event) => {
+                const applied = applyGrowthStage(
+                  event.target.value as (typeof STUDIO_GROWTH_STAGES)[number],
+                  fieldState.cropId,
+                )
+                updateFieldState({
+                  ...applied,
+                  workState:
+                    applied.lifecycleState === States.Harvestable
+                      ? FieldWorkState.ReadyToHarvest
+                      : fieldState.workState,
+                })
+              }}
+            >
+              {STUDIO_GROWTH_STAGES.map((stage) => (
+                <option key={stage} value={stage}>
+                  {stage}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="studio-field studio-field--wide">
+            <span className="studio-field__label">Soil state</span>
+            <select
+              className="studio-input"
+              value={soilStateFromTestState(fieldState)}
+              onChange={(event) =>
+                updateFieldState({
+                  lifecycleState: applySoilState(
+                    event.target.value as (typeof STUDIO_SOIL_STATES)[number],
+                  ),
+                })
+              }
+            >
+              {STUDIO_SOIL_STATES.map((soil) => (
+                <option key={soil} value={soil}>
+                  {soil}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="studio-field studio-field--wide">
+            <span className="studio-field__label">Work state</span>
+            <select
+              className="studio-input"
+              value={fieldState.workState}
+              onChange={(event) =>
+                updateFieldState({
+                  workState: event.target.value as FieldTestState['workState'],
+                })
+              }
+            >
+              {FIELD_WORK_STATES.map((workState) => (
+                <option key={workState} value={workState}>
+                  {workState}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="studio-field studio-field--wide">
+            <span className="studio-field__label">Apply preset</span>
+            <select
+              className="studio-input"
+              defaultValue=""
+              onChange={(event) => {
+                const preset = FIELD_TEST_PRESETS.find(
+                  (entry) => entry.id === event.target.value,
+                )
+                if (preset) {
+                  updateFieldState(preset.state)
+                }
+                event.currentTarget.value = ''
+              }}
+            >
+              <option value="">Choose preset…</option>
+              {FIELD_TEST_PRESETS.map((preset) => (
+                <option key={preset.id} value={preset.id}>
+                  {preset.label}
+                </option>
+              ))}
+            </select>
+          </label>
+
           <button
             type="button"
             className="studio-btn studio-btn--danger"

@@ -124,6 +124,10 @@ export function StudioShell({ onSwitchToGame }: StudioShellProps) {
   }, [snapshot.layerVisibility])
 
   useEffect(() => {
+    engineRef.current?.refreshMapScene()
+  }, [snapshot.gameplayDebugEnabled])
+
+  useEffect(() => {
     engineRef.current?.syncModules()
   }, [snapshot.activeModuleId])
 
@@ -139,6 +143,24 @@ export function StudioShell({ onSwitchToGame }: StudioShellProps) {
       const inTextField =
         target instanceof HTMLInputElement ||
         target instanceof HTMLTextAreaElement
+
+      if (!inTextField && (event.ctrlKey || event.metaKey)) {
+        if (event.key === 'z' && !event.shiftKey) {
+          event.preventDefault()
+          engineRef.current?.undo()
+          return
+        }
+        if (event.key === 'y' || (event.key === 'z' && event.shiftKey)) {
+          event.preventDefault()
+          engineRef.current?.redo()
+          return
+        }
+        if (event.key === 'd') {
+          event.preventDefault()
+          engineRef.current?.duplicateSelectedObject()
+          return
+        }
+      }
 
       if (snapshot.activeModuleId === 'roads') {
         if (event.key === 'Escape' && snapshot.roadDraft) {
@@ -191,7 +213,7 @@ export function StudioShell({ onSwitchToGame }: StudioShellProps) {
           !inTextField
         ) {
           event.preventDefault()
-          engineRef.current?.deleteSelectedBuilding()
+          engineRef.current?.deleteSelectedGameplayObject()
         }
         return
       }
@@ -202,7 +224,7 @@ export function StudioShell({ onSwitchToGame }: StudioShellProps) {
           !inTextField
         ) {
           event.preventDefault()
-          engineRef.current?.deleteSelectedVehicle()
+          engineRef.current?.deleteSelectedGameplayObject()
         }
         return
       }
@@ -244,7 +266,17 @@ export function StudioShell({ onSwitchToGame }: StudioShellProps) {
   }
 
   const deleteSelected = () => {
-    engineRef.current?.deleteSelectedObject()
+    const engine = engineRef.current
+    if (!engine) {
+      return
+    }
+    if (!engine.deleteSelectedGameplayObject()) {
+      engine.deleteSelectedObject()
+    }
+  }
+
+  const duplicateSelected = () => {
+    engineRef.current?.duplicateSelectedObject()
   }
 
   return (
@@ -296,6 +328,7 @@ export function StudioShell({ onSwitchToGame }: StudioShellProps) {
               store={store}
               onSceneRefresh={refreshScene}
               onDeleteSelected={deleteSelected}
+              onDuplicateSelected={duplicateSelected}
             />
           ) : null}
         </aside>

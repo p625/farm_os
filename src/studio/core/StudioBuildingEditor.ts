@@ -3,7 +3,6 @@ import type { StudioCameraController } from '@/studio/core/StudioCameraControlle
 import type { MapSceneBuilder } from '@/studio/io/MapSceneBuilder.ts'
 import type { StudioStore } from '@/studio/core/StudioStore.ts'
 import {
-  pickBuildingObjectId,
   pickBuildingPlacementPoint,
 } from '@/studio/building/BuildingPlacementPick.ts'
 import { getBuildingTypeDefinition } from '@/studio/building/BuildingTypePalette.ts'
@@ -79,20 +78,6 @@ export class StudioBuildingEditor {
     const { buildingTool } = this.deps.store.getSnapshot()
 
     if (buildingTool === 'select') {
-      const objectId = pickBuildingObjectId(scene, coords.x, coords.y)
-      if (!objectId) {
-        this.deps.store.selectObject(null)
-        this.deps.requestRender()
-        return
-      }
-      const object = this.deps.store.findObject(objectId)
-      if (object) {
-        this.deps.store.selectObject(object)
-        if (object.layer === 'buildings') {
-          this.deps.store.setAnchorParentId(object.id)
-        }
-      }
-      this.deps.requestRender()
       return
     }
 

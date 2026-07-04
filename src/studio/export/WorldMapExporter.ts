@@ -244,6 +244,9 @@ export function exportWorldMapToPackage(
       initialOwnership: owned,
       blockId,
       developmentTier: tierForBlock(blockId),
+      ...(props?.fieldTestState
+        ? { initialFieldState: props.fieldTestState }
+        : {}),
     }
   })
 

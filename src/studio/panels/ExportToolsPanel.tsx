@@ -20,11 +20,13 @@ export function ExportToolsPanel({ store }: ExportToolsPanelProps) {
     if (activeModuleId !== 'export') {
       return
     }
-    setExportName(map.name)
-    setExportId(suggestStudioPackageId(map))
-    setExportDescription(map.meta.description ?? '')
-    setConfirmForceExport(false)
-  }, [activeModuleId, map.id, map.name, map.meta.description])
+    queueMicrotask(() => {
+      setExportName(map.name)
+      setExportId(suggestStudioPackageId(map))
+      setExportDescription(map.meta.description ?? '')
+      setConfirmForceExport(false)
+    })
+  }, [activeModuleId, map])
 
   if (activeModuleId !== 'export') {
     return null

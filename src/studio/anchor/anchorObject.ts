@@ -1,7 +1,13 @@
 import type { MapObject } from '@/types/world-map.ts'
-import type { SceneAnchorKind, SceneAnchorProperties } from '@/types/scene-anchor.ts'
+import type { AssetAnchorTemplate } from '@/types/asset-definition.ts'
+import {
+  resolveAnchorEntityId,
+  resolveAnchorLocalOffset,
+} from '@/types/asset-definition.ts'
 import type { BuildingTypeId } from '@/types/building.ts'
-import { getBuildingTypeDefinition } from '@/studio/building/BuildingTypePalette.ts'
+import { getBuildingCatalogEntry } from '@/config/building-catalog.ts'
+import { getPlacementAnchorTemplates } from '@/config/gameplay-asset-catalog.ts'
+import type { StudioPlacementEntry } from '@/studio/catalog/StudioPlacementCatalog.ts'
 
 let anchorCounter = 0
 
@@ -29,7 +35,7 @@ export function syncAnchorIdCounterFromMap(objects: readonly MapObject[]): void 
 }
 
 export interface CreateAnchorOptions {
-  anchorKind: SceneAnchorKind
+  anchorKind: import('@/types/scene-anchor.ts').SceneAnchorKind
   label: string
   surfaceY: number
   parentObjectId?: string
@@ -44,7 +50,7 @@ export function createSceneAnchorObject(
   options: CreateAnchorOptions,
 ): MapObject {
   const id = createAnchorId()
-  const properties: SceneAnchorProperties = {
+  const properties = {
     anchorKind: options.anchorKind,
     label: options.label,
     active: true,
@@ -63,17 +69,8 @@ export function createSceneAnchorObject(
       position: { x: worldX, y: options.surfaceY, z: worldZ },
       ...(options.rotationY !== undefined ? { rotationY: options.rotationY } : {}),
     },
-    properties: { ...properties },
+    properties,
   }
-}
-
-export interface DefaultAnchorSpec {
-  anchorKind: SceneAnchorKind
-  label: string
-  localX: number
-  localZ: number
-  entityId?: string
-  triggerRadius?: number
 }
 
 function rotateOffset(
@@ -89,145 +86,93 @@ function rotateOffset(
   }
 }
 
-export function createDefaultBuildingAnchors(
-  building: MapObject,
-  buildingType: BuildingTypeId,
+export function createAnchorsFromTemplates(
+  parent: MapObject,
+  templates: readonly AssetAnchorTemplate[],
   surfaceY: number,
+  parentWidth: number,
+  parentDepth: number,
+  context: { machineId?: string; buildingId?: string } = {},
 ): MapObject[] {
-  const definition = getBuildingTypeDefinition(buildingType)
-  const rotationY = building.transform.rotationY ?? 0
-  const specs = defaultAnchorSpecsForBuilding(buildingType, definition.width, definition.depth)
-
-  return specs.map((spec) => {
-    const offset = rotateOffset(spec.localX, spec.localZ, rotationY)
+  const rotationY = parent.transform.rotationY ?? 0
+  return templates.map((template) => {
+    const { localX, localZ } = resolveAnchorLocalOffset(
+      template,
+      parentWidth,
+      parentDepth,
+    )
+    const offset = rotateOffset(localX, localZ, rotationY)
+    const entityId = resolveAnchorEntityId(template, context)
     return createSceneAnchorObject(
-      building.transform.position.x + offset.x,
-      building.transform.position.z + offset.z,
+      parent.transform.position.x + offset.x,
+      parent.transform.position.z + offset.z,
       {
-        anchorKind: spec.anchorKind,
-        label: spec.label,
+        anchorKind: template.anchorKind,
+        label: template.label,
         surfaceY,
-        parentObjectId: building.id,
-        entityId: spec.entityId,
-        triggerRadius: spec.triggerRadius,
+        parentObjectId: parent.id,
+        entityId,
+        triggerRadius: template.triggerRadius,
         rotationY,
       },
     )
   })
 }
 
-function defaultAnchorSpecsForBuilding(
+export function createDefaultBuildingAnchors(
+  building: MapObject,
   buildingType: BuildingTypeId,
-  width: number,
-  depth: number,
-): DefaultAnchorSpec[] {
-  const frontZ = depth * 0.55
-  const specs: DefaultAnchorSpec[] = [
-    {
-      anchorKind: 'entry',
-      label: 'Main Entrance',
-      localX: 0,
-      localZ: frontZ,
-    },
-  ]
-
-  if (buildingType === 'farm_barn' || buildingType === 'farm_shed') {
-    specs.push({
-      anchorKind: 'entry',
-      label: 'Vehicle Entrance',
-      localX: width * 0.35,
-      localZ: frontZ,
-    })
-    specs.push({
-      anchorKind: 'loading',
-      label: 'Loading Area',
-      localX: -width * 0.25,
-      localZ: depth * 0.2,
-      triggerRadius: 4,
-    })
-  }
-
-  if (buildingType === 'farm_silo') {
-    specs.push({
-      anchorKind: 'interaction',
-      label: 'Silo Entry',
-      localX: 0,
-      localZ: frontZ,
-      entityId: 'silo_entry',
-    })
-    specs.push({
-      anchorKind: 'unload',
-      label: 'Unload Point',
-      localX: width * 0.4,
-      localZ: 0,
-      triggerRadius: 5,
-    })
-  }
-
-  if (buildingType === 'shop_general') {
-    specs.push({
-      anchorKind: 'interaction',
-      label: 'Shop Entry',
-      localX: 0,
-      localZ: frontZ,
-      entityId: 'dealer_entry',
-    })
-    specs.push({
-      anchorKind: 'parking',
-      label: 'Customer Parking',
-      localX: width * 0.6,
-      localZ: frontZ * 0.5,
-    })
-  }
-
-  if (buildingType === 'farm_mill') {
-    specs.push({
-      anchorKind: 'service',
-      label: 'Service Entrance',
-      localX: -width * 0.3,
-      localZ: frontZ * 0.6,
-    })
-  }
-
-  if (buildingType.startsWith('civic_')) {
-    specs.push({
-      anchorKind: 'entry',
-      label: 'Side Entrance',
-      localX: width * 0.4,
-      localZ: 0,
-    })
-  }
-
-  return specs
+  surfaceY: number,
+): MapObject[] {
+  const entry = getBuildingCatalogEntry(buildingType)
+  return createAnchorsFromTemplates(
+    building,
+    entry.defaultAnchors,
+    surfaceY,
+    entry.width,
+    entry.depth,
+    { buildingId: building.id },
+  )
 }
 
+export function createDefaultPlacementAnchors(
+  placement: MapObject,
+  entry: StudioPlacementEntry,
+  surfaceY: number,
+  machineId?: string,
+): MapObject[] {
+  const templates = getPlacementAnchorTemplates(entry.catalogKind, entry.catalogId)
+  return createAnchorsFromTemplates(
+    placement,
+    templates,
+    surfaceY,
+    entry.width,
+    entry.depth,
+    { machineId },
+  )
+}
+
+/** @deprecated Use createDefaultPlacementAnchors */
 export function createDefaultVehicleAnchors(
   vehicle: MapObject,
   surfaceY: number,
+  machineId?: string,
 ): MapObject[] {
-  const rotationY = vehicle.transform.rotationY ?? 0
-  const offset = rotateOffset(0, 2.5, rotationY)
-  return [
-    createSceneAnchorObject(
-      vehicle.transform.position.x + offset.x,
-      vehicle.transform.position.z + offset.z,
-      {
-        anchorKind: 'parking',
-        label: 'Parking Spot',
-        surfaceY,
-        parentObjectId: vehicle.id,
-        entityId: 'vehicle_parking',
-      },
-    ),
-    createSceneAnchorObject(
-      vehicle.transform.position.x,
-      vehicle.transform.position.z,
-      {
-        anchorKind: 'spawn',
-        label: 'Vehicle Spawn',
-        surfaceY,
-        parentObjectId: vehicle.id,
-      },
-    ),
-  ]
+  const width =
+    vehicle.shape?.type === 'box' ? vehicle.shape.width : 2.5
+  const depth =
+    vehicle.shape?.type === 'box' ? vehicle.shape.depth : 4
+  const templates = machineId
+    ? getPlacementAnchorTemplates('machine', machineId)
+    : getPlacementAnchorTemplates('attachment', 'wagon')
+  return createAnchorsFromTemplates(
+    vehicle,
+    templates,
+    surfaceY,
+    width,
+    depth,
+    { machineId },
+  )
 }
+
+export type { AssetAnchorTemplate as DefaultAnchorSpec }

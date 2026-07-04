@@ -133,7 +133,7 @@ export class CropSystem extends GameSystem {
     }
 
     const t = Math.min(1, Math.max(0, daysGrown / crop.growingDays))
-    let curved = t
+    let curved: number
 
     switch (crop.growthCurve) {
       case GrowthCurve.Early:

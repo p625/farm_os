@@ -1,5 +1,6 @@
 import { FieldOwnership } from '@/types/ownership.ts'
 import type { FieldBlockId } from '@/config/map-01-layout.ts'
+import type { FieldTestState } from '@/types/field-test-state.ts'
 import { tryGetActiveMapContext } from '@/maps/MapRuntimeContext.ts'
 
 export type FieldDevelopmentTier = 'starter' | 'early' | 'mid' | 'late'
@@ -14,6 +15,8 @@ export interface FieldCatalogEntry {
   initialOwnership: FieldOwnership
   blockId: FieldBlockId
   developmentTier: FieldDevelopmentTier
+  /** Optional Studio-authored initial crop state for new games. */
+  initialFieldState?: FieldTestState
 }
 
 /** Static catalog — used for Studio export and builtin fallback. */

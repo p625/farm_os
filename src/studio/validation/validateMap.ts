@@ -21,6 +21,9 @@ import {
 } from '@/studio/validation/terrainBounds.ts'
 import { getBoxObjectFootprint } from '@/studio/validation/ObjectFootprint.ts'
 import { validateSceneAnchors } from '@/studio/validation/validateAnchors.ts'
+import { validateFieldTestStates } from '@/studio/validation/validateFieldTestState.ts'
+import { validateMachinePlacements } from '@/studio/validation/validateMachines.ts'
+import { validateGameplayAssets } from '@/studio/validation/validateGameplayAssets.ts'
 
 let issueCounter = 0
 
@@ -68,6 +71,8 @@ export function validateWorldMap(map: WorldMapDocument): MapValidationReport {
   validateVegetation(map, bounds, issues)
   validateWater(map, bounds, issues)
   validateSceneAnchors(map, issues)
+  validateMachinePlacements(map, (issue) => pushIssue(issues, issue))
+  validateGameplayAssets(map, (issue) => pushIssue(issues, issue))
   validateMap01Recommendations(map, issues)
 
   return summarize(issues)
@@ -244,6 +249,8 @@ function validateFields(
       })
     }
   }
+
+  validateFieldTestStates(map, (issue) => pushIssue(issues, issue))
 }
 
 function validateRoads(

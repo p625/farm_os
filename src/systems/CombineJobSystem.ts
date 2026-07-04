@@ -8,6 +8,7 @@ import {
   TRACTOR_MOVE_SPEED,
 } from '@/config/farm-layout.ts'
 import { getGroundedPosition, getTerrainHeightAt } from '@/maps/grounding.ts'
+import { resolveMachineHome } from '@/maps/resolveMachineHome.ts'
 import { MachineCapability, MachineId, type MachineCommand } from '@/types/machine.ts'
 import type { IMachineController } from '@/types/machine-controller.ts'
 import type { MachineSaveData } from '@/types/save.ts'
@@ -143,18 +144,10 @@ export class CombineJobSystem extends GameSystem implements IMachineController {
   }
 
   private resolveMapHome(): CombineHome {
-    if (this.machineId === MachineId.GrainCombine1) {
-      const raw = getGrainCombineHome()
-      return {
-        position: getGroundedPosition(raw.x, raw.z),
-        rotationY: getGrainCombineHomeRotationY(),
-      }
-    }
-
-    const raw = getCornCombineHome()
+    const home = resolveMachineHome(this.machineId)
     return {
-      position: getGroundedPosition(raw.x, raw.z),
-      rotationY: getCornCombineHomeRotationY(),
+      position: { ...home.position },
+      rotationY: home.rotationY,
     }
   }
 

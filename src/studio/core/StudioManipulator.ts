@@ -130,13 +130,14 @@ export class StudioManipulator {
         return
       }
 
-      event.preventDefault()
-      this.canvas.setPointerCapture(event.pointerId)
-      this.deps.cameraController.getCamera().detachControl()
+    event.preventDefault()
+    this.canvas.setPointerCapture(event.pointerId)
+    this.deps.cameraController.getCamera().detachControl()
       this.deps.store.selectObject(object)
       this.deps.selection.highlightByObjectId(scene, object.id)
       this.handles.sync(scene, object)
 
+      this.deps.store.checkpointHistory('resize')
       this.mode = 'resize'
       this.resizeSession = {
         objectId: object.id,
@@ -210,6 +211,7 @@ export class StudioManipulator {
     event.preventDefault()
     this.canvas.setPointerCapture(event.pointerId)
     this.deps.cameraController.getCamera().detachControl()
+    this.deps.store.checkpointHistory('move')
     this.deps.store.selectObject(object)
     this.deps.selection.highlightByObjectId(scene, object.id)
     this.handles.sync(scene, object)
@@ -348,22 +350,28 @@ export class StudioManipulator {
       return
     }
 
-    const shape =
-      draft.shape?.type === 'box'
-        ? {
-            width: draft.shape.width,
-            depth: draft.shape.depth,
-            height: draft.shape.height,
-          }
-        : undefined
-
-    this.deps.store.updateObject(session.objectId, {
-      transform: {
-        position: { ...draft.transform.position },
-        rotationY: draft.transform.rotationY,
-      },
-      shape,
+    this.deps.store.moveObjectWithAnchors(draft.id, {
+      x: draft.transform.position.x,
+      z: draft.transform.position.z,
     })
+
+    if (this.resizeSession && draft.shape?.type === 'box') {
+      this.deps.store.updateObject(draft.id, {
+        shape: {
+          width: draft.shape.width,
+          depth: draft.shape.depth,
+          height: draft.shape.height,
+        },
+      })
+    }
+
+    if (draft.transform.rotationY !== undefined) {
+      this.deps.store.rotateObjectWithAnchors(
+        draft.id,
+        draft.transform.rotationY,
+      )
+    }
+
     this.deps.onCommit()
   }
 

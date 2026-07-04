@@ -1,0 +1,14 @@
+{
+  "packageFormatVersion": 1,
+  "id": "gameplay_placement_test",
+  "name": "Gameplay Placement E2E Test",
+  "version": "1.0.0",
+  "author": "FarmOS E2E",
+  "description": "E2E test map for gameplay-aware Studio placement",
+  "source": "community",
+  "fieldCount": 0,
+  "blockIds": [],
+  "createdAt": "2026-07-04T20:19:16.978Z",
+  "updatedAt": "2026-07-04T20:19:17.151Z",
+  "worldMapFile": "GameplayPlacementTest.farmos-map.json"
+}

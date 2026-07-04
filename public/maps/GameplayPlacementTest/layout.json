@@ -1,0 +1,156 @@
+{
+  "worldBounds": {
+    "minX": -200,
+    "maxX": 200,
+    "minZ": -200,
+    "maxZ": 200
+  },
+  "terrain": {
+    "width": 400,
+    "depth": 400
+  },
+  "farmHub": {
+    "farmyard": {
+      "position": {
+        "x": 54,
+        "y": 0,
+        "z": 48
+      },
+      "size": {
+        "width": 26,
+        "depth": 18
+      }
+    },
+    "barn": {
+      "position": {
+        "x": 50,
+        "y": 0,
+        "z": 38
+      }
+    },
+    "mill": {
+      "position": {
+        "x": 44,
+        "y": 0,
+        "z": 42
+      }
+    },
+    "dealership": {
+      "position": {
+        "x": -40,
+        "y": 0,
+        "z": -30
+      },
+      "rotationY": 0
+    },
+    "tractorHome": {
+      "position": {
+        "x": 0,
+        "y": 0,
+        "z": 20
+      },
+      "rotationY": 0
+    },
+    "grainCombineHome": {
+      "position": {
+        "x": 58,
+        "y": 0,
+        "z": 44
+      },
+      "rotationY": -0.5235987755982988
+    },
+    "cornCombineHome": {
+      "position": {
+        "x": 64,
+        "y": 0,
+        "z": 44
+      },
+      "rotationY": -0.5235987755982988
+    },
+    "siloEntry": {
+      "position": {
+        "x": 40,
+        "y": 0,
+        "z": -26.7
+      },
+      "rotationY": 0
+    },
+    "dealerEntry": {
+      "position": {
+        "x": -40,
+        "y": 0,
+        "z": -25.05
+      },
+      "rotationY": 0
+    },
+    "equipmentYard": {
+      "plow_1": {
+        "x": 46,
+        "y": 0,
+        "z": 52
+      },
+      "seeder_1": {
+        "x": 52,
+        "y": 0,
+        "z": 54
+      },
+      "trailer_1": {
+        "x": 58,
+        "y": 0,
+        "z": 52
+      },
+      "grain_header_1": {
+        "x": 48,
+        "y": 0,
+        "z": 58
+      },
+      "corn_header_1": {
+        "x": 56,
+        "y": 0,
+        "z": 58
+      },
+      "customer_parking": {
+        "x": -35.8,
+        "y": 0,
+        "z": -27.48
+      },
+      "vehicle_parking": {
+        "x": 0,
+        "y": 0,
+        "z": 22.5
+      },
+      "parking": {
+        "x": 15,
+        "y": 0,
+        "z": 22
+      }
+    },
+    "deliverySlots": [
+      {
+        "x": 42.4,
+        "y": 0,
+        "z": -30,
+        "rotationY": 0
+      },
+      {
+        "x": 37.9,
+        "y": 0,
+        "z": -29.1,
+        "rotationY": 0
+      },
+      {
+        "x": 0,
+        "y": 0,
+        "z": 35.4,
+        "rotationY": 0
+      },
+      {
+        "x": 15,
+        "y": 0,
+        "z": 20.5,
+        "rotationY": 0
+      }
+    ]
+  },
+  "fieldLayout": []
+}

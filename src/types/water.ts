@@ -13,7 +13,7 @@ export type WaterTypeId = (typeof WATER_TYPE_IDS)[number]
 export const WATER_PLACEMENT_KINDS = ['spline', 'area'] as const
 export type WaterPlacementKind = (typeof WATER_PLACEMENT_KINDS)[number]
 
-export interface WaterControlPoint extends MapVec3 {}
+export type WaterControlPoint = MapVec3
 
 export interface WaterSplineProperties {
   waterType: WaterTypeId

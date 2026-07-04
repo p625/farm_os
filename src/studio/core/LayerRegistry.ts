@@ -53,9 +53,9 @@ export const STUDIO_LAYER_DEFINITIONS: readonly LayerDefinition[] = [
   },
   {
     id: 'poi',
-    label: 'Scene Anchors',
-    description: 'Entry, spawn, parking, interaction points',
-    editableInFuture: 'Anchors via Building/Vehicle editors',
+    label: 'Gameplay Debug',
+    description: 'Entry, spawn, parking, attach, load — toggle via toolbar',
+    editableInFuture: 'Gameplay-aware anchors (auto from catalog)',
   },
   {
     id: 'debug',

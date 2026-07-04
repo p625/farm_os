@@ -6,7 +6,6 @@ import {
   TransformNode,
   Vector3,
 } from '@babylonjs/core'
-import { FarmEnvironment } from '@rendering/FarmEnvironment.ts'
 import {
   createTerrainGroundMesh,
   prepareTerrainMeshForLiveEdit,
@@ -34,8 +33,15 @@ import type { VegetationTypeDefinition } from '@/studio/vegetation/VegetationTyp
 import { parseVegetationProperties } from '@/types/vegetation.ts'
 import { parseBuildingProperties } from '@/types/building.ts'
 import { parseVehiclePlacementProperties } from '@/types/vehicle-placement.ts'
+import { parseFieldTestState } from '@/types/field-test-state.ts'
+import { getFieldVisualStyle } from '@rendering/appearance/FieldAppearance.ts'
+import { getCropVisualStyle } from '@rendering/CropPresentation.ts'
+import { CROP_CATALOG } from '@/config/crop-catalog.ts'
+import { FieldLifecycleState as FieldStates } from '@/types/field.ts'
 import { createAnchorGizmoMesh } from '@/studio/anchor/AnchorGizmoBuilder.ts'
 import { getVehicleTypeDefinition } from '@/studio/vehicle/VehicleTypePalette.ts'
+import { getStudioPlacementEntry } from '@/studio/catalog/StudioPlacementCatalog.ts'
+import { resolvePlacementEntryFromProperties } from '@/studio/vehicle/vehicleObject.ts'
 import { parseWaterProperties } from '@/types/water.ts'
 import type { WaterControlPoint, WaterTypeId } from '@/types/water.ts'
 import {
@@ -92,20 +98,35 @@ const LAYER_COLORS: Record<StudioLayerId, Color3> = {
   debug: new Color3(0.9, 0.2, 0.9),
 }
 
+export interface MapSceneBuildOptions {
+  /** Layers omitted from runtime scene build (e.g. vehicles rendered as gameplay meshes). */
+  omitLayers?: readonly StudioLayerId[]
+  /** When false, gameplay anchor gizmos are hidden (runtime / preview mode). */
+  renderGameplayAnchors?: boolean
+}
+
 export class MapSceneBuilder {
-  private readonly environment = new FarmEnvironment()
   private rootNode: TransformNode | null = null
   private lastMap: WorldMapDocument | null = null
+  private renderGameplayAnchors = true
 
-  build(scene: Scene, map: WorldMapDocument): TransformNode {
+  build(
+    scene: Scene,
+    map: WorldMapDocument,
+    options?: MapSceneBuildOptions,
+  ): TransformNode {
     this.dispose(scene)
     this.lastMap = map
-    this.environment.apply(scene)
+    this.renderGameplayAnchors = options?.renderGameplayAnchors !== false
 
     const root = new TransformNode('studio_map_root', scene)
     this.rootNode = root
+    const omittedLayers = new Set(options?.omitLayers ?? [])
 
     for (const object of map.objects) {
+      if (omittedLayers.has(object.layer)) {
+        continue
+      }
       this.createObjectMesh(scene, root, object, map)
     }
 
@@ -149,7 +170,9 @@ export class MapSceneBuilder {
     }
 
     if (object.layer === 'poi' && object.kind === 'anchor') {
-      createAnchorGizmoMesh(scene, object, root)
+      if (this.renderGameplayAnchors) {
+        createAnchorGizmoMesh(scene, object, root)
+      }
       return
     }
 
@@ -211,20 +234,28 @@ export class MapSceneBuilder {
       )
     }
 
-    const material = new StandardMaterial(`mat_${object.id}`, scene)
-    const base = LAYER_COLORS[object.layer].clone()
-    material.diffuseColor = base
-    material.specularColor = base.scale(0.15)
-    if (object.layer === 'poi' || object.layer === 'debug') {
-      material.emissiveColor = base.scale(0.25)
-    }
-    if (object.layer === 'terrain' && object.kind === 'ground') {
-      material.emissiveColor = new Color3(0.02, 0.03, 0.01)
-    }
-    mesh.material = material
-    mesh.receiveShadows = object.layer === 'terrain' || object.layer === 'fields'
+    const isTerrainGround =
+      object.layer === 'terrain' && object.kind === 'ground'
 
-    if (object.layer === 'terrain' && object.kind === 'ground') {
+    if (!isTerrainGround) {
+      const material = new StandardMaterial(`mat_${object.id}`, scene)
+      const base = LAYER_COLORS[object.layer].clone()
+      material.diffuseColor = base
+      material.specularColor = base.scale(0.15)
+      if (object.layer === 'poi' || object.layer === 'debug') {
+        material.emissiveColor = base.scale(0.25)
+      }
+      mesh.material = material
+      mesh.receiveShadows = object.layer === 'terrain' || object.layer === 'fields'
+
+      if (object.layer === 'fields' && object.kind === 'field') {
+        this.applyFieldTestVisual(material, object)
+      }
+    } else {
+      mesh.receiveShadows = true
+    }
+
+    if (isTerrainGround) {
       prepareTerrainMeshForLiveEdit(mesh as Mesh)
       syncTerrainMesh(mesh as Mesh, map.terrain, object.transform.position.y)
     }
@@ -304,19 +335,39 @@ export class MapSceneBuilder {
     if (!props) {
       return
     }
-    const definition = getVehicleTypeDefinition(props.vehicleType)
+    const catalogEntry =
+      resolvePlacementEntryFromProperties(object.properties) ??
+      (props.placementCatalogId
+        ? getStudioPlacementEntry(props.placementCatalogId)
+        : undefined)
+    const legacyType = props.vehicleType ?? 'implement'
+    const definition = catalogEntry
+      ? {
+          width: catalogEntry.width,
+          height: catalogEntry.height,
+          depth: catalogEntry.depth,
+          color: catalogEntry.color,
+        }
+      : {
+          width: getVehicleTypeDefinition(legacyType).width,
+          height: getVehicleTypeDefinition(legacyType).height,
+          depth: getVehicleTypeDefinition(legacyType).depth,
+          color: getVehicleTypeDefinition(legacyType).color,
+        }
     const mesh = MeshBuilder.CreateBox(
       `studio_${object.id}`,
       {
-        width: definition.width,
-        height: definition.height,
-        depth: definition.depth,
+        width: object.shape?.width ?? definition.width,
+        height: object.shape?.height ?? definition.height,
+        depth: object.shape?.depth ?? definition.depth,
       },
       scene,
     )
     mesh.parent = root
     mesh.position.x = object.transform.position.x
-    mesh.position.y = object.transform.position.y + definition.height * 0.5
+    mesh.position.y =
+      object.transform.position.y +
+      (object.shape?.height ?? definition.height) * 0.5
     mesh.position.z = object.transform.position.z
     if (object.transform.rotationY !== undefined) {
       mesh.rotation.y = object.transform.rotationY
@@ -982,6 +1033,44 @@ export class MapSceneBuilder {
       baseY,
       options,
     )
+  }
+
+  refreshFieldTestVisual(scene: Scene, object: MapObject): void {
+    const mesh = findStudioMeshByObjectId(scene, object.id)
+    const material = mesh?.material as StandardMaterial | undefined
+    if (!material) {
+      return
+    }
+    this.applyFieldTestVisual(material, object)
+  }
+
+  private applyFieldTestVisual(
+    material: StandardMaterial,
+    object: MapObject,
+  ): void {
+    const state = parseFieldTestState(object.properties)
+    const crop =
+      state.cropEnabled && state.cropId
+        ? CROP_CATALOG.find((entry) => entry.id === state.cropId)
+        : undefined
+
+    const useCropPalette =
+      crop &&
+      (state.lifecycleState === FieldStates.Seeded ||
+        state.lifecycleState === FieldStates.Growing ||
+        state.lifecycleState === FieldStates.Harvestable)
+
+    const style = useCropPalette
+      ? getCropVisualStyle(
+          crop.palette,
+          state.lifecycleState,
+          state.growthPercent,
+        )
+      : getFieldVisualStyle(state.lifecycleState, state.growthPercent)
+
+    material.diffuseColor = style.diffuse.clone()
+    material.specularColor = style.specular.clone()
+    material.emissiveColor = style.emissive.clone()
   }
 }
 

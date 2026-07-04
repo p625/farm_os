@@ -6,10 +6,8 @@ import { clampRadialAnchor } from '@/utils/radial-menu-position.ts'
 import { GameHUD } from './GameHUD.tsx'
 import { ChooseCropRadialMenu } from './ChooseCropRadialMenu.tsx'
 import { RadialContextMenu } from './RadialContextMenu.tsx'
-import {
-  FieldWorkModeRadialMenu,
-  getFieldWorkTaskLabel,
-} from './FieldWorkModeRadialMenu.tsx'
+import { FieldWorkModeRadialMenu } from './FieldWorkModeRadialMenu.tsx'
+import { getFieldWorkTaskLabel } from './fieldWorkTaskLabel.ts'
 import { AttachmentRadialMenu } from './AttachmentRadialMenu.tsx'
 import { MachineRadialMenu } from './MachineRadialMenu.tsx'
 import { InteractionRadialMenu } from './InteractionRadialMenu.tsx'

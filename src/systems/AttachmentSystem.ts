@@ -3,6 +3,7 @@ import {
   getAttachmentCatalogEntry,
   getAttachmentDisplayName,
 } from '@/config/attachment-catalog.ts'
+import { ATTACHMENT_CATALOG } from '@/config/attachment-catalog.ts'
 import {
   getMachineCatalogEntry,
   getMachineSlots,
@@ -14,6 +15,8 @@ import {
   getEquipmentYardSpawnPositions,
 } from '@/config/farm-layout.ts'
 import { getGroundedPosition, groundSavedPosition } from '@/maps/grounding.ts'
+import { tryGetActiveMapContext } from '@/maps/MapRuntimeContext.ts'
+import { resolveRuntimeAttachmentSpawns } from '@/maps/resolveRuntimeAttachmentSpawns.ts'
 import {
   AttachmentId,
   AttachmentLifecycleState,
@@ -144,6 +147,16 @@ export class AttachmentSystem extends GameSystem {
       }
       this.attachments.set(normalized.id, normalized)
       knownIds.add(normalized.id)
+    }
+
+    const worldMap = tryGetActiveMapContext()?.worldMap
+    const studioAttachmentPlacements =
+      worldMap !== undefined &&
+      resolveRuntimeAttachmentSpawns(worldMap).length > 0
+
+    if (studioAttachmentPlacements) {
+      this.notifyChange()
+      return
     }
 
     for (const spawn of DEFAULT_ATTACHMENT_SPAWNS) {
@@ -630,7 +643,10 @@ export class AttachmentSystem extends GameSystem {
       return null
     }
 
-    const id = isAttachmentId(item.attachmentId) ? item.attachmentId : null
+    const id = resolveAttachmentInstanceId(
+      item.attachmentId,
+      item.catalogId as import('@/types/attachment.ts').AttachmentCatalogIdValue | undefined,
+    )
     if (!id) {
       return null
     }
@@ -724,6 +740,23 @@ export class AttachmentSystem extends GameSystem {
   }
 }
 
-function isAttachmentId(value: string): value is AttachmentIdValue {
-  return Object.values(AttachmentId).includes(value as AttachmentIdValue)
+function resolveAttachmentInstanceId(
+  attachmentId: string,
+  catalogId?: AttachmentCatalogIdValue,
+): AttachmentIdValue | null {
+  if (Object.values(AttachmentId).includes(attachmentId as AttachmentIdValue)) {
+    return attachmentId as AttachmentIdValue
+  }
+
+  const catalogsToTry = catalogId
+    ? [catalogId]
+    : ATTACHMENT_CATALOG.map((entry) => entry.id)
+
+  for (const catalog of catalogsToTry) {
+    if (new RegExp(`^${catalog}_\\d+$`).test(attachmentId)) {
+      return attachmentId as AttachmentIdValue
+    }
+  }
+
+  return null
 }

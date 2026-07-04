@@ -6,11 +6,16 @@ import {
   TransformNode,
   Vector3,
 } from '@babylonjs/core'
+import { createTerrainGroundMesh } from '@/rendering/terrain/TerrainRenderPipeline.ts'
 import { FarmDecorationsBuilder } from './FarmDecorationsBuilder.ts'
-import { FarmEnvironment } from './FarmEnvironment.ts'
 import { MapSceneBuilder } from '@/studio/io/MapSceneBuilder.ts'
+import { loadRuntimeMachines } from '@/maps/MapRuntimeLoader.ts'
 import { tryGetActiveMapContext } from '@/maps/MapRuntimeContext.ts'
 import { getGroundedPosition } from '@/maps/grounding.ts'
+import {
+  createCombineGameplayMesh,
+  createTractorGameplayMesh,
+} from './RuntimeMachineMeshBuilder.ts'
 import {
   getActiveFarmHub,
   getActiveFieldLayout,
@@ -18,31 +23,26 @@ import {
   getActiveWorldTerrainSize,
 } from '@/config/farm-layout.ts'
 import { getInteractionPointCatalog } from '@/config/interaction-point-catalog.ts'
+import { MachineId } from '@/types/machine.ts'
 
-const TERRAIN_COLOR = new Color3(0.26, 0.46, 0.18)
 const VALLEY_COLOR = new Color3(0.22, 0.4, 0.15)
 const FIELD_BASE_COLOR = new Color3(0.42, 0.28, 0.16)
 const FARMYARD_COLOR = new Color3(0.58, 0.48, 0.34)
-const TRACTOR_BODY_COLOR = new Color3(0.15, 0.42, 0.15)
-const TRACTOR_CABIN_COLOR = new Color3(0.2, 0.5, 0.2)
-const TRACTOR_WHEEL_COLOR = new Color3(0.12, 0.12, 0.12)
-
 export class FarmSceneBuilder {
-  private readonly environment = new FarmEnvironment()
   private readonly decorations = new FarmDecorationsBuilder()
   private readonly mapSceneBuilder = new MapSceneBuilder()
 
   build(scene: Scene): void {
     const worldMap = tryGetActiveMapContext()?.worldMap
     if (worldMap) {
-      this.mapSceneBuilder.build(scene, worldMap)
-      this.createTractor(scene)
-      this.createCombines(scene)
+      this.mapSceneBuilder.build(scene, worldMap, {
+        omitLayers: ['vehicles'],
+        renderGameplayAnchors: false,
+      })
+      loadRuntimeMachines(scene, worldMap)
       this.createInteractionPoints(scene)
       return
     }
-
-    this.environment.apply(scene)
 
     this.createTerrain(scene)
     this.createValleyBackdrop(scene)
@@ -61,19 +61,14 @@ export class FarmSceneBuilder {
     const { width, depth } = getActiveWorldTerrainSize()
     const center = getActiveWorldCenter()
 
-    const terrain = MeshBuilder.CreateGround(
-      'terrain',
-      { width, height: depth },
-      scene,
-    )
+    const terrain = createTerrainGroundMesh(scene, 'terrain', {
+      width,
+      depth,
+      resolution: 32,
+      updatable: false,
+      defaultLegacySurfaceId: 0,
+    })
     terrain.position = new Vector3(center.x, 0, center.z)
-
-    const material = new StandardMaterial('terrainMaterial', scene)
-    material.diffuseColor = TERRAIN_COLOR
-    material.specularColor = new Color3(0.04, 0.06, 0.03)
-    material.emissiveColor = new Color3(0.02, 0.03, 0.01)
-    terrain.material = material
-    terrain.receiveShadows = true
   }
 
   private createValleyBackdrop(scene: Scene): void {
@@ -316,78 +311,11 @@ export class FarmSceneBuilder {
       hub.tractorHome.position.x,
       hub.tractorHome.position.z,
     )
-    const root = new TransformNode('tractor', scene)
-    root.position = new Vector3(spawn.x, spawn.y, spawn.z)
-    root.rotation.y = hub.tractorHome.rotationY ?? -Math.PI / 6
-
-    const bodyMaterial = new StandardMaterial('tractorBodyMaterial', scene)
-    bodyMaterial.diffuseColor = TRACTOR_BODY_COLOR
-    bodyMaterial.specularColor = new Color3(0.08, 0.1, 0.06)
-
-    const cabinMaterial = new StandardMaterial('tractorCabinMaterial', scene)
-    cabinMaterial.diffuseColor = TRACTOR_CABIN_COLOR
-
-    const wheelMaterial = new StandardMaterial('tractorWheelMaterial', scene)
-    wheelMaterial.diffuseColor = TRACTOR_WHEEL_COLOR
-    wheelMaterial.specularColor = new Color3(0.02, 0.02, 0.02)
-
-    const body = MeshBuilder.CreateBox(
-      'tractorBody',
-      { width: 2.2, height: 1.2, depth: 3.6 },
+    createTractorGameplayMesh(
       scene,
+      spawn,
+      hub.tractorHome.rotationY ?? -Math.PI / 6,
     )
-    body.position = new Vector3(0, 0.9, 0)
-    body.parent = root
-    body.material = bodyMaterial
-    body.receiveShadows = true
-
-    const cabin = MeshBuilder.CreateBox(
-      'tractorCabin',
-      { width: 1.4, height: 1.1, depth: 1.4 },
-      scene,
-    )
-    cabin.position = new Vector3(0, 1.85, -0.6)
-    cabin.parent = root
-    cabin.material = cabinMaterial
-    cabin.receiveShadows = true
-
-    const hood = MeshBuilder.CreateBox(
-      'tractorHood',
-      { width: 1.6, height: 0.8, depth: 1.2 },
-      scene,
-    )
-    hood.position = new Vector3(0, 1.1, 1.3)
-    hood.parent = root
-    hood.material = bodyMaterial
-
-    const wheelPositions: [number, number][] = [
-      [-1.1, 1.2],
-      [1.1, 1.2],
-      [-1.1, -1.2],
-      [1.1, -1.2],
-    ]
-
-    for (const [index, [x, z]] of wheelPositions.entries()) {
-      const wheel = MeshBuilder.CreateCylinder(
-        `tractorWheel_${index + 1}`,
-        { height: 0.5, diameter: 1.1 },
-        scene,
-      )
-      wheel.rotation.z = Math.PI / 2
-      wheel.position = new Vector3(x, 0.55, z)
-      wheel.parent = root
-      wheel.material = wheelMaterial
-      wheel.receiveShadows = true
-    }
-
-    const exhaust = MeshBuilder.CreateCylinder(
-      'tractorExhaust',
-      { height: 0.8, diameter: 0.2 },
-      scene,
-    )
-    exhaust.position = new Vector3(0.5, 2.2, 0.2)
-    exhaust.parent = root
-    exhaust.material = wheelMaterial
   }
 
   private createCombines(scene: Scene): void {
@@ -396,96 +324,22 @@ export class FarmSceneBuilder {
       hub.grainCombineHome.position.x,
       hub.grainCombineHome.position.z,
     )
-    this.createCombine(
+    createCombineGameplayMesh(
       scene,
-      'grain_combine_1',
-      new Vector3(grainSpawn.x, grainSpawn.y, grainSpawn.z),
+      MachineId.GrainCombine1,
+      grainSpawn,
       hub.grainCombineHome.rotationY ?? -Math.PI / 6,
-      new Color3(0.75, 0.55, 0.12),
-      new Color3(0.85, 0.2, 0.12),
     )
     const cornSpawn = getGroundedPosition(
       hub.cornCombineHome.position.x,
       hub.cornCombineHome.position.z,
     )
-    this.createCombine(
+    createCombineGameplayMesh(
       scene,
-      'corn_combine_1',
-      new Vector3(cornSpawn.x, cornSpawn.y, cornSpawn.z),
+      MachineId.CornCombine1,
+      cornSpawn,
       hub.cornCombineHome.rotationY ?? -Math.PI / 6,
-      new Color3(0.7, 0.5, 0.1),
-      new Color3(0.2, 0.55, 0.2),
     )
-  }
-
-  private createCombine(
-    scene: Scene,
-    nodeName: string,
-    position: Vector3,
-    rotationY: number,
-    bodyColor: Color3,
-    accentColor: Color3,
-  ): void {
-    const root = new TransformNode(nodeName, scene)
-    root.position = position
-    root.rotation.y = rotationY
-
-    const bodyMaterial = new StandardMaterial(`${nodeName}_body_mat`, scene)
-    bodyMaterial.diffuseColor = bodyColor
-
-    const accentMaterial = new StandardMaterial(`${nodeName}_accent_mat`, scene)
-    accentMaterial.diffuseColor = accentColor
-
-    const wheelMaterial = new StandardMaterial(`${nodeName}_wheel_mat`, scene)
-    wheelMaterial.diffuseColor = TRACTOR_WHEEL_COLOR
-
-    const body = MeshBuilder.CreateBox(
-      `${nodeName}_body`,
-      { width: 3.2, height: 2.4, depth: 5.5 },
-      scene,
-    )
-    body.position = new Vector3(0, 1.4, 0)
-    body.parent = root
-    body.material = bodyMaterial
-    body.isPickable = true
-    body.receiveShadows = true
-
-    const cab = MeshBuilder.CreateBox(
-      `${nodeName}_cab`,
-      { width: 1.8, height: 1.6, depth: 1.8 },
-      scene,
-    )
-    cab.position = new Vector3(0, 2.8, -1.2)
-    cab.parent = root
-    cab.material = accentMaterial
-    cab.isPickable = true
-
-    const hopper = MeshBuilder.CreateBox(
-      `${nodeName}_hopper`,
-      { width: 2.4, height: 1.2, depth: 2.2 },
-      scene,
-    )
-    hopper.position = new Vector3(0, 3.2, 0.8)
-    hopper.parent = root
-    hopper.material = bodyMaterial
-    hopper.isPickable = true
-
-    for (const [index, [x, z]] of [
-      [-1.3, 1.8],
-      [1.3, 1.8],
-      [-1.3, -1.8],
-      [1.3, -1.8],
-    ].entries()) {
-      const wheel = MeshBuilder.CreateCylinder(
-        `${nodeName}_wheel_${index}`,
-        { height: 0.55, diameter: 1.2 },
-        scene,
-      )
-      wheel.rotation.z = Math.PI / 2
-      wheel.position = new Vector3(x, 0.6, z)
-      wheel.parent = root
-      wheel.material = wheelMaterial
-    }
   }
 
   private createInteractionPoints(scene: Scene): void {

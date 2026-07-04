@@ -3,6 +3,7 @@ import type { FarmHubLayout } from '@/config/map-01-layout.ts'
 import { FARM_HUB } from '@/config/map-01-layout.ts'
 import { getSceneAnchors, parseSceneAnchorProperties } from '@/types/scene-anchor.ts'
 import { parseBuildingProperties } from '@/types/building.ts'
+import { getBuildingAssetDefinition, getRequiredAnchorTemplates } from '@/config/gameplay-asset-catalog.ts'
 import { MachineId } from '@/types/machine.ts'
 
 function hubPlacementFromAnchor(
@@ -102,12 +103,20 @@ export function getBuildingsMissingRequiredAnchors(
       (anchor) =>
         parseSceneAnchorProperties(anchor.properties)?.parentObjectId === object.id,
     )
-    const hasEntry = anchors.some(
-      (anchor) =>
-        parseSceneAnchorProperties(anchor.properties)?.anchorKind === 'entry' ||
-        parseSceneAnchorProperties(anchor.properties)?.anchorKind === 'interaction',
+    const asset = getBuildingAssetDefinition(props.buildingType)
+    const missingRequired = getRequiredAnchorTemplates(asset.defaultAnchors).filter(
+      (template) =>
+        !anchors.some((anchor) => {
+          const anchorProps = parseSceneAnchorProperties(anchor.properties)
+          return (
+            anchorProps?.anchorKind === template.anchorKind &&
+            (template.entityId
+              ? anchorProps.entityId === template.entityId
+              : anchorProps?.label === template.label)
+          )
+        }),
     )
-    if (!hasEntry) {
+    if (missingRequired.length > 0) {
       missing.push({ buildingId: object.id, name: object.name ?? object.id })
     }
   }

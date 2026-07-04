@@ -4,9 +4,9 @@ import type { StudioStore } from '@/studio/core/StudioStore.ts'
 import type { BuildingToolMode } from '@/studio/core/StudioStore.ts'
 import { useStudioStore } from '@/studio/hooks/useStudioStore.ts'
 import {
-  getBuildingTypesByCategory,
-  type BuildingTypeDefinition,
-} from '@/studio/building/BuildingTypePalette.ts'
+  getBuildingCatalogByCategory,
+  type BuildingCatalogEntry,
+} from '@/config/building-catalog.ts'
 import { parseBuildingProperties } from '@/types/building.ts'
 import { SCENE_ANCHOR_KINDS } from '@/types/scene-anchor.ts'
 import { parseSceneAnchorProperties } from '@/types/scene-anchor.ts'
@@ -29,7 +29,7 @@ const CATEGORY_LABELS: Record<BuildingCategory, string> = {
   farm: 'Hospodářské stavby',
 }
 
-function sizeLabel(type: BuildingTypeDefinition): string {
+function sizeLabel(type: BuildingCatalogEntry): string {
   const total = type.wallHeight + type.roofHeight
   return `${type.width}×${type.depth} m · ${total.toFixed(1)} m`
 }
@@ -39,7 +39,7 @@ function BuildingTypeButton({
   active,
   onSelect,
 }: {
-  type: BuildingTypeDefinition
+  type: BuildingCatalogEntry
   active: boolean
   onSelect: () => void
 }) {
@@ -160,7 +160,7 @@ export function BuildingToolsPanel({
             <div key={category}>
               <h3 className="studio-panel__subtitle">{CATEGORY_LABELS[category]}</h3>
               <div className="studio-vegetation-type-list">
-                {getBuildingTypesByCategory(category).map((type) => (
+                {getBuildingCatalogByCategory(category).map((type) => (
                   <BuildingTypeButton
                     key={type.id}
                     type={type}
@@ -280,7 +280,7 @@ export function BuildingToolsPanel({
           <p className="studio-hint">Typ: {selectedProps.buildingType}</p>
           <div className="studio-vegetation-type-list">
             {categories.flatMap((category) =>
-              getBuildingTypesByCategory(category).map((type) => (
+              getBuildingCatalogByCategory(category).map((type) => (
                 <BuildingTypeButton
                   key={type.id}
                   type={type}

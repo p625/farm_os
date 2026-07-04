@@ -1,17 +1,22 @@
 import { STARTING_MONEY } from '@/config/game-balance.ts'
 import { CROP_CATALOG, DEFAULT_CROP_ID } from '@/config/crop-catalog.ts'
-import { getFieldCatalog } from '@/config/field-catalog.ts'
+import { getFieldCatalog, getFieldCatalogEntry } from '@/config/field-catalog.ts'
 import {
-  getCornCombineHome,
-  getCornCombineHomeRotationY,
   getEquipmentYardSpawnPositions,
-  getGrainCombineHome,
-  getGrainCombineHomeRotationY,
   getTractorHome,
   getTractorHomeRotationY,
 } from '@/config/farm-layout.ts'
 import { findOpenDeliverySlot } from '@/config/delivery-zone-catalog.ts'
 import { getGroundedPosition, groundSavedPosition } from '@/maps/grounding.ts'
+import { fieldTestStateToSaveSlice } from '@/types/field-test-state.ts'
+import { resolveMachineHome } from '@/maps/resolveMachineHome.ts'
+import { tryGetActiveMapContext } from '@/maps/MapRuntimeContext.ts'
+import {
+  hasStudioMachinePlacements,
+  resolveRuntimeMachineSpawns,
+} from '@/maps/resolveRuntimeMachineSpawns.ts'
+import { resolveRuntimeAttachmentSpawns } from '@/maps/resolveRuntimeAttachmentSpawns.ts'
+import { parseVehiclePlacementProperties } from '@/types/vehicle-placement.ts'
 import {
   DEFAULT_ATTACHMENT_SPAWNS,
   getAttachmentCatalogEntry,
@@ -97,8 +102,8 @@ export class SaveGameService {
       processedMarketPrices: this.baseProcessedMarketPrices(),
       production: this.emptyProduction(),
       upgrades: this.emptyUpgrades(),
-      machines: {},
-      attachments: this.emptyAttachments(),
+      machines: this.buildInitialMachinesSave(),
+      attachments: this.buildInitialAttachmentsSave(),
       farmStore: this.normalizeFarmStoreSave(undefined),
       eventLog: [],
       eventLogNextId: 1,
@@ -365,6 +370,17 @@ export class SaveGameService {
   }
 
   normalizeAttachmentsSave(attachments: unknown): AttachmentsSaveData {
+    const worldMap = tryGetActiveMapContext()?.worldMap
+    if (
+      worldMap &&
+      resolveRuntimeAttachmentSpawns(worldMap).length > 0 &&
+      attachments &&
+      typeof attachments === 'object' &&
+      Array.isArray((attachments as AttachmentsSaveData).items)
+    ) {
+      return attachments as AttachmentsSaveData
+    }
+
     const defaults = this.emptyAttachments()
 
     if (!attachments || typeof attachments !== 'object') {
@@ -502,7 +518,24 @@ export class SaveGameService {
   }
 
   private repairSave(data: LegacySaveData): GameSaveData {
-    const machines = this.resolveMachinesSave(data)
+    const worldMap = tryGetActiveMapContext()?.worldMap
+    const studioMachines =
+      worldMap &&
+      hasStudioMachinePlacements(worldMap) &&
+      data.machines &&
+      Object.keys(data.machines).length > 0
+    const machines = studioMachines
+      ? data.machines!
+      : this.resolveMachinesSave(data)
+
+    const studioAttachments =
+      worldMap &&
+      resolveRuntimeAttachmentSpawns(worldMap).length > 0 &&
+      data.attachments &&
+      Array.isArray(data.attachments.items)
+    const attachments = studioAttachments
+      ? data.attachments!
+      : this.normalizeAttachmentsSave(data.attachments)
 
     return {
       version: SAVE_VERSION,
@@ -525,7 +558,7 @@ export class SaveGameService {
       production: this.normalizeProductionSave(data.production),
       upgrades: data.upgrades,
       machines,
-      attachments: this.normalizeAttachmentsSave(data.attachments),
+      attachments,
       farmStore: this.normalizeFarmStoreSave(data.farmStore),
       eventLog: data.eventLog,
       eventLogNextId: data.eventLogNextId,
@@ -658,6 +691,13 @@ export class SaveGameService {
             (saved as { cropCare?: unknown }).cropCare,
           ),
         }
+      }
+      const catalogEntry = getFieldCatalogEntry(entry.id)
+      if (catalogEntry?.initialFieldState) {
+        return fieldTestStateToSaveSlice(
+          entry.id,
+          catalogEntry.initialFieldState,
+        )
       }
       return {
         id: entry.id,
@@ -1019,48 +1059,30 @@ export class SaveGameService {
   }
 
   private emptyMachineFor(machineId: MachineId): MachineSaveData {
-    if (machineId === MachineId.Tractor1) {
-      const home = getTractorHome()
-      return {
-        machineId: MachineId.Tractor1,
-        position: getGroundedPosition(home.x, home.z),
-        rotationY: getTractorHomeRotationY(),
+    if (
+      machineId === MachineId.Tractor1 ||
+      machineId === MachineId.GrainCombine1 ||
+      machineId === MachineId.CornCombine1
+    ) {
+      const home = resolveMachineHome(machineId)
+      const base = {
+        machineId,
+        position: { ...home.position },
+        rotationY: home.rotationY,
         state: TractorState.Idle,
         activeCommand: null,
         activeWork: null,
         workTimer: 0,
-        workDuration: 1.5,
+        workDuration:
+          machineId === MachineId.Tractor1 ? 1.5 : 2,
       }
-    }
-
-    if (machineId === MachineId.GrainCombine1) {
-      const home = getGrainCombineHome()
-      return {
-        machineId: MachineId.GrainCombine1,
-        position: getGroundedPosition(home.x, home.z),
-        rotationY: getGrainCombineHomeRotationY(),
-        state: TractorState.Idle,
-        activeCommand: null,
-        activeWork: null,
-        workTimer: 0,
-        workDuration: 2,
-        grainBin: this.emptyGrainBin(),
+      if (
+        machineId === MachineId.GrainCombine1 ||
+        machineId === MachineId.CornCombine1
+      ) {
+        return { ...base, grainBin: this.emptyGrainBin() }
       }
-    }
-
-    if (machineId === MachineId.CornCombine1) {
-      const home = getCornCombineHome()
-      return {
-        machineId: MachineId.CornCombine1,
-        position: getGroundedPosition(home.x, home.z),
-        rotationY: getCornCombineHomeRotationY(),
-        state: TractorState.Idle,
-        activeCommand: null,
-        activeWork: null,
-        workTimer: 0,
-        workDuration: 2,
-        grainBin: this.emptyGrainBin(),
-      }
+      return base
     }
 
     if (isPurchasedTractorInstanceId(machineId)) {
@@ -1089,6 +1111,86 @@ export class SaveGameService {
       quantity: 0,
       cropId: null,
     }
+  }
+
+  private buildInitialMachinesSave(): MachinesSaveData {
+    const worldMap = tryGetActiveMapContext()?.worldMap
+    if (!worldMap) {
+      return this.resolveMachinesSave({} as LegacySaveData)
+    }
+
+    const spawns = resolveRuntimeMachineSpawns(worldMap)
+    if (spawns.length === 0) {
+      return this.resolveMachinesSave({} as LegacySaveData)
+    }
+
+    const studioPlacements = worldMap.objects.some((object) => {
+      if (object.layer !== 'vehicles') {
+        return false
+      }
+      const props = parseVehiclePlacementProperties(object.properties)
+      return Boolean(
+        props &&
+          props.placementKind !== 'attachment' &&
+          (props.machineId || props.placementKind === 'machine'),
+      )
+    })
+
+    if (studioPlacements) {
+      const machines: MachinesSaveData = {}
+      for (const spawn of spawns) {
+        machines[spawn.machineId] = {
+          ...this.emptyMachineFor(spawn.machineId),
+          position: { ...spawn.position },
+          rotationY: spawn.rotationY,
+        }
+      }
+      return machines
+    }
+
+    const machines = this.resolveMachinesSave({} as LegacySaveData)
+    for (const spawn of spawns) {
+      machines[spawn.machineId] = {
+        ...this.emptyMachineFor(spawn.machineId),
+        position: { ...spawn.position },
+        rotationY: spawn.rotationY,
+      }
+    }
+
+    return machines
+  }
+
+  private buildInitialAttachmentsSave(): AttachmentsSaveData {
+    const worldMap = tryGetActiveMapContext()?.worldMap
+    const mapSpawns = worldMap
+      ? resolveRuntimeAttachmentSpawns(worldMap)
+      : []
+
+    if (mapSpawns.length === 0) {
+      return this.emptyAttachments()
+    }
+
+    const items = []
+    for (const spawn of mapSpawns) {
+      const catalog = getAttachmentCatalogEntry(spawn.catalogId)
+      if (!catalog) {
+        continue
+      }
+      items.push({
+        attachmentId: spawn.attachmentInstanceId,
+        attachmentType: catalog.attachmentType,
+        catalogId: spawn.catalogId,
+        lifecycleState: AttachmentLifecycleState.Detached,
+        position: { ...spawn.position },
+        rotationY: spawn.rotationY,
+        workPosition: AttachmentWorkPosition.Transport,
+        mountedOn: null,
+        containers:
+          catalog.attachmentType === 'trailer' ? [] : undefined,
+      })
+    }
+
+    return { items }
   }
 
   private emptyAttachments(): AttachmentsSaveData {

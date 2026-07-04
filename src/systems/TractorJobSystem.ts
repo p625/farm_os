@@ -6,6 +6,7 @@ import {
   TRACTOR_MOVE_SPEED,
 } from '@/config/farm-layout.ts'
 import { getGroundedPosition, getTerrainHeightAt } from '@/maps/grounding.ts'
+import { resolveMachineHome } from '@/maps/resolveMachineHome.ts'
 import { getScaledCropCareWorkDuration } from '@/config/crop-care-balance.ts'
 import { CropCareAction } from '@/types/crop-care.ts'
 import type { MachineCapabilityResolver } from './MachineCapabilityResolver.ts'
@@ -124,10 +125,10 @@ export class TractorJobSystem extends GameSystem implements IMachineController {
   initialize(): void {
     this.state = TractorState.Idle
     if (this.machineId === MachineId.Tractor1) {
-      const home = getGroundedPosition(getTractorHome().x, getTractorHome().z)
-      this.position = { ...home }
-      this.rotationY = getTractorHomeRotationY()
-      this.moveTarget = { ...home }
+      const home = resolveMachineHome(MachineId.Tractor1)
+      this.position = { ...home.position }
+      this.rotationY = home.rotationY
+      this.moveTarget = { ...home.position }
     }
     this.activeCommand = null
     this.activeWork = null

@@ -2,6 +2,7 @@ import { useRef } from 'react'
 import type { StudioStore } from '@/studio/core/StudioStore.ts'
 import { MapFileService } from '@/studio/io/MapFileService.ts'
 import { createLegacyPrototypeMap } from '@/studio/io/createLegacyPrototypeMap.ts'
+import { useStudioStore } from '@/studio/hooks/useStudioStore.ts'
 
 import { ModuleSwitcher } from '@/studio/panels/ModuleSwitcher.tsx'
 
@@ -17,6 +18,7 @@ export function StudioToolbar({
   onMapLoaded,
 }: StudioToolbarProps) {
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const { gameplayDebugEnabled } = useStudioStore(store)
 
   return (
     <header className="studio-toolbar">
@@ -61,6 +63,16 @@ export function StudioToolbar({
       </div>
 
       <div className="studio-toolbar__mode">
+        <button
+          type="button"
+          className={`studio-btn${
+            gameplayDebugEnabled ? ' studio-tool-grid__btn--active' : ''
+          }`}
+          onClick={() => store.toggleGameplayDebug()}
+          title="Show/hide gameplay anchors (entry, spawn, attach, load…)"
+        >
+          Gameplay Debug {gameplayDebugEnabled ? 'ON' : 'OFF'}
+        </button>
         <button
           type="button"
           className="studio-btn studio-btn--accent"

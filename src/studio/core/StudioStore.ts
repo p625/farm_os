@@ -1,3 +1,4 @@
+import { patchFieldParcelProperties } from '@/types/parcel.ts'
 import type { FieldBlockId } from '@/config/map-01-layout.ts'
 import type {
   MapBoxShape,
@@ -80,7 +81,7 @@ import { migrateLegacyBuildings, mapHasLegacyBuildings } from '@/studio/building
 import type { MapPackageSummary } from '@/types/map-package.ts'
 import {
   createDefaultBuildingAnchors,
-  createDefaultVehicleAnchors,
+  createDefaultPlacementAnchors,
   createSceneAnchorObject,
   syncAnchorIdCounterFromMap,
 } from '@/studio/anchor/anchorObject.ts'
@@ -91,10 +92,26 @@ import {
   syncVehicleIdCounterFromMap,
 } from '@/studio/vehicle/vehicleObject.ts'
 import {
+  allocateMapAttachmentInstanceId,
+  allocateMapMachineInstanceId,
+} from '@/studio/vehicle/allocatePlacementIds.ts'
+import {
+  getDefaultStudioPlacementId,
+  getStudioPlacementEntry,
+} from '@/studio/catalog/StudioPlacementCatalog.ts'
+import {
   DEFAULT_VEHICLE_TYPE,
   getVehicleTypeDefinition,
 } from '@/studio/vehicle/VehicleTypePalette.ts'
 import type { VehiclePlacementTypeId } from '@/types/vehicle-placement.ts'
+import { StudioCommandHistory } from '@/studio/core/StudioCommandHistory.ts'
+import { duplicateMapObject } from '@/studio/core/studioObjectDuplicate.ts'
+import {
+  isGameplayParentObject,
+  isSceneAnchorObject,
+  rotateObjectsWithAnchors,
+  translateObjectsWithAnchors,
+} from '@/studio/anchor/studioAnchorSync.ts'
 
 export type StudioModuleId =
   | 'transform'
@@ -163,6 +180,7 @@ export interface StudioSnapshot {
   buildingSnapRotation: boolean
   vehicleTool: VehicleToolMode
   vehicleType: VehiclePlacementTypeId
+  placementEntryId: string
   vehicleRotationY: number
   anchorKind: SceneAnchorKind
   anchorParentId: string | null
@@ -175,7 +193,10 @@ export interface StudioSnapshot {
   } | null
   validationReport: MapValidationReport | null
   validationFocusIssueId: string | null
+  gameplayDebugEnabled: boolean
   exportedMaps: readonly MapPackageSummary[]
+  canUndo: boolean
+  canRedo: boolean
 }
 
 let logCounter = 0
@@ -211,6 +232,7 @@ export class StudioStore {
   private buildingSnapRotation = true
   private vehicleTool: VehicleToolMode = 'place'
   private vehicleType: VehiclePlacementTypeId = DEFAULT_VEHICLE_TYPE
+  private placementEntryId: string = getDefaultStudioPlacementId()
   private vehicleRotationY = 0
   private anchorKind: SceneAnchorKind = 'entry'
   private anchorParentId: string | null = null
@@ -223,6 +245,8 @@ export class StudioStore {
   } | null = null
   private validationReport: MapValidationReport | null = null
   private validationFocusIssueId: string | null = null
+  private gameplayDebugEnabled = true
+  private readonly commandHistory = new StudioCommandHistory()
   private cachedSnapshot: StudioSnapshot
 
   constructor(initialMap: WorldMapDocument) {
@@ -364,6 +388,7 @@ export class StudioStore {
     syncAnchorIdCounterFromMap(this.map.objects)
     syncVehicleIdCounterFromMap(this.map)
     this.selectedObject = null
+    this.commandHistory.clear()
     if (options?.markDirty !== false) {
       this.dirty = true
     }
@@ -413,14 +438,221 @@ export class StudioStore {
     this.selectedObject = object
     if (object) {
       this.log('info', `Selected: ${object.name ?? object.id} (${object.layer})`)
-      return
     }
     this.emit()
+  }
+
+  checkpointHistory(label: string): void {
+    this.commandHistory.checkpoint(
+      this.map,
+      this.selectedObject?.id ?? null,
+      label,
+    )
+  }
+
+  canUndo(): boolean {
+    return this.commandHistory.canUndo()
+  }
+
+  canRedo(): boolean {
+    return this.commandHistory.canRedo()
+  }
+
+  undo(): boolean {
+    const restored = this.commandHistory.undo(
+      this.map,
+      this.selectedObject?.id ?? null,
+    )
+    if (!restored) {
+      return false
+    }
+    this.map = restored.map
+    this.selectedObject = restored.selectedObjectId
+      ? (this.findObject(restored.selectedObjectId) ?? null)
+      : null
+    this.dirty = true
+    this.log('info', `Undo: ${restored.label}`)
+    this.emit()
+    return true
+  }
+
+  redo(): boolean {
+    const restored = this.commandHistory.redo(
+      this.map,
+      this.selectedObject?.id ?? null,
+    )
+    if (!restored) {
+      return false
+    }
+    this.map = restored.map
+    this.selectedObject = restored.selectedObjectId
+      ? (this.findObject(restored.selectedObjectId) ?? null)
+      : null
+    this.dirty = true
+    this.log('info', `Redo: ${restored.label}`)
+    this.emit()
+    return true
+  }
+
+  previewMoveObjectWithAnchors(
+    objectId: string,
+    position: { x: number; z: number },
+  ): MapObject[] {
+    const object = this.findObject(objectId)
+    if (!object) {
+      return []
+    }
+    if (isSceneAnchorObject(object)) {
+      return [
+        {
+          ...object,
+          transform: {
+            ...object.transform,
+            position: {
+              ...object.transform.position,
+              x: position.x,
+              z: position.z,
+            },
+          },
+        },
+      ]
+    }
+    const deltaX = position.x - object.transform.position.x
+    const deltaZ = position.z - object.transform.position.z
+    const nextObjects = translateObjectsWithAnchors(
+      this.map.objects,
+      objectId,
+      deltaX,
+      deltaZ,
+    )
+    return nextObjects.filter(
+      (entry) =>
+        entry.id === objectId ||
+        (isSceneAnchorObject(entry) && entry.properties?.parentObjectId === objectId),
+    )
+  }
+
+  moveObjectWithAnchors(
+    objectId: string,
+    position: { x: number; z: number },
+  ): boolean {
+    const object = this.findObject(objectId)
+    if (!object) {
+      return false
+    }
+    const deltaX = position.x - object.transform.position.x
+    const deltaZ = position.z - object.transform.position.z
+    if (isSceneAnchorObject(object)) {
+      return this.updateAnchor(objectId, { position })
+    }
+    if (!isGameplayParentObject(object)) {
+      return this.updateObject(objectId, {
+        transform: { position: { x: position.x, z: position.z } },
+      })
+    }
+    const objects = translateObjectsWithAnchors(
+      this.map.objects,
+      objectId,
+      deltaX,
+      deltaZ,
+    )
+    this.map = { ...this.map, objects }
+    this.dirty = true
+    if (this.selectedObject?.id === objectId) {
+      this.selectedObject = this.findObject(objectId)
+    }
+    this.emit()
+    return true
+  }
+
+  previewRotateObjectWithAnchors(
+    objectId: string,
+    rotationY: number,
+  ): MapObject[] {
+    const object = this.findObject(objectId)
+    if (!object || isSceneAnchorObject(object)) {
+      return object ? [{ ...object, transform: { ...object.transform, rotationY } }] : []
+    }
+    const nextObjects = rotateObjectsWithAnchors(
+      this.map.objects,
+      objectId,
+      rotationY,
+    )
+    return nextObjects.filter(
+      (entry) =>
+        entry.id === objectId ||
+        (isSceneAnchorObject(entry) && entry.properties?.parentObjectId === objectId),
+    )
+  }
+
+  rotateObjectWithAnchors(objectId: string, rotationY: number): boolean {
+    const object = this.findObject(objectId)
+    if (!object) {
+      return false
+    }
+    if (isSceneAnchorObject(object)) {
+      return this.updateAnchor(objectId, { rotationY })
+    }
+    if (!isGameplayParentObject(object)) {
+      return this.updateObject(objectId, { transform: { rotationY } })
+    }
+    const objects = rotateObjectsWithAnchors(this.map.objects, objectId, rotationY)
+    this.map = { ...this.map, objects }
+    this.dirty = true
+    if (this.selectedObject?.id === objectId) {
+      this.selectedObject = this.findObject(objectId)
+    }
+    this.emit()
+    return true
+  }
+
+  duplicateObject(objectId: string): MapObject | null {
+    this.checkpointHistory('duplicate')
+    const duplicated = duplicateMapObject(this.map, objectId)
+    if (!duplicated) {
+      return null
+    }
+    this.map = {
+      ...this.map,
+      objects: [...this.map.objects, ...duplicated.objects],
+    }
+    this.dirty = true
+    this.selectedObject = duplicated.root
+    this.log('success', `Duplicated ${objectId} → ${duplicated.root.id}`)
+    this.emit()
+    return duplicated.root
+  }
+
+  deleteGameplayObject(objectId: string): boolean {
+    const object = this.findObject(objectId)
+    if (!object || object.id === 'terrain_ground') {
+      return false
+    }
+    if (object.layer === 'buildings') {
+      return this.deleteBuilding(objectId)
+    }
+    if (object.layer === 'vehicles') {
+      return this.deleteVehicle(objectId)
+    }
+    if (isSceneAnchorObject(object)) {
+      return this.deleteAnchor(objectId)
+    }
+    this.checkpointHistory('delete')
+    return this.deleteObject(objectId)
   }
 
   setLayerVisible(layer: StudioLayerId, visible: boolean): void {
     this.layerVisibility[layer] = visible
     this.emit()
+  }
+
+  setGameplayDebugEnabled(enabled: boolean): void {
+    this.gameplayDebugEnabled = enabled
+    this.emit()
+  }
+
+  toggleGameplayDebug(): void {
+    this.setGameplayDebugEnabled(!this.gameplayDebugEnabled)
   }
 
   setActiveModule(moduleId: StudioModuleId): void {
@@ -737,6 +969,7 @@ export class StudioStore {
       name?: string
       parcelBlock?: FieldBlockId
       fertility?: number
+      fieldTestState?: import('@/types/field-test-state.ts').FieldTestState
     },
   ): boolean {
     const index = this.map.objects.findIndex((object) => object.id === fieldId)
@@ -748,13 +981,18 @@ export class StudioStore {
       return false
     }
 
-    const properties = { ...current.properties }
-    if (patch.parcelBlock !== undefined) {
-      properties.parcelBlock = patch.parcelBlock
-    }
-    if (patch.fertility !== undefined) {
-      properties.fertility = Math.max(0, Math.min(100, patch.fertility))
-    }
+    const properties = patchFieldParcelProperties(
+      { ...current.properties },
+      {
+        ...(patch.parcelBlock !== undefined
+          ? { parcelBlock: patch.parcelBlock }
+          : {}),
+        ...(patch.fertility !== undefined ? { fertility: patch.fertility } : {}),
+        ...(patch.fieldTestState !== undefined
+          ? { fieldTestState: patch.fieldTestState }
+          : {}),
+      },
+    )
 
     const nextObject: MapObject = {
       ...current,
@@ -938,6 +1176,7 @@ export class StudioStore {
   }
 
   placeBuilding(worldX: number, worldZ: number): MapObject | null {
+    this.checkpointHistory('place')
     const surfaceY = sampleBuildingGroundY(this.map, worldX, worldZ)
     const building = createBuildingObject(worldX, worldZ, {
       buildingType: this.buildingType,
@@ -1063,6 +1302,7 @@ export class StudioStore {
     if (!building || building.layer !== 'buildings') {
       return false
     }
+    this.checkpointHistory('delete')
     const anchorIds = new Set(
       getAnchorsForParent(this.map.objects, buildingId).map((anchor) => anchor.id),
     )
@@ -1083,6 +1323,24 @@ export class StudioStore {
 
   setVehicleTool(tool: VehicleToolMode): void {
     this.vehicleTool = tool
+    this.emit()
+  }
+
+  setPlacementEntryId(placementId: string): void {
+    const entry = getStudioPlacementEntry(placementId)
+    if (!entry) {
+      return
+    }
+    this.placementEntryId = placementId
+    this.vehicleType = entry.catalogKind === 'machine'
+      ? entry.catalogId.includes('combine')
+        ? entry.catalogId.includes('corn')
+          ? 'corn_combine'
+          : 'grain_combine'
+        : 'tractor'
+      : entry.category === 'trailer'
+        ? 'trailer'
+        : 'implement'
     this.emit()
   }
 
@@ -1111,13 +1369,29 @@ export class StudioStore {
   }
 
   placeVehicle(worldX: number, worldZ: number): MapObject | null {
+    this.checkpointHistory('place')
     const surfaceY = sampleBuildingGroundY(this.map, worldX, worldZ)
+    const entry = getStudioPlacementEntry(this.placementEntryId)
+    const machineId = entry
+      ? allocateMapMachineInstanceId(this.map, entry)
+      : undefined
+    const attachmentInstanceId =
+      entry?.catalogKind === 'attachment' && entry.attachmentCatalogId
+        ? allocateMapAttachmentInstanceId(this.map, entry.attachmentCatalogId)
+        : undefined
+
     const vehicle = createVehiclePlacementObject(worldX, worldZ, {
       vehicleType: this.vehicleType,
+      placementEntry: entry,
       surfaceY,
       rotationY: this.vehicleRotationY,
+      machineId,
+      attachmentInstanceId,
     })
-    const anchors = createDefaultVehicleAnchors(vehicle, surfaceY)
+    const anchors =
+      entry
+        ? createDefaultPlacementAnchors(vehicle, entry, surfaceY, machineId)
+        : []
     const parkingAnchor = anchors.find(
       (anchor) => anchor.properties?.anchorKind === 'parking',
     )
@@ -1217,6 +1491,7 @@ export class StudioStore {
     if (!vehicle || vehicle.layer !== 'vehicles') {
       return false
     }
+    this.checkpointHistory('delete')
     const anchorIds = new Set(
       getAnchorsForParent(this.map.objects, vehicleId).map((anchor) => anchor.id),
     )
@@ -1240,6 +1515,7 @@ export class StudioStore {
     worldZ: number,
     parentObjectId?: string,
   ): MapObject | null {
+    this.checkpointHistory('place')
     const surfaceY = sampleBuildingGroundY(this.map, worldX, worldZ)
     const parentId = parentObjectId ?? this.anchorParentId ?? undefined
     const anchor = createSceneAnchorObject(worldX, worldZ, {
@@ -1248,7 +1524,7 @@ export class StudioStore {
       surfaceY,
       parentObjectId: parentId,
     })
-    let objects = [...this.map.objects, anchor]
+    const objects = [...this.map.objects, anchor]
     if (parentId) {
       const parentIndex = objects.findIndex((o) => o.id === parentId)
       if (parentIndex >= 0 && objects[parentIndex].layer === 'buildings') {
@@ -1343,6 +1619,7 @@ export class StudioStore {
     if (!anchor || anchor.layer !== 'poi' || anchor.kind !== 'anchor') {
       return false
     }
+    this.checkpointHistory('delete')
     this.map = {
       ...this.map,
       objects: this.map.objects.filter((object) => object.id !== anchorId),
@@ -1663,6 +1940,7 @@ export class StudioStore {
       buildingSnapRotation: this.buildingSnapRotation,
       vehicleTool: this.vehicleTool,
       vehicleType: this.vehicleType,
+      placementEntryId: this.placementEntryId,
       vehicleRotationY: this.vehicleRotationY,
       anchorKind: this.anchorKind,
       anchorParentId: this.anchorParentId,
@@ -1686,7 +1964,10 @@ export class StudioStore {
           }
         : null,
       validationFocusIssueId: this.validationFocusIssueId,
+      gameplayDebugEnabled: this.gameplayDebugEnabled,
       exportedMaps: this.refreshExportedMapsSnapshot(),
+      canUndo: this.commandHistory.canUndo(),
+      canRedo: this.commandHistory.canRedo(),
     }
   }
 }
@@ -1723,6 +2004,7 @@ export const EMPTY_STUDIO_SNAPSHOT: StudioSnapshot = {
   buildingSnapRotation: true,
   vehicleTool: 'place',
   vehicleType: DEFAULT_VEHICLE_TYPE,
+  placementEntryId: getDefaultStudioPlacementId(),
   vehicleRotationY: 0,
   anchorKind: 'entry',
   anchorParentId: null,
@@ -1732,5 +2014,8 @@ export const EMPTY_STUDIO_SNAPSHOT: StudioSnapshot = {
   waterAreaDraft: null,
   validationReport: null,
   validationFocusIssueId: null,
+  gameplayDebugEnabled: true,
   exportedMaps: [],
+  canUndo: false,
+  canRedo: false,
 }

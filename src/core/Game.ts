@@ -9,6 +9,7 @@ import type { GameSessionConfig } from '@game/GameSession.ts'
 import { defaultMapPackageRegistry } from '@/maps/MapPackageLoader.ts'
 import { loadExportedMapsIntoRegistry } from '@/maps/ExportedMapStorage.ts'
 import { setActiveMapContext } from '@/maps/MapRuntimeContext.ts'
+import { runGameplayPlacementSelfCheck, captureRuntimeSceneSnapshot } from '@/maps/GameplayPlacementSelfCheck.ts'
 import type { TimeScale } from '@/types/simulation-clock.ts'
 import { TIME_SCALE_OPTIONS } from '@/types/simulation-clock.ts'
 import {
@@ -17,11 +18,11 @@ import {
   CropPresentation,
   FieldOverlayPresentation,
   FieldPresentation,
-  LightingSystem,
   MachineInputPresentation,
   MachinePresentation,
   OwnershipPresentation,
   ProductionPresentation,
+  RenderingSystem,
   SceneManager,
 } from '@rendering/index.ts'
 import {
@@ -115,8 +116,8 @@ import { GameLoop } from './GameLoop.ts'
 
 export class Game implements IDisposable {
   private readonly sceneManager: SceneManager
+  private readonly renderingSystem: RenderingSystem
   private readonly cameraController: CameraController
-  private readonly lightingSystem: LightingSystem
   private readonly world: World
   private readonly cropSystem: CropSystem
   private readonly inventorySystem: InventorySystem
@@ -169,14 +170,15 @@ export class Game implements IDisposable {
   private started = false
   private fleetPanelOpen = false
   private pendingPurchasedMachineSave: GameSaveData['machines'] | null = null
+  private visualBenchmarkInput: { dispose(): void } | null = null
 
   constructor(
     canvas: HTMLCanvasElement,
     config: GameConfig = DEFAULT_GAME_CONFIG,
   ) {
     this.sceneManager = new SceneManager(canvas, config)
+    this.renderingSystem = new RenderingSystem(this.sceneManager)
     this.cameraController = new CameraController(this.sceneManager)
-    this.lightingSystem = new LightingSystem(this.sceneManager)
     this.world = new World()
     this.soundManager = new SoundManager()
     this.eventLog = new GameEventLog((entry) => {
@@ -1801,6 +1803,14 @@ export class Game implements IDisposable {
 
     setActiveMapContext(mapContext)
 
+    if (import.meta.env.DEV && mapContext.worldMap) {
+      const placementCheck = runGameplayPlacementSelfCheck(mapContext.worldMap)
+      ;(
+        globalThis as { farmosPlacementCheck?: typeof placementCheck }
+      ).farmosPlacementCheck = placementCheck
+      console.info('[FarmOS] Gameplay placement self-check', placementCheck)
+    }
+
     const preferences = loadGamePreferences()
     this.simulationClock.setRealMinutesPerGameDay(preferences.realMinutesPerGameDay)
 
@@ -1809,7 +1819,7 @@ export class Game implements IDisposable {
       return
     }
 
-    this.lightingSystem.initialize()
+    this.renderingSystem.initialize({ shadows: true })
     this.cameraController.initialize()
     this.world.initialize()
     this.cropSystem.initialize()
@@ -1934,6 +1944,16 @@ export class Game implements IDisposable {
     this.machineInputPresentation.attach(scene, this)
     this.syncCameraInteractionMode()
 
+    if (import.meta.env.DEV && mapContext.worldMap) {
+      const runtimeSnapshot = captureRuntimeSceneSnapshot(scene)
+      ;(
+        globalThis as {
+          farmosRuntimeSnapshot?: typeof runtimeSnapshot
+        }
+      ).farmosRuntimeSnapshot = runtimeSnapshot
+      console.info('[FarmOS] Runtime placement snapshot', runtimeSnapshot)
+    }
+
     if (this.pendingPurchasedMachineSave) {
       this.hydratePurchasedMachines(this.pendingPurchasedMachineSave)
       this.pendingPurchasedMachineSave = null
@@ -1947,6 +1967,21 @@ export class Game implements IDisposable {
     this.autoSaveEnabled = true
     this.started = true
     this.gameLoop.start(() => this.sceneManager.render())
+
+    if (import.meta.env.DEV) {
+      const { createVisualBenchmarkRunner } = await import(
+        '@/rendering/debug/VisualBenchmarkRunner.ts'
+      )
+      const { VisualBenchmarkInput } = await import('@/rendering/debug/VisualBenchmarkInput.ts')
+      const runner = createVisualBenchmarkRunner(
+        this.sceneManager,
+        this.cameraController,
+        this.renderingSystem,
+      )
+      this.visualBenchmarkInput = new VisualBenchmarkInput(runner)
+      this.visualBenchmarkInput.attach()
+      ;(globalThis as { farmosVisualBenchmark?: typeof runner }).farmosVisualBenchmark = runner
+    }
   }
 
   stop(): void {
@@ -1982,8 +2017,10 @@ export class Game implements IDisposable {
     this.cropSystem.dispose()
     this.eventLog.clear()
     this.world.dispose()
+    this.visualBenchmarkInput?.dispose()
+    this.visualBenchmarkInput = null
     this.cameraController.dispose()
-    this.lightingSystem.dispose()
+    this.renderingSystem.dispose()
     this.sceneManager.dispose()
     this.listeners.clear()
     this.cachedSnapshot = EMPTY_GAME_SNAPSHOT

@@ -3,7 +3,6 @@ import type { StudioCameraController } from '@/studio/core/StudioCameraControlle
 import type { MapSceneBuilder } from '@/studio/io/MapSceneBuilder.ts'
 import type { StudioStore } from '@/studio/core/StudioStore.ts'
 import {
-  pickVehicleObjectId,
   pickVehiclePlacementPoint,
 } from '@/studio/vehicle/VehiclePlacementPick.ts'
 import { getVehicleTypeDefinition } from '@/studio/vehicle/VehicleTypePalette.ts'
@@ -69,21 +68,7 @@ export class StudioVehicleEditor {
     const coords = this.canvasCoords(event)
     const { vehicleTool } = this.deps.store.getSnapshot()
 
-    if (vehicleTool === 'select' || vehicleTool === 'anchors') {
-      const vehicleId = pickVehicleObjectId(scene, coords.x, coords.y)
-      if (vehicleId) {
-        const object = this.deps.store.findObject(vehicleId)
-        if (object) {
-          this.deps.store.selectObject(object)
-          this.deps.store.setAnchorParentId(vehicleId)
-        }
-        this.deps.requestRender()
-        return
-      }
-      if (vehicleTool === 'select') {
-        this.deps.store.selectObject(null)
-        this.deps.requestRender()
-      }
+    if (vehicleTool === 'select') {
       return
     }
 

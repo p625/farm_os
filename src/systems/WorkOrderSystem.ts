@@ -125,7 +125,7 @@ export function resolveWorkOrderFieldQueue(
   machineId: MachineId | null,
   eligibility: WorkOrderFieldEligibility,
 ): string[] {
-  let candidates: string[] = []
+  let candidates: string[]
 
   switch (scope.kind) {
     case WorkOrderScopeKind.Single:

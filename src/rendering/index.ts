@@ -1,4 +1,5 @@
 export { SceneManager } from './SceneManager.ts'
+export { RenderingSystem } from './RenderingSystem.ts'
 export { FarmSceneBuilder } from './FarmSceneBuilder.ts'
 export { FarmDecorationsBuilder } from './FarmDecorationsBuilder.ts'
 export { FarmEnvironment } from './FarmEnvironment.ts'
@@ -15,3 +16,4 @@ export {
   TractorInputPresentation,
 } from './MachineInputPresentation.ts'
 export { AttachmentPresentation } from './AttachmentPresentation.ts'
+export * from './terrain/index.ts'

@@ -1,8 +1,10 @@
 import type { StudioStore } from '@/studio/core/StudioStore.ts'
 import type { VehicleToolMode } from '@/studio/core/StudioStore.ts'
 import { useStudioStore } from '@/studio/hooks/useStudioStore.ts'
-import { VEHICLE_TYPES } from '@/studio/vehicle/VehicleTypePalette.ts'
-import type { VehiclePlacementTypeId } from '@/types/vehicle-placement.ts'
+import {
+  formatPlacementCategory,
+  getStudioPlacementCatalog,
+} from '@/studio/catalog/StudioPlacementCatalog.ts'
 import { parseVehiclePlacementProperties } from '@/types/vehicle-placement.ts'
 import { SCENE_ANCHOR_KINDS } from '@/types/scene-anchor.ts'
 import { parseSceneAnchorProperties } from '@/types/scene-anchor.ts'
@@ -22,7 +24,7 @@ export function VehicleToolsPanel({ store, onSceneRefresh }: VehicleToolsPanelPr
   const {
     activeModuleId,
     vehicleTool,
-    vehicleType,
+    placementEntryId,
     vehicleRotationY,
     anchorKind,
     selectedObject,
@@ -30,6 +32,14 @@ export function VehicleToolsPanel({ store, onSceneRefresh }: VehicleToolsPanelPr
 
   if (activeModuleId !== 'vehicles') {
     return null
+  }
+
+  const catalog = getStudioPlacementCatalog()
+  const grouped = new Map<string, (typeof catalog)[number][]>()
+  for (const entry of catalog) {
+    const group = grouped.get(entry.category) ?? []
+    group.push(entry)
+    grouped.set(entry.category, group)
   }
 
   const selectedVehicle =
@@ -51,10 +61,10 @@ export function VehicleToolsPanel({ store, onSceneRefresh }: VehicleToolsPanelPr
 
   return (
     <div className="studio-panel studio-panel--vehicles">
-      <h2 className="studio-panel__title">Vehicles</h2>
+      <h2 className="studio-panel__title">Machines &amp; Equipment</h2>
       <p className="studio-hint">
-        Umístění strojů a přívěsů s parkovacími a spawn kotvami. Place vytvoří
-        výchozí Parking + Spawn anchor.
+        Nabídka se generuje z MACHINE_CATALOG a ATTACHMENT_CATALOG. Place
+        vytvoří parking + spawn anchor u samohybných strojů.
       </p>
 
       <h3 className="studio-panel__subtitle">Tool</h3>
@@ -90,20 +100,36 @@ export function VehicleToolsPanel({ store, onSceneRefresh }: VehicleToolsPanelPr
               }}
             />
           </label>
-          <div className="studio-vegetation-type-list">
-            {VEHICLE_TYPES.map((type) => (
-              <button
-                key={type.id}
-                type="button"
-                className={`studio-vegetation-type${
-                  vehicleType === type.id ? ' studio-vegetation-type--active' : ''
-                }`}
-                onClick={() => store.setVehicleType(type.id as VehiclePlacementTypeId)}
-              >
-                <span className="studio-vegetation-type__label">{type.label}</span>
-              </button>
-            ))}
-          </div>
+          {[...grouped.entries()].map(([category, entries]) => (
+            <div key={category}>
+              <h3 className="studio-panel__subtitle">
+                {formatPlacementCategory(
+                  category as (typeof entries)[number]['category'],
+                )}
+              </h3>
+              <div className="studio-vegetation-type-list">
+                {entries.map((entry) => (
+                  <button
+                    key={entry.id}
+                    type="button"
+                    className={`studio-vegetation-type${
+                      placementEntryId === entry.id
+                        ? ' studio-vegetation-type--active'
+                        : ''
+                    }`}
+                    onClick={() => store.setPlacementEntryId(entry.id)}
+                  >
+                    <span className="studio-vegetation-type__label">
+                      {entry.name}
+                    </span>
+                    <span className="studio-hint studio-kv__mono">
+                      {entry.catalogKind}:{entry.catalogId}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
         </>
       ) : null}
 
@@ -126,16 +152,29 @@ export function VehicleToolsPanel({ store, onSceneRefresh }: VehicleToolsPanelPr
             </select>
           </label>
           <p className="studio-hint">
-            Vyber vozidlo (Select), pak klikni na terén pro novou kotvu.
+            Vyber stroj (Select), pak klikni na terén pro novou kotvu.
           </p>
         </>
       ) : null}
 
       {selectedVehicle && selectedProps ? (
         <div className="studio-vegetation-actions">
-          <h3 className="studio-panel__subtitle">Selected vehicle</h3>
+          <h3 className="studio-panel__subtitle">Selected placement</h3>
           <p className="studio-hint studio-kv__mono">{selectedVehicle.id}</p>
-          <p className="studio-hint">Typ: {selectedProps.vehicleType}</p>
+          {selectedProps.placementCatalogId ? (
+            <p className="studio-hint">Catalog: {selectedProps.placementCatalogId}</p>
+          ) : null}
+          {selectedProps.machineId ? (
+            <p className="studio-hint">Machine: {selectedProps.machineId}</p>
+          ) : null}
+          {selectedProps.attachmentCatalogId ? (
+            <p className="studio-hint">
+              Attachment: {selectedProps.attachmentCatalogId}
+              {selectedProps.attachmentInstanceId
+                ? ` (${selectedProps.attachmentInstanceId})`
+                : ''}
+            </p>
+          ) : null}
           <p className="studio-hint">Anchors: {parentAnchors.length}</p>
           <button
             type="button"

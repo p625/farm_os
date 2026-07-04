@@ -1,0 +1,117 @@
+{
+  "generatedAt": "2026-07-04T20:19:17.152Z",
+  "passed": true,
+  "catalogDefinitions": {
+    "buildingCount": 18,
+    "machineCount": 3,
+    "attachmentCount": 7,
+    "studioPlacementCount": 10,
+    "placementEntityCount": 0,
+    "passed": true,
+    "failures": []
+  },
+  "catalogPlacement": {
+    "buildingCount": 18,
+    "machineCount": 3,
+    "attachmentCount": 7,
+    "studioPlacementCount": 10,
+    "placementEntityCount": 28,
+    "passed": true,
+    "failures": []
+  },
+  "placement": {
+    "generatedAt": "2026-07-04T20:19:16.980Z",
+    "mapId": "gameplay_placement_test",
+    "counts": {
+      "buildings": 2,
+      "vehicles": 4,
+      "attachments": 3,
+      "machines": 1,
+      "anchors": 21,
+      "validationErrors": 0,
+      "validationWarnings": 1
+    },
+    "entities": [
+      {
+        "id": "bld_19",
+        "kind": "shop_general",
+        "name": "Test Dealer",
+        "anchorCount": 4,
+        "missingRequiredAnchors": []
+      },
+      {
+        "id": "bld_20",
+        "kind": "farm_silo",
+        "name": "Test Silo",
+        "anchorCount": 4,
+        "missingRequiredAnchors": []
+      },
+      {
+        "id": "veh_4",
+        "kind": "machine:tractor_1",
+        "name": "Test Tractor",
+        "anchorCount": 5,
+        "missingRequiredAnchors": []
+      },
+      {
+        "id": "att_place_8",
+        "kind": "attachment:plow",
+        "name": "Test Plow",
+        "anchorCount": 2,
+        "missingRequiredAnchors": []
+      },
+      {
+        "id": "att_place_9",
+        "kind": "attachment:seeder",
+        "name": "Test Seeder",
+        "anchorCount": 3,
+        "missingRequiredAnchors": []
+      },
+      {
+        "id": "att_place_10",
+        "kind": "attachment:wagon",
+        "name": "Test Trailer",
+        "anchorCount": 3,
+        "missingRequiredAnchors": []
+      }
+    ],
+    "runtime": {
+      "machineSpawns": 1,
+      "attachmentSpawns": 3,
+      "hubHasSiloEntry": true,
+      "hubHasDealerEntry": true,
+      "hubHasTractorHome": true,
+      "duplicateMachineIds": []
+    },
+    "validationIssueIds": [
+      "fields-present_1",
+      "roads-present_2"
+    ],
+    "passed": true,
+    "failures": []
+  },
+  "runtime": {
+    "machineSpawns": 1,
+    "attachmentSpawns": 3,
+    "saveMachineCount": 1,
+    "saveAttachmentCount": 3,
+    "legacyFallbackUsed": false,
+    "scene": {
+      "tractorNodeCount": 1,
+      "combineNodeCount": 0,
+      "attachmentNodeCount": 3,
+      "gameplayAnchorMeshCount": 0,
+      "buildingCount": 0,
+      "duplicateMachineNodes": [],
+      "duplicateAttachmentNodes": []
+    },
+    "studioDebugAnchorMeshCount": 21,
+    "passed": true,
+    "failures": []
+  },
+  "interactive": {
+    "passed": true,
+    "failures": []
+  },
+  "failures": []
+}

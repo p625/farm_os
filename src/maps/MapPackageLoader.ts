@@ -276,3 +276,15 @@ defaultMapPackageRegistry.register('/maps/Map_01_Central_Europe', {
   fieldCount: 9,
   blockIds: ['A', 'B', 'C'],
 })
+
+defaultMapPackageRegistry.register('/maps/GameplayPlacementTest', {
+  id: 'gameplay_placement_test',
+  name: 'Gameplay Placement E2E Test',
+  description:
+    'Dealer, silo, tractor, plow, seeder, trailer — ověření Studio → runtime řetězce.',
+  version: '1.0.0',
+  author: 'FarmOS E2E',
+  source: 'official',
+  fieldCount: 0,
+  blockIds: [],
+})

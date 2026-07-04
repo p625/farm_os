@@ -8,6 +8,10 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
+    "test": "npm run test:gameplay-placement",
+    "test:gameplay-placement": "npx tsx --tsconfig tsconfig.app.json scripts/e2e-gameplay-placement-test.ts",
+    "check": "npm run lint && tsc -b && npm run test:gameplay-placement",
+    "ci": "npm run check",
     "generate:map-01": "npx tsx --tsconfig tsconfig.app.json scripts/generate-map-01-blockout.ts"
   },
   "dependencies": {

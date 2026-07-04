@@ -19,7 +19,7 @@ export const STUDIO_MODULES: readonly StudioModuleDefinition[] = [
     version: '0.2',
     layers: STUDIO_LAYER_IDS,
     status: 'active',
-    description: 'Position, rotation, scale, delete',
+    description: 'Select, move, rotate, duplicate, undo — buildings, machines, attachments, anchors',
   },
   {
     id: 'terrain',

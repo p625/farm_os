@@ -1,9 +1,9 @@
 import { Scene } from '@babylonjs/core'
 import type { Engine } from '@babylonjs/core'
 import type { StudioLayerId, WorldMapDocument } from '@/types/world-map.ts'
+import { RenderingSystem } from '@/rendering/RenderingSystem.ts'
 import { MapSceneBuilder } from '@/studio/io/MapSceneBuilder.ts'
 import { StudioCameraController } from '@/studio/core/StudioCameraController.ts'
-import { StudioLighting } from '@/studio/core/StudioLighting.ts'
 import { StudioManipulator } from '@/studio/core/StudioManipulator.ts'
 import { StudioSelection } from '@/studio/core/StudioSelection.ts'
 import { StudioTerrainEditor } from '@/studio/core/StudioTerrainEditor.ts'
@@ -13,6 +13,7 @@ import { StudioVegetationEditor } from '@/studio/core/StudioVegetationEditor.ts'
 import { StudioBuildingEditor } from '@/studio/core/StudioBuildingEditor.ts'
 import { StudioVehicleEditor } from '@/studio/core/StudioVehicleEditor.ts'
 import { StudioAnchorEditor } from '@/studio/core/StudioAnchorEditor.ts'
+import { StudioInteractiveEditor } from '@/studio/core/StudioInteractiveEditor.ts'
 import { StudioWaterEditor } from '@/studio/core/StudioWaterEditor.ts'
 import type { StudioStore } from '@/studio/core/StudioStore.ts'
 import { getStudioMetadata } from '@/studio/io/MapSceneBuilder.ts'
@@ -29,7 +30,7 @@ export class StudioEngine {
   private readonly store: StudioStore
   private readonly mapSceneBuilder = new MapSceneBuilder()
   private readonly cameraController = new StudioCameraController()
-  private readonly lighting = new StudioLighting()
+  private readonly renderingSystem = new RenderingSystem()
   private readonly selection = new StudioSelection()
   private manipulator: StudioManipulator | null = null
   private terrainEditor: StudioTerrainEditor | null = null
@@ -39,6 +40,7 @@ export class StudioEngine {
   private buildingEditor: StudioBuildingEditor | null = null
   private vehicleEditor: StudioVehicleEditor | null = null
   private anchorEditor: StudioAnchorEditor | null = null
+  private interactiveEditor: StudioInteractiveEditor | null = null
   private waterEditor: StudioWaterEditor | null = null
 
   constructor(canvas: HTMLCanvasElement, store: StudioStore) {
@@ -64,7 +66,8 @@ export class StudioEngine {
     this.scene = new Scene(this.engine)
     const camera = this.cameraController.initialize(this.scene, this.canvas)
     this.scene.activeCamera = camera
-    this.lighting.initialize(this.scene)
+    this.renderingSystem.attach(this.scene, this.engine)
+    this.renderingSystem.initialize({ shadows: false })
 
     this.rebuildScene(this.store.getMap())
     this.applyLayerVisibility(this.store.getSnapshot().layerVisibility)
@@ -115,6 +118,14 @@ export class StudioEngine {
       },
       onRefresh: () => this.refreshMap(),
     })
+    this.interactiveEditor = new StudioInteractiveEditor(this.canvas, {
+      store: this.store,
+      selection: this.selection,
+      cameraController: this.cameraController,
+      mapSceneBuilder: this.mapSceneBuilder,
+      getScene: () => this.scene,
+      onCommit: () => this.refreshMap(),
+    })
     this.waterEditor = new StudioWaterEditor(this.canvas, {
       ...editorDeps,
       onRefresh: () => this.refreshMap(),
@@ -128,6 +139,7 @@ export class StudioEngine {
     this.buildingEditor.attach()
     this.vehicleEditor.attach()
     this.anchorEditor.attach()
+    this.interactiveEditor.attach()
     this.waterEditor.attach()
     this.syncModules()
 
@@ -165,6 +177,7 @@ export class StudioEngine {
 
   syncModules(): void {
     this.manipulator?.syncSelection(this.scene)
+    this.interactiveEditor?.syncSelection(this.scene)
     this.terrainEditor?.syncModuleState(this.scene)
     this.roadEditor?.syncModuleState(this.scene)
     this.parcelEditor?.syncModuleState(this.scene)
@@ -300,7 +313,48 @@ export class StudioEngine {
     if (!selected) {
       return false
     }
-    if (!this.store.deleteObject(selected.id)) {
+    if (!this.store.deleteGameplayObject(selected.id)) {
+      return false
+    }
+    this.refreshMap()
+    return true
+  }
+
+  deleteSelectedGameplayObject(): boolean {
+    const selected = this.store.getSnapshot().selectedObject
+    if (!selected) {
+      return false
+    }
+    if (!this.store.deleteGameplayObject(selected.id)) {
+      return false
+    }
+    this.refreshMap()
+    return true
+  }
+
+  duplicateSelectedObject(): boolean {
+    const selected = this.store.getSnapshot().selectedObject
+    if (!selected) {
+      return false
+    }
+    const duplicated = this.store.duplicateObject(selected.id)
+    if (!duplicated) {
+      return false
+    }
+    this.refreshMap()
+    return true
+  }
+
+  undo(): boolean {
+    if (!this.store.undo()) {
+      return false
+    }
+    this.refreshMap()
+    return true
+  }
+
+  redo(): boolean {
+    if (!this.store.redo()) {
       return false
     }
     this.refreshMap()
@@ -335,6 +389,7 @@ export class StudioEngine {
     this.buildingEditor?.detach()
     this.vehicleEditor?.detach()
     this.anchorEditor?.detach()
+    this.interactiveEditor?.detach()
     this.waterEditor?.detach()
     this.manipulator = null
     this.terrainEditor = null
@@ -349,7 +404,7 @@ export class StudioEngine {
     window.removeEventListener('resize', this.onResize)
 
     this.selection.dispose()
-    this.lighting.dispose()
+    this.renderingSystem.dispose()
     this.cameraController.dispose()
     if (this.scene) {
       this.mapSceneBuilder.dispose(this.scene)
@@ -376,11 +431,20 @@ export class StudioEngine {
       return
     }
     this.mapSceneBuilder.dispose(this.scene)
-    this.mapSceneBuilder.build(this.scene, map)
+    this.mapSceneBuilder.build(this.scene, map, {
+      renderGameplayAnchors: this.store.getSnapshot().gameplayDebugEnabled,
+    })
+    this.renderingSystem.refreshAfterSceneContent()
   }
 
   resize(): void {
     this.engine?.resize()
+  }
+
+  refreshMapScene(): void {
+    this.rebuildScene(this.store.getMap())
+    this.scene?.render()
+    this.syncModules()
   }
 
   private readonly onResize = (): void => {

@@ -113,6 +113,17 @@ export class CameraController implements IInitializable, IUpdatable, IDisposable
     return this.activeProfileId
   }
 
+  applyBenchmarkView(
+    position: { x: number; y: number; z: number },
+    target: { x: number; y: number; z: number },
+    fov: number,
+  ): void {
+    const camera = this.getCamera()
+    camera.setTarget(new Vector3(target.x, target.y, target.z))
+    camera.position = new Vector3(position.x, position.y, position.z)
+    camera.fov = fov
+  }
+
   focusOn(worldX: number, worldZ: number, radius = 42): void {
     if (!this.camera) {
       return
