@@ -171,6 +171,14 @@ export class FieldSystem extends GameSystem {
     return field?.state === States.Grass
   }
 
+  canSeedField(fieldId: string): boolean {
+    if (!this.isFieldUsable(fieldId)) {
+      return false
+    }
+    const field = this.fields.get(fieldId)
+    return field?.state === States.Plowed
+  }
+
   canSeed(fieldId: string, cropId: string): boolean {
     if (!this.isFieldUsable(fieldId) || !this.cropSystem) {
       return false

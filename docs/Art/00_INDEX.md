@@ -2,13 +2,14 @@
 
 | | |
 |--|--|
-| **Verze** | v0.1.0 |
+| **Verze** | v0.3.0 |
 | **Status** | Draft |
 | **Tier** | T0 |
 | **Vlastník** | Art Director |
 | **Backup** | TBD |
 | **Review** | Při každé změně struktury docs |
 | **Poslední změna** | 2026-07-04 |
+| **Fáze projektu** | **Preprodukce** |
 
 ---
 
@@ -16,15 +17,102 @@
 
 | Verze | Datum | Autor | Shrnutí |
 |-------|-------|-------|---------|
+| v0.3.0 | 2026-07-04 | — | Odkaz na ADR-A01 Decision Framework |
+| v0.2.0 | 2026-07-04 | — | AAA preprodukční roadmapa |
 | v0.1.0 | 2026-07-04 | — | Iniciální struktura art dokumentace |
 
 ---
 
 ## Účel tohoto dokumentu
 
-Jediné vstupní místo do vizuální dokumentace FarmOS. Definuje **hierarchii autority**, **tier systém**, **vlastníky** a **mapu vazeb** mezi dokumenty.
+Jediné vstupní místo do vizuální dokumentace FarmOS. Definuje **hierarchii autority**, **preprodukční roadmapu**, **tier systém**, **vlastníky** a **mapu vazeb**.
 
-Pro technickou architekturu hry viz [`docs/Architecture/`](../Architecture/README.md).
+Technická architektura: [`docs/Architecture/`](../Architecture/README.md) (Freeze v1.0 — mimo scope úprav art docs).
+
+---
+
+## Preprodukční roadmapa
+
+FarmOS je ve **preprodukci**. Dokumentace se dokončuje ve čtyřech fázích. **Asset Pipeline a produkční specifikace nejsou prioritou**, dokud není uzamčena Creative Direction.
+
+```text
+┌─────────────────────────────────────────────────────────────────┐
+│  FÁZE 1 — Creative Direction          ← AKTUÁLNÍ PRIORITA       │
+│  Art Bible → ADR-A01 → Environment → Lighting → Color Script    │
+├─────────────────────────────────────────────────────────────────┤
+│  FÁZE 2 — World Building                                        │
+│  Vegetation → Material → Terrain → Sky/Weather → Seasonal       │
+├─────────────────────────────────────────────────────────────────┤
+│  FÁZE 3 — Architecture                                          │
+│  Building Style → Props → Infrastructure → Vehicle → Character  │
+├─────────────────────────────────────────────────────────────────┤
+│  FÁZE 4 — Production              ← až po uzamčení Fáze 1–3     │
+│  Asset Pipeline → Naming → LOD → Outsource → QA → Import        │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Fáze 1 — Creative Direction (nejvyšší priorita)
+
+„Ústava" grafiky FarmOS. Musí být dokončena a schválena jako první.
+
+| Pořadí | Dokument | Stav | Blokuje |
+|--------|----------|------|---------|
+| 1 | [Art_Bible.md](00_Strategy/Art_Bible.md) | Draft | vše ostatní |
+| 2 | [ADR-A01](01_ART_DECISION_LOG.md#adr-a01--regionální-identita-farmy) · [Framework](00_Strategy/ADR-A01_Regional_Identity_Framework.md) | Proposed (framework ready) | Environment, Building, Vegetation, Terrain |
+| 3 | [Environment_Bible.md](01_Domain_Bibles/Environment_Bible.md) | Draft | Terrain, Vegetation, Sky/Weather |
+| 4 | [Lighting_Guide.md](02_Production_Guidelines/Lighting_Guide.md) | Draft | Color Script, Material, VFX |
+| 5 | [Color_Script.md](00_Strategy/Color_Script.md) | Draft | UI, Seasonal, Field stavy |
+
+**Závislost osvětlení a barev:** Lighting Guide musí být schválen **před** finální paletou v Color Script. Světlo určuje vzhled materiálů — barvy z něj vycházejí, ne naopak.
+
+### Fáze 2 — World Building
+
+| Pořadí | Dokument | Poznámka |
+|--------|----------|----------|
+| 1 | [Vegetation_Guide.md](01_Domain_Bibles/Vegetation_Guide.md) | Kultury, louky, lesní okraj |
+| 2 | [Material_Guide.md](02_Production_Guidelines/Material_Guide.md) | PBR po schváleném světle |
+| 3 | [Terrain_Landscape_Guide.md](01_Domain_Bibles/Terrain_Landscape_Guide.md) | Pole, erosion, cesty |
+| 4 | [Sky_Weather_Guide.md](01_Domain_Bibles/Sky_Weather_Guide.md) | Počasí jako vizuální obsah |
+| 5 | [Seasonal_Visual_Guide.md](01_Domain_Bibles/Seasonal_Visual_Guide.md) | Roční období napříč světem |
+
+**Blokováno:** dokončením Fáze 1 (zejména ADR-A01 + Environment + Color Script).
+
+### Fáze 3 — Architecture
+
+| Pořadí | Dokument | Poznámka |
+|--------|----------|----------|
+| 1 | [Building_Style_Guide.md](01_Domain_Bibles/Building_Style_Guide.md) | Farmy, sila, stodoly |
+| 2 | [Props_Guide.md](01_Domain_Bibles/Props_Guide.md) | Drobné farmářské objekty |
+| 3 | [Infrastructure_Guide.md](01_Domain_Bibles/Infrastructure_Guide.md) | Cesty, ploty, vedení |
+| 4 | [Vehicle_Machine_Guide.md](01_Domain_Bibles/Vehicle_Machine_Guide.md) | Stroje |
+| 5 | [Character_Crowd_Guide.md](01_Domain_Bibles/Character_Crowd_Guide.md) | Workers — lightweight |
+
+**Blokováno:** dokončením Fáze 2.
+
+### Fáze 4 — Production
+
+Teprve po uzamčení Art Direction (Fáze 1–3).
+
+| Dokument | Obsah |
+|----------|-------|
+| [Asset_Pipeline_Spec.md](02_Production_Guidelines/Asset_Pipeline_Spec.md) | Naming, export, texel density, LOD, složky |
+| [Outsource_Package_Spec.md](03_Templates/Outsource_Package_Spec.md) | Outsourcing guide |
+| [Art_QA_Checklist.md](03_Templates/Art_QA_Checklist.md) | Asset QA |
+| [Asset_Brief_Template.md](03_Templates/Asset_Brief_Template.md) | Import workflow per asset |
+
+**[RULE]** Produční dokumenty v preprodukci **neřešíme**. Jejich předčasné dokončení vytváří falešnou jistotu bez uzamčeného vizuálního směru.
+
+### Podpůrné dokumenty (průběžně, neblokující)
+
+| Dokument | Fáze použití |
+|----------|--------------|
+| [Mood_Reference_Library.md](00_Strategy/Mood_Reference_Library.md) | Fáze 1 — kurátorství referencí |
+| [Visual_Identity.md](00_Strategy/Visual_Identity.md) | Fáze 1–3 — brand |
+| [Camera_Composition_Guide.md](02_Production_Guidelines/Camera_Composition_Guide.md) | Fáze 1 — isometric identita |
+| [UI_Style_Guide.md](02_Production_Guidelines/UI_Style_Guide.md) | Po Color Script |
+| [VFX_Guide.md](02_Production_Guidelines/VFX_Guide.md) | Fáze 2 |
+| [Decal_Ground_Detail_Guide.md](02_Production_Guidelines/Decal_Ground_Detail_Guide.md) | Fáze 2–3 |
+| [Cinematic_Marketing_Guide.md](02_Production_Guidelines/Cinematic_Marketing_Guide.md) | Před release |
 
 ---
 
@@ -34,24 +122,26 @@ Pro technickou architekturu hry viz [`docs/Architecture/`](../Architecture/READM
                     ┌─────────────────────┐
                     │   Game Bible (99)   │  ← kreativní autorita (proč hra existuje)
                     └──────────┬──────────┘
-                               │ informuje tón, emoce, pilíře
-                    ┌──────────▼──────────┐
-                    │     Art Bible         │  ← vizuální strategie (jak svět vypadá)
-                    └──────────┬──────────┘
-                               │ rozpadá se na domény
-         ┌─────────────────────┼─────────────────────┐
-         ▼                     ▼                     ▼
-   Domain Bibles          Color Script          Visual Identity
-   (Terrain, Building…)   (paleta)              (logo, typografie světa)
-         │                     │                     │
-         └─────────────────────┼─────────────────────┘
-                               ▼
-                    Production Guidelines
-                    (Material, Lighting, Asset Pipeline…)
                                │
+                    ┌──────────▼──────────┐
+                    │     Art Bible         │  ← vizuální autorita (Fáze 1)
+                    └──────────┬──────────┘
+                               │
+              ┌────────────────┼────────────────┐
+              ▼                ▼                ▼
+        ADR-A01            Environment       Lighting Guide
+     (region)              Bible            (před barvami)
+              │                │                │
+              └────────────────┼────────────────┘
                                ▼
-                    Templates & Briefs
-                    (per-asset, per-milestone)
+                    ┌─────────────────────┐
+                    │    Color Script       │  ← SoT barev (po Lighting)
+                    └──────────┬──────────┘
+                               │
+              ┌────────────────┼────────────────┐
+              ▼                ▼                ▼
+        World Building    Architecture      Production
+        (Fáze 2)          (Fáze 3)          (Fáze 4)
 ```
 
 **Při konfliktu platí vyšší vrstva.** Změna směru → [Art Decision Log](01_ART_DECISION_LOG.md), ne tichá úprava nižšího dokumentu.
@@ -62,18 +152,20 @@ Pro technickou architekturu hry viz [`docs/Architecture/`](../Architecture/READM
 
 | Otázka | Jediný zdroj pravdy |
 |--------|---------------------|
+| Technická architektura hry | `docs/Architecture/` (Freeze v1.0) |
 | Proč má svět vypadat takto? | Game Bible → [Art Bible](00_Strategy/Art_Bible.md) |
 | Jaká je celková nálada a vizuální filozofie? | [Art Bible](00_Strategy/Art_Bible.md) |
+| Region, krajina, biomy, horizont? | [ADR-A01](01_ART_DECISION_LOG.md) + [Framework](00_Strategy/ADR-A01_Regional_Identity_Framework.md) + [Environment Bible](01_Domain_Bibles/Environment_Bible.md) |
+| Jak svítí scéna? | [Lighting Guide](02_Production_Guidelines/Lighting_Guide.md) |
 | Jaké barvy a jejich význam? | [Color Script](00_Strategy/Color_Script.md) |
-| Jak vypadá konkrétní doména? | příslušná Domain Bible |
+| Jak vypadá architektura? | [Building Style Guide](01_Domain_Bibles/Building_Style_Guide.md) |
+| Jak vypadá infrastruktura? | [Infrastructure Guide](01_Domain_Bibles/Infrastructure_Guide.md) |
 | Jaké jsou PBR hodnoty, wear? | [Material Guide](02_Production_Guidelines/Material_Guide.md) |
-| Jak svítí scéna technicky? | [Lighting Guide](02_Production_Guidelines/Lighting_Guide.md) |
 | Jak vypadá obloha, mlha, déšť? | [Sky & Weather Guide](01_Domain_Bibles/Sky_Weather_Guide.md) |
-| Jak vypadá UI? | [UI Style Guide](02_Production_Guidelines/UI_Style_Guide.md) |
-| Poly count, UV, naming? | [Asset Pipeline Spec](02_Production_Guidelines/Asset_Pipeline_Spec.md) |
-| Je asset hotový? | [Art QA Checklist](03_Templates/Art_QA_Checklist.md) |
-| Kamera, zoom, framing? | [Camera & Composition Guide](02_Production_Guidelines/Camera_Composition_Guide.md) |
+| Poly count, UV, naming? | [Asset Pipeline Spec](02_Production_Guidelines/Asset_Pipeline_Spec.md) — **Fáze 4** |
 | Inspirace a reference? | [Mood Reference Library](00_Strategy/Mood_Reference_Library.md) |
+
+**[RULE]** Žádná implementace (kód, prototyp, placeholder asset) není Source of Truth. Dokumenty schvaluje Art Director; implementace se synchronizuje z docs.
 
 ---
 
@@ -82,84 +174,130 @@ Pro technickou architekturu hry viz [`docs/Architecture/`](../Architecture/READM
 | Zakázáno duplikovat | Kde to patří jedině |
 |---------------------|---------------------|
 | Hex kódy, palety sezón | Color Script (+ Seasonal odkazuje) |
+| Osvětlení, exponometrie, TOD | Lighting Guide |
+| Makro krajina, biomy | Environment Bible |
 | PBR parametry, wear levels | Material Guide |
-| Poly/TEX budgets, LOD | Asset Pipeline Spec |
+| Poly/TEX budgets, LOD | Asset Pipeline Spec (Fáze 4) |
 | Inspirace, reference boardy | Mood Reference Library |
-| Pravidla kamer, FOV, clipping | Camera & Composition Guide |
-| Počasí jako gameplay vizuál | Sky & Weather Guide |
-| „Jak má vypadat stodola“ | Building Style Guide |
-
-Ostatní dokumenty **odkazují**, nekopírují.
+| Regionální identita | ADR-A01 |
 
 ---
 
-## Tier systém
+## Tier systém (organizace souborů)
 
-| Tier | Složka | Změnovost | Schvaluje |
-|------|--------|-----------|-----------|
-| **T0** | `00_Strategy/` | Ročně / milestone | Art Director |
-| **T1** | `01_Domain_Bibles/` | Kvartálně | Lead dané disciplíny |
-| **T2** | `02_Production_Guidelines/` | Měsíčně | příslušný Lead |
-| **T3** | `03_Templates/` | Průběžně | Art Producer |
-| **T4** | Mood Library (v T0) | Průběžně | Art Director (kurátor) |
+Tier popisuje **kde soubor leží**, ne **kdy ho dokončit**. Pořadí dokončení určuje preprodukční roadmapa výše.
+
+| Tier | Složka | Schvaluje |
+|------|--------|-----------|
+| **T0** | `00_Strategy/` | Art Director |
+| **T1** | `01_Domain_Bibles/` | Lead dané disciplíny |
+| **T2** | `02_Production_Guidelines/` | příslušný Lead |
+| **T3** | `03_Templates/` | Art Producer |
 
 **Status dokumentu:** `Draft` → `Approved` → `Frozen` (pouze additive změny).
 
 ---
 
-## Katalog dokumentů
+## Katalog dokumentů (podle fáze)
 
 ### Kořen
 
-| Dokument | Tier | Vlastník | Účel |
-|----------|------|----------|------|
-| [00_INDEX.md](00_INDEX.md) | T0 | Art Director | Tento index |
-| [01_ART_DECISION_LOG.md](01_ART_DECISION_LOG.md) | T0 | Art Director | Historie vizuálních rozhodnutí (WHY) |
+| Dokument | Fáze | Vlastník |
+|----------|------|----------|
+| [00_INDEX.md](00_INDEX.md) | — | Art Director |
+| [01_ART_DECISION_LOG.md](01_ART_DECISION_LOG.md) | 1 | Art Director |
 
-### T0 — Strategie (`00_Strategy/`)
+### Fáze 1 — Creative Direction
 
-| Dokument | Vlastník | Účel |
-|----------|----------|------|
-| [Art_Bible.md](00_Strategy/Art_Bible.md) | Art Director | Vizuální pilíře, realism level, anti-patterns |
-| [Visual_Identity.md](00_Strategy/Visual_Identity.md) | Art Director + UI Lead | Brand světa, logo, ikonografie |
-| [Mood_Reference_Library.md](00_Strategy/Mood_Reference_Library.md) | Art Director | Index referencí `[INSPIRATION]` |
-| [Color_Script.md](00_Strategy/Color_Script.md) | Art Director + Lighting Lead | SoT pro všechny barvy |
+| Dokument | Vlastník |
+|----------|----------|
+| [Art_Bible.md](00_Strategy/Art_Bible.md) | Art Director |
+| [ADR-A01 Regionální identita](01_ART_DECISION_LOG.md#adr-a01--regionální-identita-farmy) | Art Director |
+| [ADR-A01 Decision Framework](00_Strategy/ADR-A01_Regional_Identity_Framework.md) | Art Director |
+| [Environment_Bible.md](01_Domain_Bibles/Environment_Bible.md) | Environment Lead |
+| [Lighting_Guide.md](02_Production_Guidelines/Lighting_Guide.md) | Lighting Lead |
+| [Color_Script.md](00_Strategy/Color_Script.md) | Art Director + Lighting Lead |
 
-### T1 — Doménové bible (`01_Domain_Bibles/`)
+### Fáze 2 — World Building
 
-| Dokument | Vlastník | Účel |
-|----------|----------|------|
-| [Environment_Bible.md](01_Domain_Bibles/Environment_Bible.md) | Environment Lead | Makro: krajina, region, čitelnost mapy |
-| [Terrain_Landscape_Guide.md](01_Domain_Bibles/Terrain_Landscape_Guide.md) | Environment Lead | Mikro: pole, erosion, cesty, drainage |
-| [Building_Style_Guide.md](01_Domain_Bibles/Building_Style_Guide.md) | Hard Surface Lead | Architektura farmy, stodoly, sila |
-| [Vegetation_Guide.md](01_Domain_Bibles/Vegetation_Guide.md) | Vegetation Lead | Kultury, louky, lesní okraj |
-| [Props_Guide.md](01_Domain_Bibles/Props_Guide.md) | Environment / Props Lead | Drobné farmářské objekty |
-| [Vehicle_Machine_Guide.md](01_Domain_Bibles/Vehicle_Machine_Guide.md) | Hard Surface Lead | Traktory, kombajny, návěsy |
-| [Character_Crowd_Guide.md](01_Domain_Bibles/Character_Crowd_Guide.md) | Art Director | Workers — lightweight, „dost dobří z 50 m“ |
-| [Sky_Weather_Guide.md](01_Domain_Bibles/Sky_Weather_Guide.md) | Lighting + Environment Lead | Obloha, mraky, mlha, déšť |
-| [Seasonal_Visual_Guide.md](01_Domain_Bibles/Seasonal_Visual_Guide.md) | Art Director | Jaro/léto/podzim/zima napříč vším |
+| Dokument | Vlastník |
+|----------|----------|
+| [Vegetation_Guide.md](01_Domain_Bibles/Vegetation_Guide.md) | Vegetation Lead |
+| [Material_Guide.md](02_Production_Guidelines/Material_Guide.md) | Tech Art Lead |
+| [Terrain_Landscape_Guide.md](01_Domain_Bibles/Terrain_Landscape_Guide.md) | Environment Lead |
+| [Sky_Weather_Guide.md](01_Domain_Bibles/Sky_Weather_Guide.md) | Lighting + Environment Lead |
+| [Seasonal_Visual_Guide.md](01_Domain_Bibles/Seasonal_Visual_Guide.md) | Art Director |
 
-### T2 — Produkční guidelines (`02_Production_Guidelines/`)
+### Fáze 3 — Architecture
 
-| Dokument | Vlastník | Účel |
-|----------|----------|------|
-| [Material_Guide.md](02_Production_Guidelines/Material_Guide.md) | Tech Art Lead | PBR rozsahy, wear, rust |
-| [Lighting_Guide.md](02_Production_Guidelines/Lighting_Guide.md) | Lighting Lead | Exponometrie, TOD, performance |
-| [VFX_Guide.md](02_Production_Guidelines/VFX_Guide.md) | VFX Lead | Prach, déšť, harvest particles |
-| [Decal_Ground_Detail_Guide.md](02_Production_Guidelines/Decal_Ground_Detail_Guide.md) | Tech Art Lead | Tire tracks, mokré stopy, stubble |
-| [UI_Style_Guide.md](02_Production_Guidelines/UI_Style_Guide.md) | UI Lead | HUD, panely, ikony |
-| [Camera_Composition_Guide.md](02_Production_Guidelines/Camera_Composition_Guide.md) | Art Director | Isometric framing, zoom levels |
-| [Asset_Pipeline_Spec.md](02_Production_Guidelines/Asset_Pipeline_Spec.md) | Tech Art Lead | Naming, LOD, export, složky |
-| [Cinematic_Marketing_Guide.md](02_Production_Guidelines/Cinematic_Marketing_Guide.md) | Art Director | Trailery, key art (volitelné do v1.0) |
+| Dokument | Vlastník |
+|----------|----------|
+| [Building_Style_Guide.md](01_Domain_Bibles/Building_Style_Guide.md) | Hard Surface Lead |
+| [Props_Guide.md](01_Domain_Bibles/Props_Guide.md) | Environment / Props Lead |
+| [Infrastructure_Guide.md](01_Domain_Bibles/Infrastructure_Guide.md) | Hard Surface Lead |
+| [Vehicle_Machine_Guide.md](01_Domain_Bibles/Vehicle_Machine_Guide.md) | Hard Surface Lead |
+| [Character_Crowd_Guide.md](01_Domain_Bibles/Character_Crowd_Guide.md) | Art Director |
 
-### T3 — Šablony (`03_Templates/`)
+### Fáze 4 — Production
 
-| Dokument | Vlastník | Účel |
-|----------|----------|------|
-| [Asset_Brief_Template.md](03_Templates/Asset_Brief_Template.md) | Art Producer | Brief per asset |
-| [Environment_Blockout_Brief.md](03_Templates/Environment_Blockout_Brief.md) | Environment Lead | Blockout před produkcí |
-| [Outsource_Package_Spec.md](03_Templates/Outsource_Package_Spec.md) | Art Producer | Balíček pro externí studia |
-| [Art_QA_Checklist.md](03_Templates/Art_QA_Checklist.md) | Tech Art Lead | Objektivní „done“ |
+| Dokument | Vlastník |
+|----------|----------|
+| [Asset_Pipeline_Spec.md](02_Production_Guidelines/Asset_Pipeline_Spec.md) | Tech Art Lead |
+| [Art_QA_Checklist.md](03_Templates/Art_QA_Checklist.md) | Tech Art Lead |
+| [Outsource_Package_Spec.md](03_Templates/Outsource_Package_Spec.md) | Art Producer |
+| [Asset_Brief_Template.md](03_Templates/Asset_Brief_Template.md) | Art Producer |
+| [Environment_Blockout_Brief.md](03_Templates/Environment_Blockout_Brief.md) | Environment Lead |
+
+### Podpůrné (T0/T2)
+
+| Dokument | Vlastník |
+|----------|----------|
+| [Visual_Identity.md](00_Strategy/Visual_Identity.md) | Art Director + UI Lead |
+| [Mood_Reference_Library.md](00_Strategy/Mood_Reference_Library.md) | Art Director |
+| [Camera_Composition_Guide.md](02_Production_Guidelines/Camera_Composition_Guide.md) | Art Director |
+| [UI_Style_Guide.md](02_Production_Guidelines/UI_Style_Guide.md) | UI Lead |
+| [VFX_Guide.md](02_Production_Guidelines/VFX_Guide.md) | VFX Lead |
+| [Decal_Ground_Detail_Guide.md](02_Production_Guidelines/Decal_Ground_Detail_Guide.md) | Tech Art Lead |
+| [Cinematic_Marketing_Guide.md](02_Production_Guidelines/Cinematic_Marketing_Guide.md) | Art Director |
+
+---
+
+## Blokující dokumenty (aktuálně)
+
+Grafický vývoj **nesmí pokračovat do produkce assetů**, dokud nejsou schváleny:
+
+| Dokument | Proč blokuje |
+|----------|--------------|
+| **Art Bible** | Bez ústavy chybí rozhodovací kritéria pro vše |
+| **ADR-A01** | [Framework](00_Strategy/ADR-A01_Regional_Identity_Framework.md) připraven; čeká se na workshop a **Accepted** v Decision Log |
+| **Environment Bible** | Největší vizuální plocha hry — krajina musí být definována dříve než assety |
+| **Lighting Guide** | Barvy a materiály bez světla jsou nevalidní |
+| **Color Script** | Finální paleta až po Lighting; do té doby jen prototyp |
+
+---
+
+## Governance — role a vlastnictví
+
+| Role | Fáze 1 dokumenty |
+|------|------------------|
+| **Art Director** | Art Bible, INDEX, ADR-A01, Seasonal (schvalovatel) |
+| **Environment Lead** | Environment Bible |
+| **Lighting Lead** | Lighting Guide, Color Script (spoluautor) |
+| **Tech Art Lead** | Fáze 4 — Pipeline, QA |
+| **Art Producer** | Fáze 4 — Templates, Outsource |
+
+---
+
+## Workflow nového assetu (Fáze 4+)
+
+```text
+1. Ověřit: Fáze 1–3 Approved / Frozen
+2. Asset Brief (šablona)
+   └─ odkazy na: Domain Bible + Material + Pipeline + Seasonal
+3. Produkcí (outsource / internal)
+4. Review proti Art QA Checklist
+5. Konflikt → Art Decision Log
+```
 
 ---
 
@@ -167,70 +305,24 @@ Ostatní dokumenty **odkazují**, nekopírují.
 
 | Externí dokument | Vztah k Art docs |
 |------------------|------------------|
-| [`docs/Architecture/001_VisionAndRoadmap.md`](../Architecture/001_VisionAndRoadmap.md) | Produktový směr — stroje, budovy, gameplay scope |
-| [`docs/Architecture/004_RenderingArchitecture.md`](../Architecture/004_RenderingArchitecture.md) | Technická vrstva: Babylon.js, Presentation read-only |
+| [`docs/Architecture/`](../Architecture/README.md) | Technická autorita — art docs ji nemění |
+| [`001_VisionAndRoadmap.md`](../Architecture/001_VisionAndRoadmap.md) | Produktový scope (stroje, budovy) |
 | Game Bible (TBD) | Kreativní autorita nad Art Bible |
-| World Rules (TBD) | Simulace sezón/počasí → Seasonal + Sky vlastní vizuál |
-| Game Design docs (TBD) | Gameplay funkce budov → Building Style vlastní vzhled |
+| World Rules (TBD) | Simulace sezón → Seasonal + Sky vlastní vizuál |
 
 ---
 
-## Workflow nového assetu
+## Rychlý start (preprodukce)
 
-```text
-1. Asset Brief (šablona)
-   └─ odkazy na: Domain Bible + Material + Pipeline + Seasonal
-
-2. Produkcí (outsource / internal)
-
-3. Review proti Art QA Checklist
-
-4. Konflikt → Art Decision Log (ne tichá změna v Material Guide)
-```
-
----
-
-## Governance — role a vlastnictví
-
-| Role | Dokumenty |
-|------|-----------|
-| **Art Director** | Art Bible, INDEX, Decision Log, Camera, Seasonal (schvalovatel) |
-| **Environment Lead** | Environment, Terrain, Props |
-| **Hard Surface Lead** | Building, Vehicle/Machine |
-| **Vegetation Lead** | Vegetation |
-| **Lighting Lead** | Lighting, Sky/Weather (spoluautor) |
-| **Tech Art Lead** | Asset Pipeline, Material, Decal, Art QA |
-| **VFX Lead** | VFX |
-| **UI Lead** | UI Style, Visual Identity (spoluautor) |
-| **Art Producer** | Templates, Outsource packages |
-
----
-
-## Aktuální stav implementace (kód)
-
-Prototyp v `src/rendering/` již obsahuje základ vizuálního směru — art docs ho postupně formalizují:
-
-| Modul | Co řeší dnes | Cílový art doc |
-|-------|--------------|----------------|
-| `CameraController.ts` | Isometric ArcRotate, radius 25–70 | Camera & Composition Guide |
-| `FarmEnvironment.ts` | Sky horizon, exp fog | Sky/Weather + Lighting |
-| `FieldAppearance.ts` | Barvy stavů pole (prototyp) | Color Script + Seasonal Visual |
-| `FarmSceneBuilder.ts` | Blockout scény | Environment + Terrain |
-
-**[RULE]** Prototypové hodnoty v kódu nejsou autorita — po schválení docs se synchronizují z Color Script / guides do kódu.
+1. Přečti [Art Bible](00_Strategy/Art_Bible.md) — ústava grafiky.
+2. Projdi [ADR-A01 Framework](00_Strategy/ADR-A01_Regional_Identity_Framework.md) — rozhodovací workshop před výběrem regionu.
+3. Po ADR-A01: [Environment Bible](01_Domain_Bibles/Environment_Bible.md).
+4. Po Environment: [Lighting Guide](02_Production_Guidelines/Lighting_Guide.md) → pak [Color Script](00_Strategy/Color_Script.md).
+5. **Nepřeskakuj na** [Asset Pipeline Spec](02_Production_Guidelines/Asset_Pipeline_Spec.md) — to je Fáze 4.
+6. Inspirace: [Mood Reference Library](00_Strategy/Mood_Reference_Library.md) — ne jako pravidla.
 
 ---
 
 ## Deprecated dokumenty
 
-Zastaralé verze patří do [`archive/`](archive/). Původní soubor zůstane s redirectem na nástupce.
-
----
-
-## Rychlý start pro nové členy týmu
-
-1. Přečti [Art Bible](00_Strategy/Art_Bible.md) — vizuální slib hráči.
-2. Projdi [Color Script](00_Strategy/Color_Script.md) a [Camera Guide](02_Production_Guidelines/Camera_Composition_Guide.md).
-3. Najdi svou doménu v `01_Domain_Bibles/`.
-4. Před prvním assetem: [Asset Pipeline Spec](02_Production_Guidelines/Asset_Pipeline_Spec.md) + [Art QA Checklist](03_Templates/Art_QA_Checklist.md).
-5. Inspirace pouze přes [Mood Reference Library](00_Strategy/Mood_Reference_Library.md) — ne jako pravidla.
+Zastaralé verze patří do [`archive/`](archive/).

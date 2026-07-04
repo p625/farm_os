@@ -10,6 +10,8 @@ export {
   formatFieldOwnership,
 } from './OwnershipSystem.ts'
 export { MachineRegistry } from './MachineRegistry.ts'
+export { AttachmentSystem } from './AttachmentSystem.ts'
+export { MachineCapabilityResolver } from './MachineCapabilityResolver.ts'
 export {
   TractorJobSystem,
   formatTractorState,

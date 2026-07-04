@@ -5,6 +5,8 @@
 | **Verze** | v0.1.0 |
 | **Status** | Draft |
 | **Tier** | T2 |
+| **Preprodukční fáze** | 2 — World Building |
+| **Blokováno** | Fáze 1 (Lighting Guide, Color Script) |
 | **Vlastník** | Tech Art Lead |
 | **Backup** | Art Director |
 | **Review** | Měsíčně |

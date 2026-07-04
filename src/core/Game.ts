@@ -4,31 +4,35 @@ import { GameEventLog } from '@game/GameEventLog.ts'
 import { SaveGameService } from '@game/SaveGameService.ts'
 import {
   CameraController,
+  AttachmentPresentation,
   CropPresentation,
   FieldOverlayPresentation,
   FieldPresentation,
   LightingSystem,
+  MachineInputPresentation,
   OwnershipPresentation,
   ProductionPresentation,
   SceneManager,
-  TractorInputPresentation,
   TractorPresentation,
 } from '@rendering/index.ts'
 import {
+  AttachmentSystem,
   CropSystem,
   FarmShopSystem,
   FieldSystem,
   InventorySystem,
   MachineRegistry,
   MarketSystem,
+  MachineCapabilityResolver,
   OwnershipSystem,
   ProductionSystem,
   TractorJobSystem,
 } from '@systems/index.ts'
-import { DEFAULT_MACHINE_ID, machineHasCapability } from '@/config/machine-catalog.ts'
+import { DEFAULT_MACHINE_ID } from '@/config/machine-catalog.ts'
 import { getFieldCatalogEntry } from '@/config/field-catalog.ts'
 import { getProcessedProductDefinition } from '@/config/production-catalog.ts'
 import { SAVE_VERSION } from '@/config/save.ts'
+import { clampRadialAnchor } from '@/utils/radial-menu-position.ts'
 import type { GameConfig } from '@/types/index.ts'
 import { DEFAULT_GAME_CONFIG } from '@/types/index.ts'
 import type { IDisposable } from '@/types/index.ts'
@@ -45,6 +49,13 @@ import {
   type MachineId,
   type SelectedEntitySnapshot,
 } from '@/types/machine.ts'
+import {
+  AttachmentLifecycleState,
+  AttachmentRadialActionKind,
+  type AttachmentContextMenuSnapshot,
+  type AttachmentIdValue,
+  type MachineSlotIdValue,
+} from '@/types/attachment.ts'
 import { EMPTY_GAME_SNAPSHOT, type GameSnapshot } from './GameSnapshot.ts'
 import { GameLoop } from './GameLoop.ts'
 
@@ -61,6 +72,8 @@ export class Game implements IDisposable {
   private readonly fieldSystem: FieldSystem
   private readonly ownershipSystem: OwnershipSystem
   private readonly tractorJobSystem: TractorJobSystem
+  private readonly attachmentSystem: AttachmentSystem
+  private readonly capabilityResolver: MachineCapabilityResolver
   private readonly machineRegistry: MachineRegistry
   private readonly eventLog: GameEventLog
   private readonly soundManager: SoundManager
@@ -71,12 +84,14 @@ export class Game implements IDisposable {
   private readonly ownershipPresentation: OwnershipPresentation
   private readonly productionPresentation: ProductionPresentation
   private readonly tractorPresentation: TractorPresentation
-  private readonly tractorInputPresentation: TractorInputPresentation
+  private readonly attachmentPresentation: AttachmentPresentation
+  private readonly machineInputPresentation: MachineInputPresentation
   private readonly gameLoop: GameLoop
   private readonly listeners = new Set<() => void>()
   private cachedSnapshot: GameSnapshot = EMPTY_GAME_SNAPSHOT
   private selectedEntity: SelectedEntitySnapshot = EMPTY_SELECTED_ENTITY
   private fieldContextMenu: FieldContextMenuSnapshot | null = null
+  private attachmentContextMenu: AttachmentContextMenuSnapshot | null = null
   private autoSaveEnabled = false
   private disposed = false
   private started = false
@@ -109,6 +124,25 @@ export class Game implements IDisposable {
     this.tractorJobSystem = new TractorJobSystem(this.fieldSystem)
     this.tractorJobSystem.setCropSystem(this.cropSystem)
     this.tractorJobSystem.setFarmShopSystem(this.farmShopSystem)
+    this.attachmentSystem = new AttachmentSystem()
+    this.attachmentSystem.setMachinePositionProvider((machineId) => {
+      if (machineId !== DEFAULT_MACHINE_ID) {
+        return null
+      }
+      const position = this.tractorJobSystem.getPosition()
+      return {
+        position,
+        rotationY: this.tractorJobSystem.getRotationY(),
+      }
+    })
+    this.attachmentSystem.setMachineIdleChecker((machineId) => {
+      if (machineId !== DEFAULT_MACHINE_ID) {
+        return true
+      }
+      return !this.tractorJobSystem.isBusy()
+    })
+    this.capabilityResolver = new MachineCapabilityResolver(this.attachmentSystem)
+    this.tractorJobSystem.setCapabilityResolver(this.capabilityResolver)
     this.machineRegistry = new MachineRegistry()
     this.machineRegistry.register(this.tractorJobSystem)
     this.productionSystem.setInventorySystem(this.inventorySystem)
@@ -122,7 +156,8 @@ export class Game implements IDisposable {
     this.ownershipPresentation = new OwnershipPresentation()
     this.productionPresentation = new ProductionPresentation()
     this.tractorPresentation = new TractorPresentation()
-    this.tractorInputPresentation = new TractorInputPresentation()
+    this.attachmentPresentation = new AttachmentPresentation()
+    this.machineInputPresentation = new MachineInputPresentation()
     this.gameLoop = new GameLoop([
       this.world,
       this.fieldSystem,
@@ -172,6 +207,7 @@ export class Game implements IDisposable {
 
   plowField(fieldId: string): void {
     this.closeFieldContextMenu()
+    this.syncHudFieldWhileMachineSelected(fieldId)
     this.issueMachineCommand(DEFAULT_MACHINE_ID, {
       destination: { kind: 'field', fieldId },
       task: { kind: 'plow' },
@@ -180,6 +216,7 @@ export class Game implements IDisposable {
 
   plantField(fieldId: string, cropId: string): void {
     this.closeFieldContextMenu()
+    this.syncHudFieldWhileMachineSelected(fieldId)
     this.issueMachineCommand(DEFAULT_MACHINE_ID, {
       destination: { kind: 'field', fieldId },
       task: { kind: 'seed', cropId },
@@ -188,6 +225,7 @@ export class Game implements IDisposable {
 
   harvestField(fieldId: string): void {
     this.closeFieldContextMenu()
+    this.syncHudFieldWhileMachineSelected(fieldId)
     this.issueMachineCommand(DEFAULT_MACHINE_ID, {
       destination: { kind: 'field', fieldId },
       task: { kind: 'harvest' },
@@ -199,15 +237,17 @@ export class Game implements IDisposable {
     screenX: number,
     screenY: number,
   ): void {
+    this.closeAttachmentContextMenu()
     const workActions = this.getFieldRadialWorkActions(fieldId)
     if (workActions.length === 0) {
       return
     }
 
+    const anchor = clampRadialAnchor(screenX, screenY)
     this.fieldContextMenu = {
       fieldId,
-      screenX,
-      screenY,
+      screenX: anchor.x,
+      screenY: anchor.y,
       actions: [...workActions, FieldRadialActionKind.Cancel],
     }
     this.notifyListeners()
@@ -221,6 +261,140 @@ export class Game implements IDisposable {
     this.notifyListeners()
   }
 
+  openAttachmentContextMenu(
+    attachmentId: AttachmentIdValue,
+    screenX: number,
+    screenY: number,
+  ): void {
+    this.closeFieldContextMenu()
+    if (this.tractorJobSystem.isBusy()) {
+      return
+    }
+
+    const actions = this.getAttachmentRadialActions(attachmentId)
+    if (actions.length === 0) {
+      return
+    }
+
+    const anchor = clampRadialAnchor(screenX, screenY)
+    const attachment = this.attachmentSystem.getAttachment(attachmentId)
+    let slotId = this.attachmentSystem.findCompatibleSlot(
+      DEFAULT_MACHINE_ID,
+      attachmentId,
+    )
+    if (attachment?.mountedOn?.machineId === DEFAULT_MACHINE_ID) {
+      slotId = attachment.mountedOn.slotId
+    }
+
+    this.attachmentContextMenu = {
+      attachmentId,
+      slotId,
+      screenX: anchor.x,
+      screenY: anchor.y,
+      actions: [...actions, AttachmentRadialActionKind.Cancel],
+    }
+    this.notifyListeners()
+  }
+
+  closeAttachmentContextMenu(): void {
+    if (!this.attachmentContextMenu) {
+      return
+    }
+    this.attachmentContextMenu = null
+    this.notifyListeners()
+  }
+
+  getAttachmentRadialActions(
+    attachmentId: AttachmentIdValue,
+  ): AttachmentRadialActionKind[] {
+    if (this.selectedEntity.kind !== SelectedEntityKind.Machine) {
+      return []
+    }
+
+    const machineId = this.selectedEntity.machineId ?? DEFAULT_MACHINE_ID
+    const attachment = this.attachmentSystem.getAttachment(attachmentId)
+    if (!attachment) {
+      return []
+    }
+
+    if (this.tractorJobSystem.isBusy()) {
+      return []
+    }
+
+    if (attachment.lifecycleState === AttachmentLifecycleState.Detached) {
+      const slotId = this.attachmentSystem.findCompatibleSlot(
+        machineId,
+        attachmentId,
+      )
+      if (
+        slotId &&
+        this.attachmentSystem.canAttach(machineId, slotId, attachmentId)
+      ) {
+        return [AttachmentRadialActionKind.Attach]
+      }
+      return []
+    }
+
+    if (
+      attachment.lifecycleState === AttachmentLifecycleState.Attached &&
+      attachment.mountedOn?.machineId === machineId
+    ) {
+      const slotId = attachment.mountedOn.slotId
+      if (this.attachmentSystem.canDetach(machineId, slotId)) {
+        return [AttachmentRadialActionKind.Detach]
+      }
+    }
+
+    return []
+  }
+
+  attachAttachment(
+    machineId: MachineId,
+    slotId: MachineSlotIdValue,
+    attachmentId: AttachmentIdValue,
+  ): boolean {
+    if (this.selectedEntity.kind !== SelectedEntityKind.Machine) {
+      return false
+    }
+    if (this.selectedEntity.machineId !== machineId) {
+      return false
+    }
+
+    const accepted = this.attachmentSystem.attachAttachment(
+      machineId,
+      slotId,
+      attachmentId,
+    )
+    if (accepted) {
+      this.closeAttachmentContextMenu()
+      this.autoSave()
+      this.notifyListeners()
+      this.attachmentPresentation.syncVisuals()
+    }
+    return accepted
+  }
+
+  detachAttachment(
+    machineId: MachineId,
+    slotId: MachineSlotIdValue,
+  ): boolean {
+    if (this.selectedEntity.kind !== SelectedEntityKind.Machine) {
+      return false
+    }
+    if (this.selectedEntity.machineId !== machineId) {
+      return false
+    }
+
+    const accepted = this.attachmentSystem.detachAttachment(machineId, slotId)
+    if (accepted) {
+      this.closeAttachmentContextMenu()
+      this.autoSave()
+      this.notifyListeners()
+      this.attachmentPresentation.syncVisuals()
+    }
+    return accepted
+  }
+
   getFieldRadialWorkActions(fieldId: string): FieldRadialActionKind[] {
     if (this.tractorJobSystem.isBusy()) {
       return []
@@ -229,24 +403,23 @@ export class Game implements IDisposable {
     const actions: FieldRadialActionKind[] = []
 
     if (
-      machineHasCapability(DEFAULT_MACHINE_ID, MachineCapability.Plow) &&
+      this.capabilityResolver.hasEffectiveCapability(
+        DEFAULT_MACHINE_ID,
+        MachineCapability.Plow,
+      ) &&
       this.fieldSystem.canPlow(fieldId)
     ) {
       actions.push(FieldRadialActionKind.Plow)
     }
 
     if (
-      machineHasCapability(DEFAULT_MACHINE_ID, MachineCapability.Seed) &&
-      this.canSeedAnyAffordableCrop(fieldId)
+      this.capabilityResolver.hasEffectiveCapability(
+        DEFAULT_MACHINE_ID,
+        MachineCapability.Seed,
+      ) &&
+      this.fieldSystem.canSeedField(fieldId)
     ) {
       actions.push(FieldRadialActionKind.Seed)
-    }
-
-    if (
-      machineHasCapability(DEFAULT_MACHINE_ID, MachineCapability.Harvest) &&
-      this.fieldSystem.canHarvest(fieldId)
-    ) {
-      actions.push(FieldRadialActionKind.Harvest)
     }
 
     return actions
@@ -274,6 +447,17 @@ export class Game implements IDisposable {
 
   selectField(fieldId: string): void {
     this.fieldSystem.selectField(fieldId)
+    if (this.selectedEntity.kind === SelectedEntityKind.Machine) {
+      this.selectedEntity = {
+        ...this.selectedEntity,
+        fieldId,
+      }
+      this.syncFieldVisuals()
+      this.autoSave()
+      this.notifyListeners()
+      return
+    }
+
     this.selectedEntity = {
       kind: SelectedEntityKind.Field,
       machineId: null,
@@ -413,14 +597,17 @@ export class Game implements IDisposable {
     this.ownershipSystem.initialize()
     this.fieldSystem.initialize()
     this.tractorJobSystem.initialize()
+    this.attachmentSystem.initialize()
     this.selectedEntity = EMPTY_SELECTED_ENTITY
     this.fieldContextMenu = null
+    this.attachmentContextMenu = null
     this.tractorPresentation.setSelected(false)
     this.eventLog.clear()
     this.eventLog.recordFarmReset(this.world.currentDay)
     this.syncFieldVisuals()
     this.syncProductionVisuals()
     this.tractorPresentation.syncVisuals()
+    this.attachmentPresentation.syncVisuals()
     this.persistSave()
     this.notifyListeners()
   }
@@ -496,10 +683,20 @@ export class Game implements IDisposable {
     })
     this.tractorJobSystem.setOnVisualChange(() => {
       this.tractorPresentation.syncVisuals()
+      this.attachmentPresentation.syncVisuals()
+    })
+    this.attachmentSystem.setOnChange(() => {
+      this.autoSave()
+      this.notifyListeners()
+    })
+    this.attachmentSystem.setOnVisualChange(() => {
+      this.attachmentPresentation.syncVisuals()
     })
     this.tractorJobSystem.initialize()
+    this.attachmentSystem.initialize()
     this.selectedEntity = EMPTY_SELECTED_ENTITY
     this.fieldContextMenu = null
+    this.attachmentContextMenu = null
     this.tractorPresentation.setSelected(false)
 
     this.loadSavedGame()
@@ -529,11 +726,13 @@ export class Game implements IDisposable {
     )
     this.productionPresentation.attach(scene, this.productionSystem)
     this.tractorPresentation.attach(scene, this.tractorJobSystem)
-    this.tractorInputPresentation.attach(scene, this)
+    this.attachmentPresentation.attach(scene, this.attachmentSystem)
+    this.machineInputPresentation.attach(scene, this)
 
     this.syncFieldVisuals()
     this.syncProductionVisuals()
     this.tractorPresentation.syncVisuals()
+    this.attachmentPresentation.syncVisuals()
     this.invalidateSnapshot()
     this.autoSaveEnabled = true
     this.started = true
@@ -552,7 +751,8 @@ export class Game implements IDisposable {
     this.disposed = true
     this.autoSaveEnabled = false
     this.stop()
-    this.tractorInputPresentation.detach()
+    this.machineInputPresentation.detach()
+    this.attachmentPresentation.detach()
     this.tractorPresentation.detach()
     this.productionPresentation.detach()
     this.ownershipPresentation.detach()
@@ -607,11 +807,14 @@ export class Game implements IDisposable {
     this.farmShopSystem.applySave(saved.upgrades)
     this.fieldSystem.applySave(saved.fields, saved.selectedFieldId)
     this.eventLog.restore(saved.eventLog, saved.eventLogNextId)
-    this.tractorJobSystem.applySave(
-      this.saveGameService.normalizeMachineSave(saved.machine),
+    const machines = this.saveGameService.resolveMachinesSave(saved)
+    this.tractorJobSystem.applySave(machines[DEFAULT_MACHINE_ID])
+    this.attachmentSystem.applySave(
+      this.saveGameService.normalizeAttachmentsSave(saved.attachments),
     )
     this.selectedEntity = EMPTY_SELECTED_ENTITY
     this.fieldContextMenu = null
+    this.attachmentContextMenu = null
     this.tractorPresentation.setSelected(false)
 
     this.autoSaveEnabled = true
@@ -631,7 +834,10 @@ export class Game implements IDisposable {
       processedMarketPrices: this.marketSystem.toSaveProcessedPrices(),
       production: this.productionSystem.toSaveData(),
       upgrades: this.farmShopSystem.toSaveUpgrades(),
-      machine: this.tractorJobSystem.toSaveData(),
+      machines: {
+        [DEFAULT_MACHINE_ID]: this.tractorJobSystem.toSaveData(),
+      },
+      attachments: this.attachmentSystem.toSaveData(),
       eventLog: [...this.eventLog.getEntries()],
       eventLogNextId: this.eventLog.getNextId(),
     }
@@ -660,6 +866,18 @@ export class Game implements IDisposable {
     this.fieldOverlayPresentation.syncVisuals()
   }
 
+  private syncHudFieldWhileMachineSelected(fieldId: string): void {
+    if (this.selectedEntity.kind !== SelectedEntityKind.Machine) {
+      return
+    }
+
+    this.fieldSystem.selectField(fieldId)
+    this.selectedEntity = {
+      ...this.selectedEntity,
+      fieldId,
+    }
+  }
+
   private buildFieldSnapshots() {
     return this.fieldSystem.getFields().map((field) => {
       const catalog = getFieldCatalogEntry(field.id)
@@ -680,12 +898,6 @@ export class Game implements IDisposable {
         usable: this.ownershipSystem.canUseField(field.id),
       }
     })
-  }
-
-  private canSeedAnyAffordableCrop(fieldId: string): boolean {
-    return this.cropSystem
-      .toSnapshots()
-      .some((crop) => this.fieldSystem.canSeed(fieldId, crop.id))
   }
 
   private invalidateSnapshot(): void {
@@ -723,6 +935,7 @@ export class Game implements IDisposable {
       selectedFieldId: this.fieldSystem.getSelectedFieldId(),
       selectedEntity: this.selectedEntity,
       fieldContextMenu: this.fieldContextMenu,
+      attachmentContextMenu: this.attachmentContextMenu,
       fields: this.buildFieldSnapshots(),
       crops: this.cropSystem.toSnapshots(),
       inventory: this.inventorySystem.toSnapshots(),
@@ -732,6 +945,12 @@ export class Game implements IDisposable {
       marketPrices: this.marketSystem.toSnapshots(),
       shopUpgrades: this.farmShopSystem.toSnapshots(this.world.money),
       tractor: this.tractorJobSystem.toSnapshot(),
+      machineAttachments: this.attachmentSystem.toMachineAttachmentsSnapshot(
+        DEFAULT_MACHINE_ID,
+      ),
+      effectiveCapabilities: this.capabilityResolver.getEffectiveCapabilities(
+        DEFAULT_MACHINE_ID,
+      ),
       eventLog: this.eventLog.getEntries(),
       moneyGain: this.eventLog.getLatestMoneyGain(),
     }

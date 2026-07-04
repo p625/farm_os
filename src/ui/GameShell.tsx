@@ -2,18 +2,24 @@ import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { Game } from '@core/Game.ts'
 import { EMPTY_GAME_SNAPSHOT } from '@core/GameSnapshot.ts'
 import { FieldRadialActionKind } from '@/types/machine.ts'
+import { clampRadialAnchor } from '@/utils/radial-menu-position.ts'
 import { GameHUD } from './GameHUD.tsx'
-import { ChooseCropDialog } from './ChooseCropDialog.tsx'
+import { ChooseCropRadialMenu } from './ChooseCropRadialMenu.tsx'
 import { RadialContextMenu } from './RadialContextMenu.tsx'
+import { AttachmentRadialMenu } from './AttachmentRadialMenu.tsx'
+import { AttachmentRadialActionKind } from '@/types/attachment.ts'
+import { DEFAULT_MACHINE_ID } from '@/config/machine-catalog.ts'
 import './GameShell.css'
 
 export function GameShell() {
   const shellRef = useRef<HTMLDivElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [game, setGame] = useState<Game | null>(null)
-  const [pendingSeedFieldId, setPendingSeedFieldId] = useState<string | null>(
-    null,
-  )
+  const [pendingSeed, setPendingSeed] = useState<{
+    fieldId: string
+    screenX: number
+    screenY: number
+  } | null>(null)
 
   useEffect(() => {
     const shell = shellRef.current
@@ -69,6 +75,34 @@ export function GameShell() {
     () => EMPTY_GAME_SNAPSHOT,
   )
 
+  useEffect(() => {
+    if (!game) {
+      return
+    }
+
+    const hasRadialUi =
+      snapshot.fieldContextMenu !== null ||
+      snapshot.attachmentContextMenu !== null ||
+      pendingSeed !== null
+    if (!hasRadialUi) {
+      return
+    }
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') {
+        return
+      }
+      game.closeFieldContextMenu()
+      game.closeAttachmentContextMenu()
+      setPendingSeed(null)
+    }
+
+    window.addEventListener('keydown', onKeyDown)
+    return () => {
+      window.removeEventListener('keydown', onKeyDown)
+    }
+  }, [game, snapshot.fieldContextMenu, snapshot.attachmentContextMenu, pendingSeed])
+
   return (
     <div
       ref={shellRef}
@@ -95,10 +129,19 @@ export function GameShell() {
               case FieldRadialActionKind.Plow:
                 game.plowField(fieldId)
                 break
-              case FieldRadialActionKind.Seed:
+              case FieldRadialActionKind.Seed: {
+                const anchor = clampRadialAnchor(
+                  snapshot.fieldContextMenu!.screenX,
+                  snapshot.fieldContextMenu!.screenY,
+                )
+                setPendingSeed({
+                  fieldId,
+                  screenX: anchor.x,
+                  screenY: anchor.y,
+                })
                 game.closeFieldContextMenu()
-                setPendingSeedFieldId(fieldId)
                 break
+              }
               case FieldRadialActionKind.Harvest:
                 game.harvestField(fieldId)
                 break
@@ -109,15 +152,51 @@ export function GameShell() {
           }}
         />
       ) : null}
-      {game && pendingSeedFieldId ? (
-        <ChooseCropDialog
+      {game && pendingSeed ? (
+        <ChooseCropRadialMenu
+          screenX={pendingSeed.screenX}
+          screenY={pendingSeed.screenY}
           crops={snapshot.crops}
           money={snapshot.money}
           onSelect={(cropId) => {
-            game.plantField(pendingSeedFieldId, cropId)
-            setPendingSeedFieldId(null)
+            game.plantField(pendingSeed.fieldId, cropId)
+            setPendingSeed(null)
           }}
-          onCancel={() => setPendingSeedFieldId(null)}
+          onCancel={() => setPendingSeed(null)}
+        />
+      ) : null}
+      {game && snapshot.attachmentContextMenu ? (
+        <AttachmentRadialMenu
+          menu={snapshot.attachmentContextMenu}
+          onDismiss={() => game.closeAttachmentContextMenu()}
+          onAction={(action) => {
+            const menu = snapshot.attachmentContextMenu!
+            switch (action) {
+              case AttachmentRadialActionKind.Attach: {
+                const slotId = menu.slotId
+                if (!slotId) {
+                  return
+                }
+                game.attachAttachment(
+                  DEFAULT_MACHINE_ID,
+                  slotId,
+                  menu.attachmentId,
+                )
+                break
+              }
+              case AttachmentRadialActionKind.Detach: {
+                const slotId = menu.slotId
+                if (!slotId) {
+                  return
+                }
+                game.detachAttachment(DEFAULT_MACHINE_ID, slotId)
+                break
+              }
+              case AttachmentRadialActionKind.Cancel:
+                game.closeAttachmentContextMenu()
+                break
+            }
+          }}
         />
       ) : null}
     </div>

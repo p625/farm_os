@@ -3,22 +3,47 @@ import {
   MachineId,
   type MachineCapability as MachineCapabilityValue,
 } from '@/types/machine.ts'
+import {
+  AttachmentType,
+  MachineSlotId,
+  type AttachmentTypeValue,
+  type MachineSlotIdValue,
+} from '@/types/attachment.ts'
+
+export interface MachineSlotDefinition {
+  id: MachineSlotIdValue
+  label: string
+  acceptedTypes: readonly AttachmentTypeValue[]
+}
 
 export interface MachineCatalogEntry {
   id: MachineId
   name: string
   capabilities: readonly MachineCapabilityValue[]
+  slots: readonly MachineSlotDefinition[]
 }
 
 export const MACHINE_CATALOG: readonly MachineCatalogEntry[] = [
   {
     id: MachineId.Tractor1,
     name: 'Tractor',
-    capabilities: [
-      MachineCapability.Move,
-      MachineCapability.Plow,
-      MachineCapability.Seed,
-      MachineCapability.Harvest,
+    capabilities: [MachineCapability.Move, MachineCapability.Tow],
+    slots: [
+      {
+        id: MachineSlotId.FrontHitch,
+        label: 'Front Hitch',
+        acceptedTypes: [AttachmentType.FrontAttachment],
+      },
+      {
+        id: MachineSlotId.RearHitch,
+        label: 'Rear Hitch',
+        acceptedTypes: [AttachmentType.Implement],
+      },
+      {
+        id: MachineSlotId.TrailerHitch,
+        label: 'Trailer Hitch',
+        acceptedTypes: [AttachmentType.Trailer],
+      },
     ],
   },
 ] as const
@@ -38,4 +63,19 @@ export function machineHasCapability(
   capability: MachineCapabilityValue,
 ): boolean {
   return getMachineCatalogEntry(machineId)?.capabilities.includes(capability) ?? false
+}
+
+export function getMachineSlots(
+  machineId: MachineId,
+): readonly MachineSlotDefinition[] {
+  return getMachineCatalogEntry(machineId)?.slots ?? []
+}
+
+export function slotAcceptsAttachmentType(
+  machineId: MachineId,
+  slotId: MachineSlotIdValue,
+  attachmentType: AttachmentTypeValue,
+): boolean {
+  const slot = getMachineSlots(machineId).find((entry) => entry.id === slotId)
+  return slot?.acceptedTypes.includes(attachmentType) ?? false
 }

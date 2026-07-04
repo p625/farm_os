@@ -1,12 +1,13 @@
 import type { IInitializable, IUpdatable, IDisposable } from '@/types/index.ts'
+import { STARTING_MONEY } from '@/config/game-balance.ts'
 
 export class World implements IInitializable, IUpdatable, IDisposable {
-  money = 0
+  money = STARTING_MONEY
   currentDay = 1
   gameSpeed = 1
 
   initialize(): void {
-    this.money = 0
+    this.money = STARTING_MONEY
     this.currentDay = 1
     this.gameSpeed = 1
   }

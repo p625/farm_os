@@ -10,6 +10,11 @@ import type { GameSnapshot } from '@core/GameSnapshot.ts'
 import { FieldLifecycleState as States } from '@/types/field.ts'
 import { FieldOwnership } from '@/types/ownership.ts'
 import { TractorState } from '@/types/tractor.ts'
+import {
+  formatMachineCapability,
+  getFieldWorkRequirementHint,
+} from '@/config/attachment-capabilities.ts'
+import { MachineCapability } from '@/types/machine.ts'
 import { ChooseCropDialog } from './ChooseCropDialog.tsx'
 import './GameHUD.css'
 
@@ -66,15 +71,34 @@ export function GameHUD({ game, snapshot }: GameHUDProps) {
   const isAvailableField =
     selectedField?.ownership === FieldOwnership.Available
 
+  const hasPlowCapability = snapshot.effectiveCapabilities.includes(
+    MachineCapability.Plow,
+  )
+  const hasSeedCapability = snapshot.effectiveCapabilities.includes(
+    MachineCapability.Seed,
+  )
+
   const canPlow =
-    !tractorBusy && fieldUsable && selectedField?.state === States.Grass
+    !tractorBusy &&
+    fieldUsable &&
+    selectedField?.state === States.Grass &&
+    hasPlowCapability
   const canChooseCrop =
-    !tractorBusy && fieldUsable && selectedField?.state === States.Plowed
+    !tractorBusy &&
+    fieldUsable &&
+    selectedField?.state === States.Plowed &&
+    hasSeedCapability
   const canAffordAnyCrop = snapshot.crops.some(
     (crop) => snapshot.money >= crop.seedCost,
   )
-  const canHarvest =
-    !tractorBusy && fieldUsable && selectedField?.state === States.Harvestable
+
+  const fieldWorkHint =
+    selectedField && fieldUsable && !tractorBusy
+      ? getFieldWorkRequirementHint(
+          selectedField.state,
+          snapshot.effectiveCapabilities,
+        )
+      : null
 
   const canPurchase =
     isAvailableField &&
@@ -91,7 +115,7 @@ export function GameHUD({ game, snapshot }: GameHUDProps) {
     <aside className="game-hud">
       <header className="game-hud__header">
         <h1 className="game-hud__title">FarmOS</h1>
-        <p className="game-hud__subtitle">Phase 11B — Field Radial Actions</p>
+        <p className="game-hud__subtitle">Phase 12B — Equipment-Driven Gameplay</p>
       </header>
 
       <section className="game-hud__panel">
@@ -129,13 +153,15 @@ export function GameHUD({ game, snapshot }: GameHUDProps) {
       </section>
 
       <section className="game-hud__panel">
-        <h2 className="game-hud__section-title">Tractor</h2>
+        <h2 className="game-hud__section-title">
+          {snapshot.machineAttachments?.machineName ?? 'Machine'}
+        </h2>
         <dl className="game-hud__stats">
           <div className="game-hud__stat">
             <dt>Selection</dt>
             <dd>
               {snapshot.selectedEntity.kind === 'machine'
-                ? 'Tractor selected'
+                ? `${snapshot.machineAttachments?.machineName ?? 'Machine'} selected`
                 : snapshot.selectedEntity.kind === 'field'
                   ? 'Field selected'
                   : 'None'}
@@ -144,6 +170,16 @@ export function GameHUD({ game, snapshot }: GameHUDProps) {
           <div className="game-hud__stat">
             <dt>State</dt>
             <dd>{formatTractorState(snapshot.tractor.state)}</dd>
+          </div>
+          <div className="game-hud__stat">
+            <dt>Capabilities</dt>
+            <dd>
+              {snapshot.effectiveCapabilities.length > 0
+                ? snapshot.effectiveCapabilities
+                    .map((capability) => formatMachineCapability(capability))
+                    .join(', ')
+                : 'None'}
+            </dd>
           </div>
           {activeJob ? (
             <>
@@ -164,7 +200,7 @@ export function GameHUD({ game, snapshot }: GameHUDProps) {
         ) : (
           <p className="game-hud__hint">
             {snapshot.selectedEntity.kind === 'machine'
-              ? 'Right-click terrain to move. Use field actions below for work.'
+              ? 'Right-click terrain to move. Right-click a field to open work actions.'
               : 'Click the tractor to select it for manual movement.'}
           </p>
         )}
@@ -176,6 +212,39 @@ export function GameHUD({ game, snapshot }: GameHUDProps) {
               style={{ width: `${snapshot.tractor.workProgress * 100}%` }}
             />
           </div>
+        ) : null}
+        {snapshot.machineAttachments ? (
+          <dl className="game-hud__stats game-hud__stats--attachments">
+            <div className="game-hud__stat">
+              <dt>Rear implement</dt>
+              <dd>
+                {snapshot.machineAttachments.slots.find(
+                  (slot) => slot.slotId === 'rear_hitch',
+                )?.attachmentName ?? 'Empty'}
+              </dd>
+            </div>
+            <div className="game-hud__stat">
+              <dt>Trailer</dt>
+              <dd>
+                {snapshot.machineAttachments.slots.find(
+                  (slot) => slot.slotId === 'trailer_hitch',
+                )?.attachmentName ?? 'Empty'}
+              </dd>
+            </div>
+            <div className="game-hud__stat">
+              <dt>Front hitch</dt>
+              <dd>
+                {snapshot.machineAttachments.slots.find(
+                  (slot) => slot.slotId === 'front_hitch',
+                )?.attachmentName ?? 'Empty'}
+              </dd>
+            </div>
+          </dl>
+        ) : null}
+        {!activeJob && snapshot.selectedEntity.kind === 'machine' ? (
+          <p className="game-hud__hint">
+            Right-click equipment in the yard to attach or detach.
+          </p>
         ) : null}
       </section>
 
@@ -286,15 +355,13 @@ export function GameHUD({ game, snapshot }: GameHUDProps) {
               >
                 Choose Crop
               </button>
-              <button
-                type="button"
-                className="game-hud__button game-hud__button--primary"
-                disabled={!canHarvest}
-                onClick={() => game.harvestSelectedField()}
-              >
-                Harvest
-              </button>
             </div>
+            <p className="game-hud__hint game-hud__hint--primary">
+              Select tractor, then right-click a field to work it.
+            </p>
+            {fieldWorkHint ? (
+              <p className="game-hud__hint">{fieldWorkHint}</p>
+            ) : null}
             {selectedField?.state === States.Plowed && !canAffordAnyCrop ? (
               <p className="game-hud__hint">
                 Earn more money to afford crop seeds.

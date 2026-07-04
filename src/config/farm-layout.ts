@@ -8,6 +8,27 @@ export const TRACTOR_HOME = {
 
 export const TRACTOR_HOME_ROTATION_Y = -Math.PI / 6
 
+export const EQUIPMENT_YARD_SPAWN_POSITIONS: Record<
+  string,
+  { x: number; y: number; z: number }
+> = {
+  plow_1: { x: 10, y: 0, z: 24 },
+  seeder_1: { x: 18, y: 0, z: 24 },
+  trailer_1: { x: 26, y: 0, z: 24 },
+}
+
+export const ATTACHMENT_SLOT_OFFSETS: Record<
+  string,
+  { x: number; y: number; z: number }
+> = {
+  front_hitch: { x: 0, y: 0.3, z: 2.2 },
+  rear_hitch: { x: 0, y: 0.25, z: -1.8 },
+  trailer_hitch: { x: 0, y: 0.4, z: -3.8 },
+  header_slot: { x: 0, y: 0.35, z: 2.5 },
+}
+
+export const DETACH_OFFSET = { x: 2.5, y: 0, z: 0 } as const
+
 export const FIELD_DEFINITIONS = FIELD_CATALOG.map(({ id, name }) => ({
   id,
   name,

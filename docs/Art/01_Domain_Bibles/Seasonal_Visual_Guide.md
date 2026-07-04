@@ -5,6 +5,8 @@
 | **Verze** | v0.1.0 |
 | **Status** | Draft |
 | **Tier** | T1 |
+| **Preprodukční fáze** | 2 — World Building (Weather & Seasons) |
+| **Blokováno** | Fáze 1 (Color Script) |
 | **Vlastník** | Art Director |
 | **Backup** | Environment Lead |
 | **Review** | Kvartálně |

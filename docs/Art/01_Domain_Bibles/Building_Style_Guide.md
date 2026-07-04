@@ -5,6 +5,8 @@
 | **Verze** | v0.1.0 |
 | **Status** | Draft |
 | **Tier** | T1 |
+| **Preprodukční fáze** | 3 — Architecture |
+| **Blokováno** | Fáze 1–2 (ADR-A01, Environment, Material) |
 | **Vlastník** | Hard Surface Lead |
 | **Backup** | Environment Lead |
 | **Review** | Kvartálně |

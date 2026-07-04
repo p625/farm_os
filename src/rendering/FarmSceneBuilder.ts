@@ -68,10 +68,11 @@ export class FarmSceneBuilder {
   private createFarmyard(scene: Scene): void {
     const farmyard = MeshBuilder.CreateBox(
       'farmyard',
-      { width: 14, height: 0.06, depth: 10 },
+      { width: 26, height: 0.06, depth: 18 },
       scene,
     )
-    farmyard.position = new Vector3(16, 0.03, 14)
+    farmyard.position = new Vector3(18, 0.03, 22)
+    farmyard.isPickable = false
 
     const farmyardMaterial = new StandardMaterial('farmyardMaterial', scene)
     farmyardMaterial.diffuseColor = FARMYARD_COLOR

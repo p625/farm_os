@@ -90,6 +90,32 @@ export interface MachineSaveData {
   workDuration: number
 }
 
+export interface AttachmentContainerSaveData {
+  cargoKind: string
+  itemId?: string
+  quantity: number
+}
+
+export interface AttachmentSaveData {
+  attachmentId: string
+  attachmentType: string
+  catalogId: string
+  lifecycleState: string
+  position: { x: number; y: number; z: number }
+  rotationY: number
+  workPosition: string
+  mountedOn: { machineId: string; slotId: string } | null
+  containers?: AttachmentContainerSaveData[]
+}
+
+export interface AttachmentsSaveData {
+  items: AttachmentSaveData[]
+}
+
+export interface MachinesSaveData {
+  [machineId: string]: MachineSaveData
+}
+
 export interface GameSaveData {
   version: number
   money: number
@@ -103,7 +129,8 @@ export interface GameSaveData {
   processedMarketPrices: ProcessedMarketPriceSaveData[]
   production: ProductionSaveData
   upgrades: ShopUpgradeSaveData[]
-  machine: MachineSaveData
+  machines: MachinesSaveData
+  attachments: AttachmentsSaveData
   eventLog: GameLogEntry[]
   eventLogNextId: number
 }

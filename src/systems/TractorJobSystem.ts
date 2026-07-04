@@ -5,7 +5,7 @@ import {
   TRACTOR_HOME_ROTATION_Y,
   TRACTOR_MOVE_SPEED,
 } from '@/config/farm-layout.ts'
-import { machineHasCapability } from '@/config/machine-catalog.ts'
+import type { MachineCapabilityResolver } from './MachineCapabilityResolver.ts'
 import { MachineCapability, MachineId, type MachineCommand } from '@/types/machine.ts'
 import type { IMachineController } from '@/types/machine-controller.ts'
 import type { MachineSaveData } from '@/types/save.ts'
@@ -49,6 +49,7 @@ export class TractorJobSystem extends GameSystem implements IMachineController {
   private activeWork: ActiveWork | null = null
   private workTimer = 0
   private workDuration = 1.5
+  private capabilityResolver: MachineCapabilityResolver | null = null
   private onChange: (() => void) | null = null
   private onVisualChange: (() => void) | null = null
 
@@ -65,6 +66,10 @@ export class TractorJobSystem extends GameSystem implements IMachineController {
     this.farmShopSystem = farmShopSystem
   }
 
+  setCapabilityResolver(resolver: MachineCapabilityResolver): void {
+    this.capabilityResolver = resolver
+  }
+
   setOnChange(listener: () => void): void {
     this.onChange = listener
   }
@@ -74,12 +79,12 @@ export class TractorJobSystem extends GameSystem implements IMachineController {
   }
 
   getCapabilities(): readonly MachineCapability[] {
-    return [
-      MachineCapability.Move,
-      MachineCapability.Plow,
-      MachineCapability.Seed,
-      MachineCapability.Harvest,
-    ]
+    return (
+      this.capabilityResolver?.getEffectiveCapabilities(this.machineId) ?? [
+        MachineCapability.Move,
+        MachineCapability.Tow,
+      ]
+    )
   }
 
   initialize(): void {
@@ -152,7 +157,10 @@ export class TractorJobSystem extends GameSystem implements IMachineController {
     const requiredCapability = getRequiredCapability(command.task)
     if (
       requiredCapability &&
-      !machineHasCapability(this.machineId, requiredCapability)
+      !this.capabilityResolver?.hasEffectiveCapability(
+        this.machineId,
+        requiredCapability,
+      )
     ) {
       return false
     }

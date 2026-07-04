@@ -1,29 +1,28 @@
 import {
-  FieldRadialActionKind,
-  type FieldContextMenuSnapshot,
-} from '@/types/machine.ts'
+  AttachmentRadialActionKind,
+  type AttachmentContextMenuSnapshot,
+} from '@/types/attachment.ts'
 import './RadialContextMenu.css'
 
-interface RadialContextMenuProps {
-  menu: FieldContextMenuSnapshot
-  onAction: (action: FieldRadialActionKind) => void
+interface AttachmentRadialMenuProps {
+  menu: AttachmentContextMenuSnapshot
+  onAction: (action: AttachmentRadialActionKind) => void
   onDismiss: () => void
 }
 
-const ACTION_LABELS: Record<FieldRadialActionKind, string> = {
-  [FieldRadialActionKind.Plow]: 'Orat',
-  [FieldRadialActionKind.Seed]: 'Zasít',
-  [FieldRadialActionKind.Harvest]: 'Sklidit',
-  [FieldRadialActionKind.Cancel]: 'Zrušit',
+const ACTION_LABELS: Record<AttachmentRadialActionKind, string> = {
+  [AttachmentRadialActionKind.Attach]: 'Připojit',
+  [AttachmentRadialActionKind.Detach]: 'Odpojit',
+  [AttachmentRadialActionKind.Cancel]: 'Zrušit',
 }
 
 const MENU_RADIUS_PX = 72
 
-export function RadialContextMenu({
+export function AttachmentRadialMenu({
   menu,
   onAction,
   onDismiss,
-}: RadialContextMenuProps) {
+}: AttachmentRadialMenuProps) {
   const actionCount = menu.actions.length
   const startAngle = -Math.PI / 2
 
@@ -31,7 +30,7 @@ export function RadialContextMenu({
     <div
       className="radial-context-menu"
       role="menu"
-      aria-label="Akce na poli"
+      aria-label="Akce s nářadím"
       style={{
         left: menu.screenX,
         top: menu.screenY,
@@ -51,7 +50,7 @@ export function RadialContextMenu({
             : startAngle + (index / actionCount) * Math.PI * 2
         const x = Math.cos(angle) * MENU_RADIUS_PX
         const y = Math.sin(angle) * MENU_RADIUS_PX
-        const isCancel = action === FieldRadialActionKind.Cancel
+        const isCancel = action === AttachmentRadialActionKind.Cancel
 
         return (
           <button

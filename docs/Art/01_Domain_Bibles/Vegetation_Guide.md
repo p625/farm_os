@@ -5,6 +5,8 @@
 | **Verze** | v0.1.0 |
 | **Status** | Draft |
 | **Tier** | T1 |
+| **Preprodukční fáze** | 2 — World Building |
+| **Blokováno** | Fáze 1 (ADR-A01, Environment Bible, Color Script) |
 | **Vlastník** | Vegetation Lead |
 | **Backup** | Environment Lead |
 | **Review** | Kvartálně |

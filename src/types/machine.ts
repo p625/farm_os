@@ -6,6 +6,7 @@ export type MachineId = (typeof MachineId)[keyof typeof MachineId]
 
 export const MachineCapability = {
   Move: 'move',
+  Tow: 'tow',
   Plow: 'plow',
   Seed: 'seed',
   Harvest: 'harvest',

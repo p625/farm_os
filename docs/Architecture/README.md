@@ -19,6 +19,7 @@
 | [004_RenderingArchitecture.md](./004_RenderingArchitecture.md) | Normative | Layers and input |
 | [005_SaveArchitecture.md](./005_SaveArchitecture.md) | Normative | Save and migration |
 | [006_Phase11_ManualMachineControl.md](./006_Phase11_ManualMachineControl.md) | Specification | Phase 11 implementation spec |
+| [007_Phase12_AttachmentsAndHarvestMachines.md](./007_Phase12_AttachmentsAndHarvestMachines.md) | Specification | Phase 12 implementation spec |
 
 ## Change Policy
 
