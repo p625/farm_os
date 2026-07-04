@@ -91,7 +91,7 @@ export function GameHUD({ game, snapshot }: GameHUDProps) {
     <aside className="game-hud">
       <header className="game-hud__header">
         <h1 className="game-hud__title">FarmOS</h1>
-        <p className="game-hud__subtitle">Phase 11A — Manual Machine Movement</p>
+        <p className="game-hud__subtitle">Phase 11B — Field Radial Actions</p>
       </header>
 
       <section className="game-hud__panel">

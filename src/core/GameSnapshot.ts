@@ -13,6 +13,7 @@ import type { ShopUpgradeSnapshot } from '@/types/shop.ts'
 import type { GameLogEntry, MoneyGainEffect } from '@/types/events.ts'
 import {
   EMPTY_SELECTED_ENTITY,
+  type FieldContextMenuSnapshot,
   type SelectedEntitySnapshot,
 } from '@/types/machine.ts'
 import { TractorState, type TractorSnapshot } from '@/types/tractor.ts'
@@ -23,6 +24,7 @@ export interface GameSnapshot {
   gameSpeed: number
   selectedFieldId: string | null
   selectedEntity: SelectedEntitySnapshot
+  fieldContextMenu: FieldContextMenuSnapshot | null
   fields: readonly FieldSnapshot[]
   crops: readonly CropSnapshot[]
   inventory: readonly InventoryItemSnapshot[]
@@ -42,6 +44,7 @@ export const EMPTY_GAME_SNAPSHOT: GameSnapshot = {
   gameSpeed: 1,
   selectedFieldId: null,
   selectedEntity: EMPTY_SELECTED_ENTITY,
+  fieldContextMenu: null,
   fields: [],
   crops: [],
   inventory: [],

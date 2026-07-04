@@ -55,3 +55,20 @@ export const EMPTY_SELECTED_ENTITY: SelectedEntitySnapshot = {
   fieldId: null,
   buildingId: null,
 }
+
+export const FieldRadialActionKind = {
+  Plow: 'plow',
+  Seed: 'seed',
+  Harvest: 'harvest',
+  Cancel: 'cancel',
+} as const
+
+export type FieldRadialActionKind =
+  (typeof FieldRadialActionKind)[keyof typeof FieldRadialActionKind]
+
+export interface FieldContextMenuSnapshot {
+  fieldId: string
+  screenX: number
+  screenY: number
+  actions: readonly FieldRadialActionKind[]
+}

@@ -61,6 +61,11 @@ export class FieldPresentation {
         return
       }
 
+      const event = pointerInfo.event as PointerEvent
+      if (event.button !== 0) {
+        return
+      }
+
       const pick = pointerInfo.pickInfo
       if (!pick?.hit || !pick.pickedMesh) {
         return

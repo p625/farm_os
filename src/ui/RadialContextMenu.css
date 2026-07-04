@@ -1,0 +1,77 @@
+.radial-context-menu {
+  position: fixed;
+  z-index: 15;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+.radial-context-menu__backdrop {
+  position: fixed;
+  inset: 0;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: default;
+  pointer-events: auto;
+}
+
+.radial-context-menu__hub {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 14px;
+  height: 14px;
+  margin: -7px 0 0 -7px;
+  border-radius: 50%;
+  background: rgb(200 230 185 / 35%);
+  border: 1px solid rgb(200 230 185 / 45%);
+  box-shadow: 0 0 12px rgb(120 180 100 / 25%);
+  pointer-events: none;
+}
+
+.radial-context-menu__action {
+  position: absolute;
+  left: 0;
+  top: 0;
+  min-width: 4.5rem;
+  padding: 0.45rem 0.7rem;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #e8f5e3;
+  white-space: nowrap;
+  background: linear-gradient(
+    165deg,
+    rgb(28 38 30 / 96%) 0%,
+    rgb(16 22 18 / 96%) 100%
+  );
+  border: 1px solid rgb(180 220 160 / 22%);
+  border-radius: 999px;
+  box-shadow: 0 6px 18px rgb(0 0 0 / 32%);
+  cursor: pointer;
+  pointer-events: auto;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    transform 0.15s ease;
+}
+
+.radial-context-menu__action:hover {
+  background: linear-gradient(
+    165deg,
+    rgb(36 48 38 / 98%) 0%,
+    rgb(22 30 24 / 98%) 100%
+  );
+  border-color: rgb(200 230 185 / 38%);
+}
+
+.radial-context-menu__action--cancel {
+  color: rgb(255 255 255 / 72%);
+  border-color: rgb(255 255 255 / 14%);
+}
+
+.radial-context-menu__action--cancel:hover {
+  border-color: rgb(255 255 255 / 22%);
+}

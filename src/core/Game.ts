@@ -25,7 +25,7 @@ import {
   ProductionSystem,
   TractorJobSystem,
 } from '@systems/index.ts'
-import { DEFAULT_MACHINE_ID } from '@/config/machine-catalog.ts'
+import { DEFAULT_MACHINE_ID, machineHasCapability } from '@/config/machine-catalog.ts'
 import { getFieldCatalogEntry } from '@/config/field-catalog.ts'
 import { getProcessedProductDefinition } from '@/config/production-catalog.ts'
 import { SAVE_VERSION } from '@/config/save.ts'
@@ -37,7 +37,10 @@ import type { ShopUpgradeId } from '@/types/shop.ts'
 import type { ProcessedProductId } from '@/types/production.ts'
 import {
   EMPTY_SELECTED_ENTITY,
+  FieldRadialActionKind,
+  MachineCapability,
   SelectedEntityKind,
+  type FieldContextMenuSnapshot,
   type MachineCommand,
   type MachineId,
   type SelectedEntitySnapshot,
@@ -73,6 +76,7 @@ export class Game implements IDisposable {
   private readonly listeners = new Set<() => void>()
   private cachedSnapshot: GameSnapshot = EMPTY_GAME_SNAPSHOT
   private selectedEntity: SelectedEntitySnapshot = EMPTY_SELECTED_ENTITY
+  private fieldContextMenu: FieldContextMenuSnapshot | null = null
   private autoSaveEnabled = false
   private disposed = false
   private started = false
@@ -147,10 +151,7 @@ export class Game implements IDisposable {
     if (!fieldId) {
       return
     }
-    this.issueMachineCommand(DEFAULT_MACHINE_ID, {
-      destination: { kind: 'field', fieldId },
-      task: { kind: 'plow' },
-    })
+    this.plowField(fieldId)
   }
 
   plantSelectedField(cropId: string): void {
@@ -158,10 +159,7 @@ export class Game implements IDisposable {
     if (!fieldId) {
       return
     }
-    this.issueMachineCommand(DEFAULT_MACHINE_ID, {
-      destination: { kind: 'field', fieldId },
-      task: { kind: 'seed', cropId },
-    })
+    this.plantField(fieldId, cropId)
   }
 
   harvestSelectedField(): void {
@@ -169,10 +167,89 @@ export class Game implements IDisposable {
     if (!fieldId) {
       return
     }
+    this.harvestField(fieldId)
+  }
+
+  plowField(fieldId: string): void {
+    this.closeFieldContextMenu()
+    this.issueMachineCommand(DEFAULT_MACHINE_ID, {
+      destination: { kind: 'field', fieldId },
+      task: { kind: 'plow' },
+    })
+  }
+
+  plantField(fieldId: string, cropId: string): void {
+    this.closeFieldContextMenu()
+    this.issueMachineCommand(DEFAULT_MACHINE_ID, {
+      destination: { kind: 'field', fieldId },
+      task: { kind: 'seed', cropId },
+    })
+  }
+
+  harvestField(fieldId: string): void {
+    this.closeFieldContextMenu()
     this.issueMachineCommand(DEFAULT_MACHINE_ID, {
       destination: { kind: 'field', fieldId },
       task: { kind: 'harvest' },
     })
+  }
+
+  openFieldContextMenu(
+    fieldId: string,
+    screenX: number,
+    screenY: number,
+  ): void {
+    const workActions = this.getFieldRadialWorkActions(fieldId)
+    if (workActions.length === 0) {
+      return
+    }
+
+    this.fieldContextMenu = {
+      fieldId,
+      screenX,
+      screenY,
+      actions: [...workActions, FieldRadialActionKind.Cancel],
+    }
+    this.notifyListeners()
+  }
+
+  closeFieldContextMenu(): void {
+    if (!this.fieldContextMenu) {
+      return
+    }
+    this.fieldContextMenu = null
+    this.notifyListeners()
+  }
+
+  getFieldRadialWorkActions(fieldId: string): FieldRadialActionKind[] {
+    if (this.tractorJobSystem.isBusy()) {
+      return []
+    }
+
+    const actions: FieldRadialActionKind[] = []
+
+    if (
+      machineHasCapability(DEFAULT_MACHINE_ID, MachineCapability.Plow) &&
+      this.fieldSystem.canPlow(fieldId)
+    ) {
+      actions.push(FieldRadialActionKind.Plow)
+    }
+
+    if (
+      machineHasCapability(DEFAULT_MACHINE_ID, MachineCapability.Seed) &&
+      this.canSeedAnyAffordableCrop(fieldId)
+    ) {
+      actions.push(FieldRadialActionKind.Seed)
+    }
+
+    if (
+      machineHasCapability(DEFAULT_MACHINE_ID, MachineCapability.Harvest) &&
+      this.fieldSystem.canHarvest(fieldId)
+    ) {
+      actions.push(FieldRadialActionKind.Harvest)
+    }
+
+    return actions
   }
 
   issueMachineCommand(machineId: MachineId, command: MachineCommand): boolean {
@@ -337,6 +414,7 @@ export class Game implements IDisposable {
     this.fieldSystem.initialize()
     this.tractorJobSystem.initialize()
     this.selectedEntity = EMPTY_SELECTED_ENTITY
+    this.fieldContextMenu = null
     this.tractorPresentation.setSelected(false)
     this.eventLog.clear()
     this.eventLog.recordFarmReset(this.world.currentDay)
@@ -421,6 +499,7 @@ export class Game implements IDisposable {
     })
     this.tractorJobSystem.initialize()
     this.selectedEntity = EMPTY_SELECTED_ENTITY
+    this.fieldContextMenu = null
     this.tractorPresentation.setSelected(false)
 
     this.loadSavedGame()
@@ -532,6 +611,7 @@ export class Game implements IDisposable {
       this.saveGameService.normalizeMachineSave(saved.machine),
     )
     this.selectedEntity = EMPTY_SELECTED_ENTITY
+    this.fieldContextMenu = null
     this.tractorPresentation.setSelected(false)
 
     this.autoSaveEnabled = true
@@ -602,6 +682,12 @@ export class Game implements IDisposable {
     })
   }
 
+  private canSeedAnyAffordableCrop(fieldId: string): boolean {
+    return this.cropSystem
+      .toSnapshots()
+      .some((crop) => this.fieldSystem.canSeed(fieldId, crop.id))
+  }
+
   private invalidateSnapshot(): void {
     if (this.disposed) {
       return
@@ -636,6 +722,7 @@ export class Game implements IDisposable {
       gameSpeed: this.world.gameSpeed,
       selectedFieldId: this.fieldSystem.getSelectedFieldId(),
       selectedEntity: this.selectedEntity,
+      fieldContextMenu: this.fieldContextMenu,
       fields: this.buildFieldSnapshots(),
       crops: this.cropSystem.toSnapshots(),
       inventory: this.inventorySystem.toSnapshots(),

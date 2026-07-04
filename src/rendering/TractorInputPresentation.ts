@@ -74,7 +74,7 @@ export class TractorInputPresentation {
       }
 
       if (event.button === 2) {
-        this.handleRightClick(pick.pickedMesh, pick)
+        this.handleRightClick(pick.pickedMesh, pick, event)
       }
     })
   }
@@ -98,13 +98,22 @@ export class TractorInputPresentation {
   private handleRightClick(
     mesh: AbstractMesh,
     pick: NonNullable<import('@babylonjs/core').PointerInfo['pickInfo']>,
+    event: PointerEvent,
   ): void {
     const snapshot = this.game?.getSnapshot()
     if (snapshot?.selectedEntity.kind !== SelectedEntityKind.Machine) {
       return
     }
 
-    if (this.isFieldMesh(mesh) || this.isTractorMesh(mesh)) {
+    if (this.isTractorMesh(mesh)) {
+      return
+    }
+
+    if (this.isFieldMesh(mesh)) {
+      const fieldId = this.resolveFieldId(mesh)
+      if (fieldId) {
+        this.game?.openFieldContextMenu(fieldId, event.clientX, event.clientY)
+      }
       return
     }
 
@@ -141,13 +150,17 @@ export class TractorInputPresentation {
   }
 
   private isFieldMesh(mesh: AbstractMesh): boolean {
+    return this.resolveFieldId(mesh) !== null
+  }
+
+  private resolveFieldId(mesh: AbstractMesh): string | null {
     let current: AbstractMesh | null = mesh
     while (current) {
       if (FIELD_IDS.includes(current.name as (typeof FIELD_IDS)[number])) {
-        return true
+        return current.name
       }
       current = current.parent as AbstractMesh | null
     }
-    return false
+    return null
   }
 }
