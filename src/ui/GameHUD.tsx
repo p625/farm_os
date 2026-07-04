@@ -66,7 +66,9 @@ export function GameHUD({ game, snapshot }: GameHUDProps) {
     (field) => field.id === snapshot.selectedFieldId,
   )
 
-  const machineBusy = snapshot.selectedMachine.state !== TractorState.Idle
+  const machineSelected = snapshot.selectedEntity.kind === 'machine'
+  const machineBusy =
+    machineSelected && snapshot.selectedMachine.state !== TractorState.Idle
   const fieldUsable = selectedField?.usable ?? false
   const isAvailableField =
     selectedField?.ownership === FieldOwnership.Available
@@ -79,11 +81,13 @@ export function GameHUD({ game, snapshot }: GameHUDProps) {
   )
 
   const canPlow =
+    machineSelected &&
     !machineBusy &&
     fieldUsable &&
     selectedField?.state === States.Grass &&
     hasPlowCapability
   const canChooseCrop =
+    machineSelected &&
     !machineBusy &&
     fieldUsable &&
     selectedField?.state === States.Plowed &&
@@ -93,7 +97,7 @@ export function GameHUD({ game, snapshot }: GameHUDProps) {
   )
 
   const fieldWorkHint =
-    selectedField && fieldUsable && !machineBusy
+    machineSelected && selectedField && fieldUsable && !machineBusy
       ? getFieldWorkRequirementHint(
           selectedField.state,
           snapshot.effectiveCapabilities,
@@ -113,13 +117,16 @@ export function GameHUD({ game, snapshot }: GameHUDProps) {
     selectedField !== undefined &&
     snapshot.money >= selectedField.leasePrice
 
-  const activeJob = snapshot.selectedMachine.activeJob
+  const activeJob = machineSelected ? snapshot.selectedMachine.activeJob : null
+  const activeLogisticsLabel = machineSelected
+    ? snapshot.selectedMachine.activeLogisticsLabel
+    : null
 
   return (
     <aside className="game-hud">
       <header className="game-hud__header">
         <h1 className="game-hud__title">FarmOS</h1>
-        <p className="game-hud__subtitle">Phase 12D — Trailer Logistics</p>
+        <p className="game-hud__subtitle">Phase 12E — Logistics Polish</p>
       </header>
 
       <section className="game-hud__panel">
@@ -160,123 +167,147 @@ export function GameHUD({ game, snapshot }: GameHUDProps) {
         <h2 className="game-hud__section-title">
           {snapshot.machineAttachments?.machineName ?? 'Machine'}
         </h2>
-        <dl className="game-hud__stats">
-          <div className="game-hud__stat">
-            <dt>Selection</dt>
-            <dd>
-              {snapshot.selectedEntity.kind === 'machine'
-                ? `${snapshot.machineAttachments?.machineName ?? 'Machine'} selected`
-                : snapshot.selectedEntity.kind === 'field'
-                  ? 'Field selected'
-                  : 'None'}
-            </dd>
-          </div>
-          <div className="game-hud__stat">
-            <dt>State</dt>
-            <dd>{formatTractorState(snapshot.selectedMachine.state)}</dd>
-          </div>
-          <div className="game-hud__stat">
-            <dt>Capabilities</dt>
-            <dd>
-              {snapshot.effectiveCapabilities.length > 0
-                ? snapshot.effectiveCapabilities
-                    .map((capability) => formatMachineCapability(capability))
-                    .join(', ')
-                : 'None'}
-            </dd>
-          </div>
-          {activeJob ? (
-            <>
+        {!machineSelected ? (
+          <p className="game-hud__hint">
+            Click a machine on the map to select it for movement and field work.
+          </p>
+        ) : (
+          <>
+            <dl className="game-hud__stats">
               <div className="game-hud__stat">
-                <dt>Job</dt>
+                <dt>Selection</dt>
                 <dd>
-                  {formatJobType(activeJob.type, activeJob.cropName)} —{' '}
-                  {activeJob.fieldName}
+                  {snapshot.machineAttachments?.machineName ?? 'Machine'} selected
                 </dd>
               </div>
-              {snapshot.selectedMachine.state === TractorState.Working ? (
-                <div className="game-hud__stat">
-                  <dt>Work</dt>
-                  <dd>{Math.round(snapshot.selectedMachine.workProgress * 100)}%</dd>
-                </div>
-              ) : null}
-            </>
-        ) : (
-          <p className="game-hud__hint">
-            {snapshot.selectedEntity.kind === 'machine'
-              ? 'Right-click terrain to move. Right-click a field to open work actions.'
-              : 'Click a machine to select it for manual movement.'}
-          </p>
-        )}
-        </dl>
-        {snapshot.selectedMachine.state === TractorState.Working ? (
-          <div className="game-hud__progress">
-            <div
-              className="game-hud__progress-fill"
-              style={{ width: `${snapshot.selectedMachine.workProgress * 100}%` }}
-            />
-          </div>
-        ) : null}
-          {snapshot.machineAttachments ? (
-          <dl className="game-hud__stats game-hud__stats--attachments">
-            <div className="game-hud__stat">
-              <dt>Header</dt>
-              <dd>
-                {snapshot.machineAttachments.slots.find(
-                  (slot) => slot.slotId === 'header_slot',
-                )?.attachmentName ??
-                  snapshot.machineAttachments.slots.find(
-                    (slot) => slot.slotId === 'rear_hitch',
-                  )?.attachmentName ??
-                  'Empty'}
-              </dd>
-            </div>
-            {snapshot.headerSupportedCrops.length > 0 ? (
               <div className="game-hud__stat">
-                <dt>Supported crops</dt>
-                <dd>{snapshot.headerSupportedCrops.join(', ')}</dd>
+                <dt>State</dt>
+                <dd>{formatTractorState(snapshot.selectedMachine.state)}</dd>
+              </div>
+              <div className="game-hud__stat">
+                <dt>Capabilities</dt>
+                <dd>
+                  {snapshot.effectiveCapabilities.length > 0
+                    ? snapshot.effectiveCapabilities
+                        .map((capability) => formatMachineCapability(capability))
+                        .join(', ')
+                    : 'None'}
+                </dd>
+              </div>
+              {activeJob ? (
+                <>
+                  <div className="game-hud__stat">
+                    <dt>Job</dt>
+                    <dd>
+                      {formatJobType(activeJob.type, activeJob.cropName)} —{' '}
+                      {activeJob.fieldName}
+                    </dd>
+                  </div>
+                  {snapshot.selectedMachine.state === TractorState.Working ? (
+                    <div className="game-hud__stat">
+                      <dt>Work</dt>
+                      <dd>
+                        {Math.round(snapshot.selectedMachine.workProgress * 100)}%
+                      </dd>
+                    </div>
+                  ) : null}
+                </>
+              ) : activeLogisticsLabel ? (
+                <>
+                  <div className="game-hud__stat">
+                    <dt>Task</dt>
+                    <dd>{activeLogisticsLabel}</dd>
+                  </div>
+                  {snapshot.selectedMachine.state === TractorState.Working ? (
+                    <div className="game-hud__stat">
+                      <dt>Work</dt>
+                      <dd>
+                        {Math.round(snapshot.selectedMachine.workProgress * 100)}%
+                      </dd>
+                    </div>
+                  ) : null}
+                </>
+              ) : null}
+            </dl>
+            {snapshot.selectedMachine.state === TractorState.Working ? (
+              <div className="game-hud__progress">
+                <div
+                  className="game-hud__progress-fill"
+                  style={{
+                    width: `${snapshot.selectedMachine.workProgress * 100}%`,
+                  }}
+                />
               </div>
             ) : null}
-            {snapshot.selectedMachine.grainBin ? (
-              <>
+            {snapshot.machineAttachments ? (
+              <dl className="game-hud__stats game-hud__stats--attachments">
                 <div className="game-hud__stat">
-                  <dt>Grain bin</dt>
+                  <dt>Header</dt>
                   <dd>
-                    {snapshot.selectedMachine.grainBin.hasCargo
-                      ? `${Math.round(snapshot.selectedMachine.grainBin.fillPercent * 100)}%${snapshot.selectedMachine.grainBin.cropName ? ` ${snapshot.selectedMachine.grainBin.cropName}` : ''}`
-                      : 'Empty'}
-                    {snapshot.selectedMachine.grainBin.isFull ? ' (Full)' : ''}
+                    {snapshot.machineAttachments.slots.find(
+                      (slot) => slot.slotId === 'header_slot',
+                    )?.attachmentName ??
+                      snapshot.machineAttachments.slots.find(
+                        (slot) => slot.slotId === 'rear_hitch',
+                      )?.attachmentName ??
+                      'Empty'}
                   </dd>
                 </div>
-              </>
+                {snapshot.headerSupportedCrops.length > 0 ? (
+                  <div className="game-hud__stat">
+                    <dt>Supported crops</dt>
+                    <dd>{snapshot.headerSupportedCrops.join(', ')}</dd>
+                  </div>
+                ) : null}
+                {snapshot.selectedMachine.grainBin ? (
+                  <div className="game-hud__stat">
+                    <dt>Grain bin</dt>
+                    <dd>
+                      {snapshot.selectedMachine.grainBin.hasCargo
+                        ? `${Math.round(snapshot.selectedMachine.grainBin.fillPercent * 100)}%${snapshot.selectedMachine.grainBin.cropName ? ` ${snapshot.selectedMachine.grainBin.cropName}` : ''}`
+                        : 'Empty'}
+                      {snapshot.selectedMachine.grainBin.isFull ? ' (Full)' : ''}
+                    </dd>
+                  </div>
+                ) : null}
+                {snapshot.trailerCargo ? (
+                  <div className="game-hud__stat">
+                    <dt>Trailer</dt>
+                    <dd>
+                      {snapshot.trailerCargo.hasCargo
+                        ? `${Math.round(snapshot.trailerCargo.fillPercent * 100)}%${snapshot.trailerCargo.cropName ? ` ${snapshot.trailerCargo.cropName}` : ''}`
+                        : 'Empty'}
+                      {snapshot.trailerCargo.isFull ? ' (Full)' : ''}
+                    </dd>
+                  </div>
+                ) : (
+                  <div className="game-hud__stat">
+                    <dt>Trailer hitch</dt>
+                    <dd>
+                      {snapshot.machineAttachments.slots.find(
+                        (slot) => slot.slotId === 'trailer_hitch',
+                      )?.attachmentName ?? 'Empty'}
+                    </dd>
+                  </div>
+                )}
+              </dl>
             ) : null}
-            {snapshot.trailerCargo ? (
-              <div className="game-hud__stat">
-                <dt>Trailer</dt>
-                <dd>
-                  {snapshot.trailerCargo.hasCargo
-                    ? `${Math.round(snapshot.trailerCargo.fillPercent * 100)}%${snapshot.trailerCargo.cropName ? ` ${snapshot.trailerCargo.cropName}` : ''}`
-                    : 'Empty'}
-                  {snapshot.trailerCargo.isFull ? ' (Full)' : ''}
-                </dd>
-              </div>
-            ) : (
-              <div className="game-hud__stat">
-                <dt>Trailer hitch</dt>
-                <dd>
-                  {snapshot.machineAttachments.slots.find(
-                    (slot) => slot.slotId === 'trailer_hitch',
-                  )?.attachmentName ?? 'Empty'}
-                </dd>
-              </div>
-            )}
-          </dl>
-        ) : null}
-        {!activeJob && snapshot.selectedEntity.kind === 'machine' ? (
-          <p className="game-hud__hint">
-            Right-click equipment in the yard to attach or detach.
-          </p>
-        ) : null}
+            {!activeJob && !activeLogisticsLabel ? (
+              <p className="game-hud__hint">
+                Right-click terrain to move. Right-click fields, machines, or
+                trailers for actions.
+              </p>
+            ) : null}
+            {!activeJob && !activeLogisticsLabel ? (
+              <p className="game-hud__hint">
+                Right-click equipment in the yard to attach or detach.
+              </p>
+            ) : null}
+            {snapshot.logisticsHint ? (
+              <p className="game-hud__hint">{snapshot.logisticsHint}</p>
+            ) : null}
+          </>
+        )}
       </section>
 
       <section className="game-hud__panel">

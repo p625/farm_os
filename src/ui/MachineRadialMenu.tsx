@@ -11,8 +11,8 @@ interface MachineRadialMenuProps {
 }
 
 const ACTION_LABELS: Record<MachineRadialActionKind, string> = {
-  [MachineRadialActionKind.LoadFromCombine]: 'Load',
-  [MachineRadialActionKind.Cancel]: 'Cancel',
+  [MachineRadialActionKind.LoadFromCombine]: 'Naložit',
+  [MachineRadialActionKind.Cancel]: 'Zrušit',
 }
 
 const MENU_RADIUS_PX = 72
@@ -66,7 +66,9 @@ export function MachineRadialMenu({
             }}
             onClick={() => onAction(action)}
           >
-            {ACTION_LABELS[action]}
+            {action === MachineRadialActionKind.LoadFromCombine
+              ? menu.loadActionLabel
+              : ACTION_LABELS[action]}
           </button>
         )
       })}

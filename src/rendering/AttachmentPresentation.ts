@@ -28,6 +28,10 @@ export class AttachmentPresentation {
   private attachmentSystem: AttachmentSystem | null = null
   private readonly nodes = new Map<string, TransformNode>()
   private readonly cargoFillMeshes = new Map<string, Mesh>()
+  private readonly cargoVisualState = new Map<
+    string,
+    { cropId: string | null; fillPercent: number; enabled: boolean }
+  >()
 
   attach(scene: Scene, attachmentSystem: AttachmentSystem): void {
     this.detach()
@@ -83,14 +87,31 @@ export class AttachmentPresentation {
     const cargo = this.attachmentSystem.getTrailerCargo(
       attachmentId as (typeof AttachmentId)[keyof typeof AttachmentId],
     )
+    const nextState = {
+      cropId: cargo?.getCropId() ?? null,
+      fillPercent:
+        cargo && cargo.getCapacity() > 0
+          ? cargo.getQuantity() / cargo.getCapacity()
+          : 0,
+      enabled: Boolean(cargo?.hasCargo()),
+    }
+    const previous = this.cargoVisualState.get(attachmentId)
+    if (
+      previous &&
+      previous.enabled === nextState.enabled &&
+      previous.cropId === nextState.cropId &&
+      Math.abs(previous.fillPercent - nextState.fillPercent) < 0.001
+    ) {
+      return
+    }
+    this.cargoVisualState.set(attachmentId, nextState)
+
     if (!cargo || !cargo.hasCargo()) {
       fillMesh.setEnabled(false)
       return
     }
 
-    const fillPercent = cargo.getCapacity() > 0
-      ? cargo.getQuantity() / cargo.getCapacity()
-      : 0
+    const fillPercent = nextState.fillPercent
     fillMesh.setEnabled(true)
     fillMesh.scaling.y = Math.max(0.05, fillPercent)
 
@@ -107,6 +128,7 @@ export class AttachmentPresentation {
     }
     this.nodes.clear()
     this.cargoFillMeshes.clear()
+    this.cargoVisualState.clear()
     this.scene = null
     this.attachmentSystem = null
   }

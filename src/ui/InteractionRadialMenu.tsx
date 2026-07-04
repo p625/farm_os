@@ -11,8 +11,8 @@ interface InteractionRadialMenuProps {
 }
 
 const ACTION_LABELS: Record<InteractionRadialActionKind, string> = {
-  [InteractionRadialActionKind.UnloadToSilo]: 'Unload',
-  [InteractionRadialActionKind.Cancel]: 'Cancel',
+  [InteractionRadialActionKind.UnloadToSilo]: 'Vyložit',
+  [InteractionRadialActionKind.Cancel]: 'Zrušit',
 }
 
 const MENU_RADIUS_PX = 72

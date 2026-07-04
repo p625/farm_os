@@ -2,7 +2,7 @@
 
 | | |
 |--|--|
-| **Verze** | v0.6.0 |
+| **Verze** | v0.8.0 |
 | **Status** | Draft |
 | **Tier** | T0 |
 | **Vlastník** | Art Director |
@@ -17,6 +17,8 @@
 
 | Verze | Datum | Autor | Shrnutí |
 |-------|-------|-------|---------|
+| v0.8.0 | 2026-07-04 | — | Map_01_Master_Plan — SoT produkce Map 01 |
+| v0.7.0 | 2026-07-04 | — | Map_01_View_Composition; produkční balíček + References |
 | v0.6.0 | 2026-07-04 | — | Map_01_Landscape_Layout; reorganizace Maps/ |
 | v0.4.0 | 2026-07-04 | — | World Identity Statement — Vision Lock ve Fázi 1 |
 | v0.3.0 | 2026-07-04 | — | Odkaz na ADR-A01 Decision Framework |
@@ -114,6 +116,11 @@ První hratelná mapa — přechod z art preprodukce do návrhu světa.
 | [Map_01_Design_Bible.md](Maps/Map_01_Central_Europe/Map_01_Design_Bible.md) | Draft | SoT návrhu první mapy |
 | [Map_01_Spatial_Design.md](Maps/Map_01_Central_Europe/Map_01_Spatial_Design.md) | Draft | SoT prostorové logiky |
 | [Map_01_Landscape_Layout.md](Maps/Map_01_Central_Europe/Map_01_Landscape_Layout.md) | Draft | Makrokompozice (Varianta A) |
+| [Map_01_View_Composition.md](Maps/Map_01_Central_Europe/Map_01_View_Composition.md) | Approved | Kompozice pohledů z kamery |
+| [**Map_01_Master_Plan.md**](Maps/Map_01_Central_Europe/Map_01_Master_Plan.md) | **Approved** | **SoT produkce Map 01** |
+| [Map_01_References/](Maps/Map_01_Central_Europe/Map_01_References/README.md) | Připraveno | Fotoreference per oblast |
+| Map_01_Road_Network (TBD) | — | **Další** produkční podklad |
+| Map_01_Field_Layout (TBD) | — | Po View Composition |
 | Map_01_POI_Guide (TBD) | — | Detail POI |
 | Map_01_Vegetation (TBD) | — | Vegetace mapy |
 | Map_01_Lighting (TBD) | — | Světlo mapy |

@@ -523,8 +523,8 @@ Struktura „návrší–údolí–horizont" se stává **opakovatelným jazykem
 
 | Dokument | Priorita |
 |----------|----------|
-| [Map_01_View_Composition.md](Map_01_View_Composition.md) | **Další** — kompozice z kamery před cestami a poli |
-| `Map_01_Road_Network.md` | Po View Composition |
+| [Map_01_Master_Plan.md](Map_01_Master_Plan.md) | **SoT produkce** — sjednocení všech rozhodnutí |
+| `Map_01_Road_Network.md` | **Další** — první produkční podklad |
 | `Map_01_Field_Layout.md` | Po View Composition |
 | `Map_01_POI_Guide.md` | Po Field Layout |
 | `Map_01_Vegetation.md` | Střední |
@@ -541,5 +541,7 @@ L01–L08: strana rybníka, samoty, mlýn, plodina etalonu, orientace lesa, most
 
 - [Map_01_Design_Bible.md](Map_01_Design_Bible.md)
 - [Map_01_Spatial_Design.md](Map_01_Spatial_Design.md)
+- [Map_01_View_Composition.md](Map_01_View_Composition.md)
+- [Map_01_Master_Plan.md](Map_01_Master_Plan.md)
 - [Map_Design_Principles.md](../00_Map_Guidelines/Map_Design_Principles.md)
 - [Maps README](../README.md)

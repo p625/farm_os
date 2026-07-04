@@ -63,6 +63,7 @@ import { getInteractionPointDefinition } from '@/config/interaction-point-catalo
 import {
   AttachmentLifecycleState,
   AttachmentRadialActionKind,
+  AttachmentType,
   type AttachmentContextMenuSnapshot,
   type AttachmentIdValue,
   type MachineSlotIdValue,
@@ -185,6 +186,10 @@ export class Game implements IDisposable {
       this.notifyListeners()
       this.machinePresentation.syncVisuals()
       this.attachmentPresentation.syncVisuals()
+    })
+    this.logisticsSystem.setOnTransferFailed(() => {
+      this.eventLog.recordLogisticsTransferFailed(this.world.currentDay)
+      this.notifyListeners()
     })
     for (const system of [
       this.tractorJobSystem,
@@ -389,8 +394,32 @@ export class Game implements IDisposable {
       screenX: anchor.x,
       screenY: anchor.y,
       actions: [...actions, MachineRadialActionKind.Cancel],
+      loadActionLabel: this.getLoadActionLabel(targetMachineId),
     }
     this.notifyListeners()
+  }
+
+  private getLoadActionLabel(targetMachineId: MachineId): string {
+    const bin =
+      this.machineRegistry.get(targetMachineId)?.getGrainBinSnapshot?.()
+    if (bin?.hasCargo) {
+      return 'Vysypat'
+    }
+    return 'Naložit'
+  }
+
+  resolveAttachmentHostMachineId(
+    attachmentId: AttachmentIdValue,
+  ): MachineId | null {
+    const attachment = this.attachmentSystem.getAttachment(attachmentId)
+    if (
+      !attachment ||
+      attachment.lifecycleState !== AttachmentLifecycleState.Attached ||
+      !attachment.mountedOn
+    ) {
+      return null
+    }
+    return attachment.mountedOn.machineId
   }
 
   closeMachineContextMenu(): void {
@@ -512,6 +541,34 @@ export class Game implements IDisposable {
     }
 
     return []
+  }
+
+  resolveLogisticsTargetMachineId(
+    attachmentId: AttachmentIdValue,
+  ): MachineId | null {
+    const attachment = this.attachmentSystem.getAttachment(attachmentId)
+    if (
+      !attachment ||
+      attachment.attachmentType !== AttachmentType.Trailer ||
+      attachment.lifecycleState !== AttachmentLifecycleState.Attached ||
+      !attachment.mountedOn
+    ) {
+      return null
+    }
+    return attachment.mountedOn.machineId
+  }
+
+  tryOpenMachineLogisticsMenu(
+    targetMachineId: MachineId,
+    screenX: number,
+    screenY: number,
+  ): boolean {
+    const actions = this.getMachineRadialActions(targetMachineId)
+    if (actions.length === 0) {
+      return false
+    }
+    this.openMachineContextMenu(targetMachineId, screenX, screenY)
+    return true
   }
 
   getInteractionRadialActions(
@@ -1093,7 +1150,17 @@ export class Game implements IDisposable {
     this.attachmentSystem.applySave(
       this.saveGameService.normalizeAttachmentsSave(saved.attachments),
     )
-    this.selectedEntity = EMPTY_SELECTED_ENTITY
+    const restoredFieldId = saved.selectedFieldId
+    if (restoredFieldId) {
+      this.selectedEntity = {
+        kind: SelectedEntityKind.Field,
+        machineId: null,
+        fieldId: restoredFieldId,
+        buildingId: null,
+      }
+    } else {
+      this.selectedEntity = EMPTY_SELECTED_ENTITY
+    }
     this.fieldContextMenu = null
     this.attachmentContextMenu = null
     this.machineContextMenu = null
@@ -1258,12 +1325,25 @@ export class Game implements IDisposable {
     | 'logisticsHint'
     | 'trailerCargo'
   > {
-    const machineId = this.getSelectedMachineId() ?? MachineId.Tractor1
+    const machineId = this.getSelectedMachineId()
+    if (!machineId) {
+      return {
+        selectedMachine: { ...EMPTY_GAME_SNAPSHOT.selectedMachine },
+        machineAttachments: null,
+        effectiveCapabilities: [],
+        headerSupportedCrops: [],
+        harvestCompatibilityHint: null,
+        logisticsHint: null,
+        trailerCargo: null,
+      }
+    }
+
     const controller = this.machineRegistry.get(machineId)
     const catalog = getMachineCatalogEntry(machineId)
     const operation = controller?.toSnapshot() ?? {
       state: EMPTY_GAME_SNAPSHOT.selectedMachine.state,
       activeJob: null,
+      activeLogisticsLabel: null,
       workProgress: 0,
       position: EMPTY_GAME_SNAPSHOT.selectedMachine.position,
       rotationY: EMPTY_GAME_SNAPSHOT.selectedMachine.rotationY,
@@ -1302,7 +1382,10 @@ export class Game implements IDisposable {
   private buildLogisticsHint(machineId: MachineId): string | null {
     const bin = this.machineRegistry.get(machineId)?.getGrainBinSnapshot?.()
     if (bin?.isFull) {
-      return 'Grain bin full — load trailer to continue harvesting.'
+      return 'Zásobník plný — pravým tlačítkem na stroj s přívěsem zvolte Naložit.'
+    }
+    if (bin?.hasCargo) {
+      return 'Pravým tlačítkem na stroj s přívěsem zvolte Naložit.'
     }
 
     const trailer = this.attachmentSystem.getMountedTrailerCargoSnapshot(
@@ -1310,7 +1393,26 @@ export class Game implements IDisposable {
       (cropId) => this.cropSystem.getCropName(cropId),
     )
     if (trailer?.isFull) {
-      return 'Trailer full — unload at silo entry.'
+      return 'Přívěs plný — u sila zvolte Vyložit.'
+    }
+    if (trailer?.hasCargo) {
+      return 'U vstupu do sila pravým tlačítkem zvolte Vyložit.'
+    }
+
+    if (this.logisticsSystem.machineHasTrailer(machineId)) {
+      for (const combineId of [MachineId.GrainCombine1, MachineId.CornCombine1]) {
+        if (
+          this.logisticsSystem.canLoadFromCombine(combineId, machineId)
+        ) {
+          return 'Pravým tlačítkem na sklízecí stroj zvolte Vysypat.'
+        }
+      }
+    }
+
+    const binOnSelected =
+      this.machineRegistry.get(machineId)?.getGrainBinSnapshot?.()
+    if (binOnSelected?.hasCargo) {
+      return 'Pravým tlačítkem na stroj s přívěsem zvolte Naložit.'
     }
 
     return null
@@ -1328,17 +1430,17 @@ export class Game implements IDisposable {
     }
 
     if (!this.capabilityResolver.hasEffectiveCapability(machineId, MachineCapability.Harvest)) {
-      return 'This crop requires a harvesting machine.'
+      return 'K této plodině potřebujete sklízeč.'
     }
 
     const bin = this.machineRegistry.get(machineId)?.getGrainBinSnapshot?.()
     if (bin?.isFull) {
-      return 'Grain bin full — load trailer to continue harvesting.'
+      return 'Zásobník plný — naložte na přívěs a pokračujte ve sklizni.'
     }
 
     if (cropId && bin && !this.canHarvestIntoBin(machineId, cropId)) {
       const cropName = this.cropSystem.getCropName(cropId)
-      return `Grain bin cannot fit a full ${cropName} harvest.`
+      return `Zásobník nepojme celou sklizeň: ${cropName}.`
     }
 
     return this.capabilityResolver.getHarvestIncompatibilityMessage(machineId, cropId)

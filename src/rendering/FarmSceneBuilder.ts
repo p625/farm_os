@@ -320,6 +320,7 @@ export class FarmSceneBuilder {
     body.position = new Vector3(0, 1.4, 0)
     body.parent = root
     body.material = bodyMaterial
+    body.isPickable = true
     body.receiveShadows = true
 
     const cab = MeshBuilder.CreateBox(
@@ -330,6 +331,7 @@ export class FarmSceneBuilder {
     cab.position = new Vector3(0, 2.8, -1.2)
     cab.parent = root
     cab.material = accentMaterial
+    cab.isPickable = true
 
     const hopper = MeshBuilder.CreateBox(
       `${nodeName}_hopper`,
@@ -339,6 +341,7 @@ export class FarmSceneBuilder {
     hopper.position = new Vector3(0, 3.2, 0.8)
     hopper.parent = root
     hopper.material = bodyMaterial
+    hopper.isPickable = true
 
     for (const [index, [x, z]] of [
       [-1.3, 1.8],

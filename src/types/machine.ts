@@ -91,4 +91,5 @@ export interface MachineContextMenuSnapshot {
   screenX: number
   screenY: number
   actions: readonly MachineRadialActionKind[]
+  loadActionLabel: string
 }

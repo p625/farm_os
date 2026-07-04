@@ -1,6 +1,7 @@
 import {
   PointerEventTypes,
   type AbstractMesh,
+  type Node,
   type PickingInfo,
   type Scene,
   type Vector3,
@@ -91,26 +92,8 @@ export class MachineInputPresentation {
       }
 
       if (event.button === 2) {
-        const attachmentPick = this.pickFromClient(
-          start.x,
-          start.y,
-          (mesh) => isAttachmentMesh(mesh),
-        )
-
-        let mesh = attachmentPick.mesh ?? start.mesh
-        let point = attachmentPick.point ?? start.point
-
-        if (!mesh) {
-          const retry = this.pickFromClient(
-            start.x,
-            start.y,
-            this.buildMachineSelectedPredicate(true),
-          )
-          mesh = retry.mesh
-          point = retry.point
-        }
-
-        this.handleRightClick(mesh, point, start.x, start.y)
+        const pick = this.resolveRightClickPick(start.x, start.y, start.mesh, start.point)
+        this.handleRightClick(pick.mesh, pick.point, start.x, start.y)
       }
     })
   }
@@ -147,16 +130,6 @@ export class MachineInputPresentation {
     const machineSnapshot = snapshot?.selectedMachine
     const machinePosition = machineSnapshot?.position ?? { x: 0, z: 0 }
 
-    const attachmentId = mesh ? getAttachmentIdFromMesh(mesh) : null
-    if (attachmentId) {
-      this.game?.openAttachmentContextMenu(
-        attachmentId as AttachmentIdValue,
-        screenX,
-        screenY,
-      )
-      return
-    }
-
     const interactionPointId = mesh
       ? this.resolveInteractionPointId(mesh)
       : null
@@ -169,13 +142,25 @@ export class MachineInputPresentation {
       return
     }
 
-    const targetMachineId = mesh ? this.resolveMachineId(mesh) : null
-    if (targetMachineId && targetMachineId !== machineId) {
-      const actions = this.game?.getMachineRadialActions(targetMachineId) ?? []
-      if (actions.length > 0) {
-        this.game?.openMachineContextMenu(targetMachineId, screenX, screenY)
-        return
-      }
+    const logisticsTarget = mesh
+      ? this.resolveLogisticsTargetMachine(mesh)
+      : null
+    if (
+      logisticsTarget &&
+      logisticsTarget !== machineId &&
+      this.game?.tryOpenMachineLogisticsMenu(logisticsTarget, screenX, screenY)
+    ) {
+      return
+    }
+
+    const attachmentId = mesh ? getAttachmentIdFromMesh(mesh) : null
+    if (attachmentId) {
+      this.game?.openAttachmentContextMenu(
+        attachmentId as AttachmentIdValue,
+        screenX,
+        screenY,
+      )
+      return
     }
 
     const fieldId = this.resolveFieldTarget(
@@ -206,6 +191,80 @@ export class MachineInputPresentation {
       return null
     }
     return snapshot.selectedEntity.machineId
+  }
+
+  private resolveRightClickPick(
+    clientX: number,
+    clientY: number,
+    fallbackMesh: AbstractMesh | null,
+    fallbackPoint: Vector3 | null,
+  ): { mesh: AbstractMesh | null; point: Vector3 | null } {
+    const attachmentPick = this.pickFromClient(clientX, clientY, (mesh) =>
+      isAttachmentMesh(mesh),
+    )
+    if (attachmentPick.mesh) {
+      return attachmentPick
+    }
+
+    const machinePick = this.pickFromClient(clientX, clientY, (mesh) =>
+      this.isMachineMesh(mesh),
+    )
+    if (machinePick.mesh) {
+      return machinePick
+    }
+
+    const interactionPick = this.pickFromClient(clientX, clientY, (mesh) =>
+      this.isInteractionPointMesh(mesh),
+    )
+    if (interactionPick.mesh) {
+      return interactionPick
+    }
+
+    if (fallbackMesh) {
+      return { mesh: fallbackMesh, point: fallbackPoint }
+    }
+
+    return this.pickFromClient(
+      clientX,
+      clientY,
+      this.buildMachineSelectedPredicate(true),
+    )
+  }
+
+  private resolveLogisticsTargetMachine(mesh: AbstractMesh): MachineId | null {
+    const machineId = this.resolveMachineId(mesh)
+    if (machineId) {
+      return machineId
+    }
+
+    const attachmentId = getAttachmentIdFromMesh(mesh)
+    if (!attachmentId) {
+      return null
+    }
+
+    const haulerMachineId = this.game?.resolveLogisticsTargetMachineId(
+      attachmentId as AttachmentIdValue,
+    )
+    if (haulerMachineId) {
+      return haulerMachineId
+    }
+
+    return (
+      this.game?.resolveAttachmentHostMachineId(
+        attachmentId as AttachmentIdValue,
+      ) ?? null
+    )
+  }
+
+  private isInteractionPointMesh(mesh: AbstractMesh): boolean {
+    let current: AbstractMesh | null = mesh
+    while (current) {
+      if (resolveInteractionPointIdFromMesh(current.name)) {
+        return true
+      }
+      current = current.parent as AbstractMesh | null
+    }
+    return false
   }
 
   private resolveFieldTarget(
@@ -246,6 +305,24 @@ export class MachineInputPresentation {
       )
       if (attachmentPick.mesh) {
         return attachmentPick
+      }
+
+      const machinePick = this.pickFromClient(
+        event.clientX,
+        event.clientY,
+        (mesh) => this.isMachineMesh(mesh),
+      )
+      if (machinePick.mesh) {
+        return machinePick
+      }
+
+      const interactionPick = this.pickFromClient(
+        event.clientX,
+        event.clientY,
+        (mesh) => this.isInteractionPointMesh(mesh),
+      )
+      if (interactionPick.mesh) {
+        return interactionPick
       }
 
       const fieldPick = this.pickFromClient(
@@ -341,13 +418,13 @@ export class MachineInputPresentation {
   }
 
   private resolveMachineId(mesh: AbstractMesh): MachineId | null {
-    let current: AbstractMesh | null = mesh
+    let current: Node | null = mesh
     while (current) {
       const machineId = isKnownMachineSceneNode(current.name)
       if (machineId) {
         return machineId
       }
-      current = current.parent as AbstractMesh | null
+      current = current.parent
     }
     return null
   }

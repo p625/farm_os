@@ -47,6 +47,8 @@ Fáze 4 — Production             ← až po uzamčení Art Direction
 | Návrh Map 01 | [Map_01_Design_Bible](Maps/Map_01_Central_Europe/Map_01_Design_Bible.md) |
 | Prostorová logika Map 01 | [Map_01_Spatial_Design](Maps/Map_01_Central_Europe/Map_01_Spatial_Design.md) |
 | Makro layout Map 01 | [Map_01_Landscape_Layout](Maps/Map_01_Central_Europe/Map_01_Landscape_Layout.md) |
+| Kompozice pohledů Map 01 | [Map_01_View_Composition](Maps/Map_01_Central_Europe/Map_01_View_Composition.md) |
+| **Produkce Map 01** | [**Map_01_Master_Plan**](Maps/Map_01_Central_Europe/Map_01_Master_Plan.md) |
 | Principy map | [Map_Design_Principles](Maps/00_Map_Guidelines/Map_Design_Principles.md) |
 
 ---

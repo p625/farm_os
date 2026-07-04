@@ -120,6 +120,10 @@ export class GameEventLog {
     this.push('Farm reset', GameEventKind.FarmReset, day)
   }
 
+  recordLogisticsTransferFailed(day: number): void {
+    this.push('Přenos se nezdařil — zkuste to znovu.', GameEventKind.LogisticsFailed, day)
+  }
+
   restore(entries: readonly GameLogEntry[], nextId: number): void {
     this.entries = [...entries].slice(0, MAX_ENTRIES)
     this.nextId = Math.max(1, nextId)

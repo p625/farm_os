@@ -26,6 +26,7 @@ export class MachinePresentation {
   private scene: Scene | null = null
   private registry: MachineRegistry | null = null
   private selectedMachineId: MachineId | null = null
+  private readonly selectionState = new Map<MachineId, boolean>()
   private readonly workIndicators = new Map<MachineId, Mesh>()
   private readonly fullBinIndicators = new Map<MachineId, Mesh>()
 
@@ -81,6 +82,7 @@ export class MachinePresentation {
       indicator.dispose()
     }
     this.fullBinIndicators.clear()
+    this.selectionState.clear()
     this.selectedMachineId = null
     this.scene = null
     this.registry = null
@@ -99,9 +101,13 @@ export class MachinePresentation {
       }
 
       const isSelected = this.selectedMachineId === entry.id
-      material.emissiveColor = isSelected
-        ? SELECT_EMISSIVE.clone()
-        : IDLE_BODY_EMISSIVE.clone()
+      if (this.selectionState.get(entry.id) === isSelected) {
+        continue
+      }
+      this.selectionState.set(entry.id, isSelected)
+      material.emissiveColor.copyFrom(
+        isSelected ? SELECT_EMISSIVE : IDLE_BODY_EMISSIVE,
+      )
     }
   }
 
@@ -184,22 +190,36 @@ export class MachinePresentation {
       const isWorking = snapshot.state === TractorState.Working
       indicator.setEnabled(isWorking)
 
-      if (!isWorking || !snapshot.activeJob) {
-        continue
-      }
-
-      const fieldPosition = FIELD_POSITIONS[snapshot.activeJob.fieldId]
-      if (!fieldPosition) {
+      if (!isWorking) {
         continue
       }
 
       const pulse = 1 + Math.sin(snapshot.workProgress * Math.PI * 6) * 0.12
-      indicator.position = new Vector3(
-        fieldPosition.x,
-        0.35 + snapshot.workProgress * 0.25,
-        fieldPosition.z,
-      )
-      indicator.scaling.setAll(pulse)
+
+      if (snapshot.activeJob) {
+        const fieldPosition = FIELD_POSITIONS[snapshot.activeJob.fieldId]
+        if (!fieldPosition) {
+          continue
+        }
+
+        indicator.position = new Vector3(
+          fieldPosition.x,
+          0.35 + snapshot.workProgress * 0.25,
+          fieldPosition.z,
+        )
+        indicator.scaling.setAll(pulse)
+        continue
+      }
+
+      if (snapshot.activeLogisticsLabel) {
+        const position = controller.getPosition()
+        indicator.position = new Vector3(
+          position.x,
+          0.35 + snapshot.workProgress * 0.25,
+          position.z,
+        )
+        indicator.scaling.setAll(pulse)
+      }
     }
   }
 }

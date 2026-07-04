@@ -23,10 +23,12 @@ Obecné principy návrhu **jakékoli herní mapy** FarmOS. Každá konkrétní m
 Map_XX_Design_Bible
     → Map_XX_Spatial_Design
     → Map_XX_Landscape_Layout
-    → Map_XX_POI_Guide · Field_Layout · Road_Network · Vegetation · …
+    → Map_XX_View_Composition
+    → Map_XX_Master_Plan
+    → Map_XX_Road_Network · Field_Layout · POI_Guide · Vegetation · …
 ```
 
-**[RULE]** Nepřeskakovat Spatial Design před Landscape Layout.
+**[RULE]** Nepřeskakovat Spatial Design před Landscape Layout. Nepřeskakovat View Composition před Road Network a Field Layout — kompozice z kamery rozhoduje dříve než logika cest a parcel.
 
 ---
 

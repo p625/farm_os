@@ -113,6 +113,30 @@ export function getLogisticsRequiredCapability(
   }
 }
 
+export function formatLogisticsTaskLabel(
+  command: MachineCommand | null,
+): string | null {
+  if (!command) {
+    return null
+  }
+
+  switch (command.task.kind) {
+    case 'load_from_combine':
+      return 'Nakládání'
+    case 'unload_to_silo':
+      return 'Vykládání'
+    default:
+      return null
+  }
+}
+
+export function isLogisticsSaveCommand(
+  command: { task?: { kind?: string } } | null | undefined,
+): boolean {
+  const kind = command?.task?.kind
+  return kind === 'load_from_combine' || kind === 'unload_to_silo'
+}
+
 export function applyLogisticsWork(
   machineId: MachineId,
   command: MachineCommand,

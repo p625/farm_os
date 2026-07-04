@@ -109,7 +109,7 @@ export class MachineCapabilityResolver {
     const headerName =
       (catalogId ? getAttachmentCatalogEntry(catalogId)?.name : null) ?? 'Header'
     const cropName = getCropDefinition(cropId)?.name ?? cropId
-    return `${headerName} cannot harvest ${cropName}.`
+    return `${headerName} nelze použít ke sklizni: ${cropName}.`
   }
 
   private getSlotCapabilities(

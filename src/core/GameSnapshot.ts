@@ -38,6 +38,7 @@ export interface SelectedMachineSnapshot {
   machineName: string
   state: TractorState
   activeJob: TractorJobSnapshot | null
+  activeLogisticsLabel: string | null
   workProgress: number
   position: { x: number; y: number; z: number }
   rotationY: number
@@ -78,6 +79,7 @@ const DEFAULT_SELECTED_MACHINE: SelectedMachineSnapshot = {
   machineName: 'Tractor',
   state: TractorState.Idle,
   activeJob: null,
+  activeLogisticsLabel: null,
   workProgress: 0,
   position: { x: 6, y: 0, z: 10 },
   rotationY: -Math.PI / 6,
@@ -136,6 +138,7 @@ export function buildSelectedMachineSnapshot(
     machineName,
     state: operation.state,
     activeJob: operation.activeJob,
+    activeLogisticsLabel: operation.activeLogisticsLabel,
     workProgress: operation.workProgress,
     position: operation.position,
     rotationY: operation.rotationY,

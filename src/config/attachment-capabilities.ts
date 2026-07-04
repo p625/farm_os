@@ -73,22 +73,22 @@ export function getFieldWorkRequirementHint(
     fieldState === States.Grass &&
     !effectiveCapabilities.includes(MachineCapability.Plow)
   ) {
-    return 'Attach a tillage implement to plow fields.'
+    return 'Pro orbu připojte radlici.'
   }
 
   if (
     fieldState === States.Plowed &&
     !effectiveCapabilities.includes(MachineCapability.Seed)
   ) {
-    return 'Attach a seeding implement to plant crops.'
+    return 'Pro výsev připojte secí stroj.'
   }
 
   if (fieldState === States.Harvestable) {
     if (!effectiveCapabilities.includes(MachineCapability.Harvest)) {
-      return 'This crop requires a harvesting machine.'
+      return 'K této plodině potřebujete sklízeč.'
     }
     if (options?.cropId) {
-      return 'Attach a compatible header to harvest this crop.'
+      return 'Pro sklizeň připojte vhodnou lištu.'
     }
   }
 

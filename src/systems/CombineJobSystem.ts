@@ -17,6 +17,7 @@ import type { MachineCapabilityResolver } from './MachineCapabilityResolver.ts'
 import type { LogisticsSystem } from './LogisticsSystem.ts'
 import {
   applyLogisticsWork,
+  formatLogisticsTaskLabel,
   getLogisticsRequiredCapability,
   getLogisticsWorkDuration,
   isLogisticsTask,
@@ -169,6 +170,18 @@ export class CombineJobSystem extends GameSystem implements IMachineController {
         this.activeCommand = null
         this.activeWork = null
       }
+
+      if (
+        this.activeCommand &&
+        isLogisticsTask(this.activeCommand.task) &&
+        !validateLogisticsCommand(
+          this.machineId,
+          this.activeCommand,
+          this.logisticsSystem,
+        )
+      ) {
+        this.finishCommand()
+      }
     } else {
       this.activeWork = null
       if (this.state !== TractorState.Idle) {
@@ -260,7 +273,7 @@ export class CombineJobSystem extends GameSystem implements IMachineController {
         if (this.workTimer >= this.workDuration) {
           if (this.isLogisticsCommand()) {
             this.applyLogistics()
-          } else {
+          } else if (this.activeWork) {
             this.applyWork()
           }
           this.finishCommand()
@@ -318,6 +331,10 @@ export class CombineJobSystem extends GameSystem implements IMachineController {
               : undefined,
           }
         : null,
+      activeLogisticsLabel:
+        this.state === TractorState.Working && this.isLogisticsCommand()
+          ? formatLogisticsTaskLabel(this.activeCommand)
+          : null,
       workProgress:
         this.state === TractorState.Working
           ? Math.min(1, this.workTimer / this.workDuration)

@@ -22,6 +22,7 @@ import { FieldOwnership } from '@/types/ownership.ts'
 import { ProductionBuildingId, ProductionBuildingState } from '@/types/production.ts'
 import { FieldLifecycleState as States } from '@/types/field.ts'
 import { TractorState } from '@/types/tractor.ts'
+import { isLogisticsSaveCommand } from '@systems/MachineLogisticsSupport.ts'
 import { DEFAULT_GRAIN_BIN_CAPACITY, type GrainBinSaveData } from '@/types/grain-bin.ts'
 import type {
   AttachmentsSaveData,
@@ -153,11 +154,13 @@ export class SaveGameService {
           ? saved.workDuration
           : defaults.workDuration
 
-      if (
-        state === TractorState.Working &&
-        (!activeWork || typeof activeWork.fieldId !== 'string')
-      ) {
-        return defaults
+      if (state === TractorState.Working) {
+        const hasFieldWork =
+          activeWork !== null && typeof activeWork.fieldId === 'string'
+        const hasLogistics = isLogisticsSaveCommand(activeCommand)
+        if (!hasFieldWork && !hasLogistics) {
+          return defaults
+        }
       }
     } else if (state !== TractorState.Idle) {
       return defaults

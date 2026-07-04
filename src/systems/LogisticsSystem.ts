@@ -1,10 +1,15 @@
-import type { MachineId } from '@/types/machine.ts'
+import { MachineId } from '@/types/machine.ts'
 import type { InteractionPointId } from '@/types/interaction-point.ts'
 import type { AttachmentSystem } from './AttachmentSystem.ts'
 import type { InventorySystem } from './InventorySystem.ts'
 import type { MachineRegistry } from './MachineRegistry.ts'
 import { MachineSlotId, type AttachmentIdValue } from '@/types/attachment.ts'
 import { GrainBin } from './GrainBin.ts'
+
+const COMBINE_MACHINE_IDS = new Set<MachineId>([
+  MachineId.GrainCombine1,
+  MachineId.CornCombine1,
+])
 
 export interface LogisticsTransferResult {
   success: boolean
@@ -18,9 +23,14 @@ export class LogisticsSystem {
   private inventorySystem: InventorySystem | null = null
   private getCurrentDay: (() => number) | null = null
   private onTransfer: (() => void) | null = null
+  private onTransferFailed: (() => void) | null = null
 
   setOnTransfer(listener: () => void): void {
     this.onTransfer = listener
+  }
+
+  setOnTransferFailed(listener: () => void): void {
+    this.onTransferFailed = listener
   }
 
   setMachineRegistry(registry: MachineRegistry): void {
@@ -93,6 +103,8 @@ export class LogisticsSystem {
     const amount = sourceBin.transferTo(trailerCargo)
     if (amount > 0) {
       this.onTransfer?.()
+    } else {
+      this.onTransferFailed?.()
     }
     return {
       success: amount > 0,
@@ -130,6 +142,7 @@ export class LogisticsSystem {
     const day = this.getCurrentDay?.() ?? 1
     if (!inventory.addCrop(cropId, removed, day)) {
       trailerCargo.add(cropId, removed)
+      this.onTransferFailed?.()
       return { success: false, amount: 0, cropId: null }
     }
 
@@ -139,6 +152,9 @@ export class LogisticsSystem {
   }
 
   private getCombineGrainBin(machineId: MachineId): GrainBin | null {
+    if (!COMBINE_MACHINE_IDS.has(machineId)) {
+      return null
+    }
     const controller = this.registry?.get(machineId)
     if (!controller?.getGrainBinForLogistics) {
       return null

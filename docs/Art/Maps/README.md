@@ -16,6 +16,7 @@ docs/Art/Maps/
 │   ├── Map_01_Spatial_Design.md
 │   ├── Map_01_Landscape_Layout.md
 │   ├── Map_01_View_Composition.md
+│   ├── Map_01_Master_Plan.md
 │   ├── Map_01_References/
 │   └── … (Road Network, Field Layout, POI — TBD)
 └── archive/
@@ -30,9 +31,10 @@ docs/Art/Maps/
 | [Design Bible](Map_01_Central_Europe/Map_01_Design_Bible.md) | Draft | Co mapa obsahuje |
 | [Spatial Design](Map_01_Central_Europe/Map_01_Spatial_Design.md) | Draft | Prostorová logika |
 | [Landscape Layout](Map_01_Central_Europe/Map_01_Landscape_Layout.md) | Draft | Makrokompozice (Varianta A) |
-| [View Composition](Map_01_Central_Europe/Map_01_View_Composition.md) | Draft | **Kompozice pohledů z kamery** |
+| [View Composition](Map_01_Central_Europe/Map_01_View_Composition.md) | Approved | Kompozice pohledů z kamery |
+| [**Master Plan**](Map_01_Central_Europe/Map_01_Master_Plan.md) | **Approved** | **SoT produkce Map 01** |
 | [References](Map_01_Central_Europe/Map_01_References/README.md) | Připraveno | Fotoreference per oblast |
-| Map_01_Road_Network | TBD | Po View Composition |
+| Map_01_Road_Network | TBD | **Další** — produkční podklad |
 | Map_01_Field_Layout | TBD | Po View Composition |
 | Map_01_POI_Guide | TBD | Po Field Layout |
 | Map_01_Vegetation | TBD | |
@@ -45,8 +47,8 @@ docs/Art/Maps/
 
 ```text
 Design Bible → Spatial Design → Landscape Layout
-    → View Composition          ← aktuální fáze
-    → Road Network → Field Layout → POI → Vegetation → Lighting → Asset List
+    → View Composition → Master Plan    ← Art Direction uzamčena
+    → Road Network → Field Layout → …
 ```
 
 **Záměrná odchylka od běžného AAA:** View Composition před cestami a poli — hráč vidí kameru, ne CAD výkres.
@@ -74,4 +76,5 @@ Map_XX_Design_Bible → Spatial_Design → Landscape_Layout → View_Composition
 | Principy všech map | `00_Map_Guidelines/` |
 | Makro layout Map 01 | `Map_01_Landscape_Layout.md` |
 | Kompozice pohledů Map 01 | `Map_01_View_Composition.md` |
+| **Produkce Map 01** | **`Map_01_Master_Plan.md`** |
 | Prostorová logika Map 01 | `Map_01_Spatial_Design.md` |
