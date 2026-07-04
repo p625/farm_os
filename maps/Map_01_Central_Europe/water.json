@@ -1,0 +1,78 @@
+[
+  {
+    "id": "water_river_main",
+    "name": "Hlavní řeka",
+    "waterType": "water_river_medium",
+    "placementKind": "spline",
+    "points": [
+      {
+        "x": -1600,
+        "z": 280
+      },
+      {
+        "x": -800,
+        "z": 320
+      },
+      {
+        "x": -200,
+        "z": 340
+      },
+      {
+        "x": 400,
+        "z": 300
+      },
+      {
+        "x": 1200,
+        "z": 360
+      },
+      {
+        "x": 1800,
+        "z": 400
+      }
+    ]
+  },
+  {
+    "id": "water_pond_farm",
+    "name": "Rybník u farmy",
+    "waterType": "water_pond_large",
+    "placementKind": "area",
+    "center": {
+      "x": 300,
+      "z": -1020
+    },
+    "radiusX": 95,
+    "radiusZ": 70
+  },
+  {
+    "id": "water_stream_feeder",
+    "name": "Potok k rybníku",
+    "waterType": "water_stream_small",
+    "placementKind": "spline",
+    "points": [
+      {
+        "x": 420,
+        "z": -880
+      },
+      {
+        "x": 360,
+        "z": -940
+      },
+      {
+        "x": 300,
+        "z": -1020
+      }
+    ]
+  },
+  {
+    "id": "water_wetland_niva",
+    "name": "Mokřad v nivě",
+    "waterType": "water_pool",
+    "placementKind": "area",
+    "center": {
+      "x": -420,
+      "z": 480
+    },
+    "radiusX": 120,
+    "radiusZ": 60
+  }
+]

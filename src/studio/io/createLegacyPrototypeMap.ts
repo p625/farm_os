@@ -5,6 +5,7 @@ import {
   getWorldCenter,
   getWorldTerrainSize,
 } from '@/config/map-01-layout.ts'
+import { createMap01HubBuildings } from '@/studio/building/migrateLegacyBuildings.ts'
 import type { WorldMapDocument } from '@/types/world-map.ts'
 import { WORLD_MAP_FORMAT_VERSION } from '@/types/world-map.ts'
 import { ensureTerrainHeightfield } from '@/studio/terrain/TerrainHeightmap.ts'
@@ -41,7 +42,16 @@ export function createLegacyPrototypeMap(): WorldMapDocument {
     }
   })
 
-  return {
+  const terrainObject = {
+    id: 'terrain_ground',
+    layer: 'terrain' as const,
+    kind: 'ground',
+    name: 'Ground',
+    transform: { position: { x: center.x, y: 0, z: center.z } },
+    shape: { type: 'box' as const, width, height: 0.1, depth },
+  }
+
+  const baseForSampling: WorldMapDocument = {
     formatVersion: WORLD_MAP_FORMAT_VERSION,
     id: 'map_01',
     name: 'Map 01 — Central Europe',
@@ -52,77 +62,17 @@ export function createLegacyPrototypeMap(): WorldMapDocument {
       updatedAt: now(),
     },
     terrain: ensureTerrainHeightfield({ width, height: depth }),
+    objects: [terrainObject, ...fieldObjects],
+  }
+
+  const hubBuildings = createMap01HubBuildings(baseForSampling)
+
+  return {
+    ...baseForSampling,
     objects: [
-      {
-        id: 'terrain_ground',
-        layer: 'terrain',
-        kind: 'ground',
-        name: 'Ground',
-        transform: { position: { x: center.x, y: 0, z: center.z } },
-        shape: { type: 'box', width, height: 0.1, depth },
-      },
+      terrainObject,
       ...fieldObjects,
-      {
-        id: 'building_farmyard',
-        layer: 'buildings',
-        kind: 'farmyard',
-        name: 'Farmyard',
-        transform: {
-          position: {
-            x: FARM_HUB.farmyard.position.x,
-            y: 0.03,
-            z: FARM_HUB.farmyard.position.z,
-          },
-        },
-        shape: {
-          type: 'box',
-          width: FARM_HUB.farmyard.size.width,
-          height: 0.06,
-          depth: FARM_HUB.farmyard.size.depth,
-        },
-      },
-      {
-        id: 'building_barn',
-        layer: 'buildings',
-        kind: 'barn',
-        name: 'Barn',
-        transform: {
-          position: {
-            x: FARM_HUB.barn.position.x,
-            y: 0,
-            z: FARM_HUB.barn.position.z,
-          },
-        },
-        shape: { type: 'box', width: 8, height: 4, depth: 6 },
-      },
-      {
-        id: 'building_mill',
-        layer: 'buildings',
-        kind: 'mill',
-        name: 'Mill',
-        transform: {
-          position: {
-            x: FARM_HUB.mill.position.x,
-            y: 0,
-            z: FARM_HUB.mill.position.z,
-          },
-        },
-        shape: { type: 'box', width: 6, height: 3, depth: 5 },
-      },
-      {
-        id: 'building_dealership',
-        layer: 'buildings',
-        kind: 'dealership',
-        name: 'Dealership',
-        transform: {
-          position: {
-            x: FARM_HUB.dealership.position.x,
-            y: 0,
-            z: FARM_HUB.dealership.position.z,
-          },
-        },
-        shape: { type: 'box', width: 10, height: 3.5, depth: 8 },
-      },
+      ...hubBuildings,
       {
         id: 'poi_tractor_spawn',
         layer: 'poi',

@@ -1,6 +1,7 @@
 import type { WorldMapDocument } from '@/types/world-map.ts'
 import { WORLD_MAP_FORMAT_VERSION } from '@/types/world-map.ts'
 import { ensureTerrainHeightfield } from '@/studio/terrain/TerrainHeightmap.ts'
+import { migrateLegacyBuildings } from '@/studio/building/migrateLegacyBuildings.ts'
 
 export class MapFileService {
   static serialize(map: WorldMapDocument): string {
@@ -24,10 +25,10 @@ export class MapFileService {
     if (!data.id || !data.name || !Array.isArray(data.objects)) {
       throw new Error('Invalid map document structure.')
     }
-    return {
+    return migrateLegacyBuildings({
       ...data,
       terrain: ensureTerrainHeightfield(data.terrain),
-    }
+    })
   }
 
   static download(map: WorldMapDocument, filename?: string): void {

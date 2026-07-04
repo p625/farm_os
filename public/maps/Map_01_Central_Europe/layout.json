@@ -1,0 +1,263 @@
+{
+  "worldBounds": {
+    "minX": -2000,
+    "maxX": 2000,
+    "minZ": -2000,
+    "maxZ": 2000
+  },
+  "terrain": {
+    "width": 4000,
+    "depth": 4000
+  },
+  "farmHub": {
+    "farmyard": {
+      "position": {
+        "x": 0,
+        "y": 20.607940884169253,
+        "z": -1100
+      },
+      "size": {
+        "width": 120,
+        "depth": 90
+      }
+    },
+    "barn": {
+      "position": {
+        "x": -40,
+        "y": 20.39295900131613,
+        "z": -1100
+      },
+      "rotationY": 0
+    },
+    "mill": {
+      "position": {
+        "x": -140,
+        "y": 20.046642400290125,
+        "z": -1060
+      },
+      "rotationY": 0.4
+    },
+    "dealership": {
+      "position": {
+        "x": 200,
+        "y": 21.00522165025907,
+        "z": -940
+      },
+      "rotationY": 1.2
+    },
+    "tractorHome": {
+      "position": {
+        "x": 0,
+        "y": 20.919747875396034,
+        "z": -1040
+      }
+    },
+    "grainCombineHome": {
+      "position": {
+        "x": 58,
+        "y": 0,
+        "z": 44
+      },
+      "rotationY": -0.5235987755982988
+    },
+    "cornCombineHome": {
+      "position": {
+        "x": 64,
+        "y": 0,
+        "z": 44
+      },
+      "rotationY": -0.5235987755982988
+    },
+    "siloEntry": {
+      "position": {
+        "x": 54,
+        "y": 0,
+        "z": 40
+      }
+    },
+    "dealerEntry": {
+      "position": {
+        "x": 38,
+        "y": 0,
+        "z": 54
+      }
+    },
+    "equipmentYard": {
+      "plow_1": {
+        "x": 46,
+        "y": 0,
+        "z": 52
+      },
+      "seeder_1": {
+        "x": 52,
+        "y": 0,
+        "z": 54
+      },
+      "trailer_1": {
+        "x": 58,
+        "y": 0,
+        "z": 52
+      },
+      "grain_header_1": {
+        "x": 48,
+        "y": 0,
+        "z": 58
+      },
+      "corn_header_1": {
+        "x": 56,
+        "y": 0,
+        "z": 58
+      }
+    },
+    "deliverySlots": [
+      {
+        "x": 34,
+        "y": 0,
+        "z": 56,
+        "rotationY": -0.5235987755982988
+      },
+      {
+        "x": 38,
+        "y": 0,
+        "z": 58,
+        "rotationY": -0.5235987755982988
+      },
+      {
+        "x": 42,
+        "y": 0,
+        "z": 56,
+        "rotationY": -0.5235987755982988
+      }
+    ]
+  },
+  "fieldLayout": [
+    {
+      "id": "field_1",
+      "position": {
+        "x": -90,
+        "y": 0,
+        "z": -1040
+      },
+      "meshSize": {
+        "width": 240,
+        "depth": 190
+      },
+      "blockId": "A",
+      "roadAccess": "farm_road"
+    },
+    {
+      "id": "field_2",
+      "position": {
+        "x": 310,
+        "y": 0,
+        "z": -990
+      },
+      "meshSize": {
+        "width": 200,
+        "depth": 170
+      },
+      "blockId": "A",
+      "roadAccess": "service_pond"
+    },
+    {
+      "id": "field_3",
+      "position": {
+        "x": 80,
+        "y": 0,
+        "z": -820
+      },
+      "meshSize": {
+        "width": 280,
+        "depth": 220
+      },
+      "rotationY": 0.08,
+      "blockId": "A",
+      "roadAccess": "field_access_a"
+    },
+    {
+      "id": "field_4",
+      "position": {
+        "x": 420,
+        "y": 0,
+        "z": -1120
+      },
+      "meshSize": {
+        "width": 200,
+        "depth": 180
+      },
+      "blockId": "A",
+      "roadAccess": "farm_road"
+    },
+    {
+      "id": "field_5",
+      "position": {
+        "x": -40,
+        "y": 0,
+        "z": -180
+      },
+      "meshSize": {
+        "width": 520,
+        "depth": 480
+      },
+      "blockId": "B",
+      "roadAccess": "field_access_b"
+    },
+    {
+      "id": "field_6",
+      "position": {
+        "x": 120,
+        "y": 0,
+        "z": 80
+      },
+      "meshSize": {
+        "width": 480,
+        "depth": 400
+      },
+      "blockId": "B",
+      "roadAccess": "field_access_b"
+    },
+    {
+      "id": "field_7",
+      "position": {
+        "x": -220,
+        "y": 0,
+        "z": 360
+      },
+      "meshSize": {
+        "width": 520,
+        "depth": 380
+      },
+      "blockId": "B",
+      "roadAccess": "field_access_b"
+    },
+    {
+      "id": "field_8",
+      "position": {
+        "x": 480,
+        "y": 0,
+        "z": 80
+      },
+      "meshSize": {
+        "width": 420,
+        "depth": 460
+      },
+      "blockId": "B",
+      "roadAccess": "field_access_b"
+    },
+    {
+      "id": "field_9",
+      "position": {
+        "x": 120,
+        "y": 0,
+        "z": 1180
+      },
+      "meshSize": {
+        "width": 380,
+        "depth": 320
+      },
+      "rotationY": -0.12,
+      "blockId": "C",
+      "roadAccess": "field_access_c"
+    }
+  ]
+}

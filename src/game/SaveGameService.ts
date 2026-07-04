@@ -1,14 +1,17 @@
+import { STARTING_MONEY } from '@/config/game-balance.ts'
 import { CROP_CATALOG, DEFAULT_CROP_ID } from '@/config/crop-catalog.ts'
-import { FIELD_CATALOG } from '@/config/field-catalog.ts'
+import { getFieldCatalog } from '@/config/field-catalog.ts'
 import {
-  TRACTOR_HOME,
-  TRACTOR_HOME_ROTATION_Y,
-  GRAIN_COMBINE_HOME,
-  GRAIN_COMBINE_HOME_ROTATION_Y,
-  CORN_COMBINE_HOME,
-  CORN_COMBINE_HOME_ROTATION_Y,
-  EQUIPMENT_YARD_SPAWN_POSITIONS,
+  getCornCombineHome,
+  getCornCombineHomeRotationY,
+  getEquipmentYardSpawnPositions,
+  getGrainCombineHome,
+  getGrainCombineHomeRotationY,
+  getTractorHome,
+  getTractorHomeRotationY,
 } from '@/config/farm-layout.ts'
+import { findOpenDeliverySlot } from '@/config/delivery-zone-catalog.ts'
+import { getGroundedPosition, groundSavedPosition } from '@/maps/grounding.ts'
 import {
   DEFAULT_ATTACHMENT_SPAWNS,
   getAttachmentCatalogEntry,
@@ -30,6 +33,7 @@ import { TractorState } from '@/types/tractor.ts'
 import { isLogisticsSaveCommand } from '@systems/MachineLogisticsSupport.ts'
 import { isPurchasedTractorInstanceId } from '@/types/machine-template.ts'
 import type { FarmStoreSaveData } from '@/types/farm-store.ts'
+import { DeliveryZoneId } from '@/types/delivery.ts'
 import { DEFAULT_GRAIN_BIN_CAPACITY, type GrainBinSaveData } from '@/types/grain-bin.ts'
 import type {
   AttachmentsSaveData,
@@ -41,7 +45,16 @@ import type {
 
 type LegacySaveData = Omit<
   GameSaveData,
-  'machines' | 'attachments' | 'farmStore' | 'machineAutomation' | 'workOrders'
+  | 'machines'
+  | 'attachments'
+  | 'farmStore'
+  | 'machineAutomation'
+  | 'workOrders'
+  | 'mapId'
+  | 'farmName'
+  | 'playTimeSeconds'
+  | 'createdAt'
+  | 'dayFraction'
 > & {
   version?: number
   machine?: MachineSaveData
@@ -50,9 +63,51 @@ type LegacySaveData = Omit<
   farmStore?: FarmStoreSaveData
   machineAutomation?: MachineAutomationSaveData[]
   workOrders?: WorkOrderSaveData[]
+  mapId?: string
+  farmName?: string
+  playTimeSeconds?: number
+  createdAt?: string
+  dayFraction?: number
 }
 
 export class SaveGameService {
+  normalizeSaveData(data: unknown): GameSaveData | null {
+    if (!data || typeof data !== 'object') {
+      return null
+    }
+    return this.normalizeSave(data as LegacySaveData)
+  }
+
+  createDefaultSave(mapId: string, farmName: string): GameSaveData {
+    const base: LegacySaveData = {
+      version: SAVE_VERSION,
+      mapId,
+      farmName,
+      playTimeSeconds: 0,
+      createdAt: new Date().toISOString(),
+      dayFraction: 0,
+      money: STARTING_MONEY,
+      currentDay: 1,
+      gameSpeed: 1,
+      selectedFieldId: 'field_1',
+      fields: this.mergeFieldSaveSlices([]),
+      ownership: this.mergeOwnershipSaveSlices([]),
+      inventory: this.emptyInventory(),
+      marketPrices: this.baseMarketPrices(),
+      processedMarketPrices: this.baseProcessedMarketPrices(),
+      production: this.emptyProduction(),
+      upgrades: this.emptyUpgrades(),
+      machines: {},
+      attachments: this.emptyAttachments(),
+      farmStore: this.normalizeFarmStoreSave(undefined),
+      eventLog: [],
+      eventLogNextId: 1,
+      machineAutomation: [],
+      workOrders: [],
+    }
+    return this.repairSave(base)
+  }
+
   save(data: GameSaveData): void {
     const payload: GameSaveData = {
       ...data,
@@ -136,6 +191,12 @@ export class SaveGameService {
       }
       return this.repairSave(this.migrateFromV12(data as LegacySaveData))
     }
+    if (data.version === 13) {
+      if (!this.isValidCoreSave(data)) {
+        return null
+      }
+      return this.repairSave(this.migrateFromV13(data as LegacySaveData))
+    }
     if (!this.isValidCoreSave(data)) {
       return null
     }
@@ -153,13 +214,14 @@ export class SaveGameService {
     }
 
     const saved = machine as Partial<MachineSaveData>
-    const position =
+    const rawPosition =
       saved.position &&
       typeof saved.position.x === 'number' &&
       typeof saved.position.y === 'number' &&
       typeof saved.position.z === 'number'
         ? saved.position
         : defaults.position
+    const position = groundSavedPosition(rawPosition)
 
     const state =
       saved.state === TractorState.Idle ||
@@ -334,7 +396,7 @@ export class SaveGameService {
         }
 
         knownIds.add(spawn.id)
-        const yardPosition = EQUIPMENT_YARD_SPAWN_POSITIONS[spawn.id] ?? {
+        const yardPosition = getEquipmentYardSpawnPositions()[spawn.id] ?? {
           x: 16,
           y: 0,
           z: 18,
@@ -391,7 +453,7 @@ export class SaveGameService {
         continue
       }
 
-      const yardPosition = EQUIPMENT_YARD_SPAWN_POSITIONS[spawn.id] ?? {
+      const yardPosition = getEquipmentYardSpawnPositions()[spawn.id] ?? {
         x: 16,
         y: 0,
         z: 18,
@@ -413,14 +475,45 @@ export class SaveGameService {
     return { items }
   }
 
+  private migrateFromV13(data: LegacySaveData): LegacySaveData {
+    return {
+      ...data,
+      version: 14,
+      mapId: data.mapId ?? 'map_01',
+      farmName: data.farmName ?? 'My Farm',
+      playTimeSeconds: data.playTimeSeconds ?? 0,
+      createdAt: data.createdAt ?? new Date().toISOString(),
+      dayFraction: data.dayFraction ?? 0,
+      gameSpeed: this.normalizeLegacyGameSpeed(data.gameSpeed),
+    }
+  }
+
+  private normalizeLegacyGameSpeed(gameSpeed: number): number {
+    if (gameSpeed <= 0) {
+      return 0
+    }
+    if (gameSpeed <= 1.5) {
+      return 1
+    }
+    if (gameSpeed <= 3) {
+      return 2
+    }
+    return 4
+  }
+
   private repairSave(data: LegacySaveData): GameSaveData {
     const machines = this.resolveMachinesSave(data)
 
     return {
       version: SAVE_VERSION,
+      mapId: data.mapId ?? 'map_01',
+      farmName: data.farmName ?? 'My Farm',
+      playTimeSeconds: data.playTimeSeconds ?? 0,
+      createdAt: data.createdAt ?? new Date().toISOString(),
+      dayFraction: data.dayFraction ?? 0,
       money: data.money,
       currentDay: data.currentDay,
-      gameSpeed: data.gameSpeed,
+      gameSpeed: this.normalizeLegacyGameSpeed(data.gameSpeed),
       selectedFieldId: data.selectedFieldId ?? null,
       fields: this.mergeFieldSaveSlices(data.fields),
       ownership: this.mergeOwnershipSaveSlices(data.ownership),
@@ -556,7 +649,7 @@ export class SaveGameService {
       (Array.isArray(fields) ? fields : []).map((field) => [field.id, field]),
     )
 
-    return FIELD_CATALOG.map((entry) => {
+    return getFieldCatalog().map((entry) => {
       const saved = byId.get(entry.id)
       if (saved) {
         return {
@@ -587,7 +680,7 @@ export class SaveGameService {
       ]),
     )
 
-    return FIELD_CATALOG.map((entry) => {
+    return getFieldCatalog().map((entry) => {
       const saved = byId.get(entry.id)
       if (saved) {
         return saved
@@ -714,7 +807,7 @@ export class SaveGameService {
       return null
     }
 
-    const ownership = FIELD_CATALOG.map((entry) => {
+    const ownership = getFieldCatalog().map((entry) => {
       const savedField = data.fields.find((field) => field.id === entry.id)
       if (savedField) {
         return { id: entry.id, ownership: FieldOwnership.Owned }
@@ -927,10 +1020,11 @@ export class SaveGameService {
 
   private emptyMachineFor(machineId: MachineId): MachineSaveData {
     if (machineId === MachineId.Tractor1) {
+      const home = getTractorHome()
       return {
         machineId: MachineId.Tractor1,
-        position: { ...TRACTOR_HOME },
-        rotationY: TRACTOR_HOME_ROTATION_Y,
+        position: getGroundedPosition(home.x, home.z),
+        rotationY: getTractorHomeRotationY(),
         state: TractorState.Idle,
         activeCommand: null,
         activeWork: null,
@@ -940,10 +1034,11 @@ export class SaveGameService {
     }
 
     if (machineId === MachineId.GrainCombine1) {
+      const home = getGrainCombineHome()
       return {
         machineId: MachineId.GrainCombine1,
-        position: { ...GRAIN_COMBINE_HOME },
-        rotationY: GRAIN_COMBINE_HOME_ROTATION_Y,
+        position: getGroundedPosition(home.x, home.z),
+        rotationY: getGrainCombineHomeRotationY(),
         state: TractorState.Idle,
         activeCommand: null,
         activeWork: null,
@@ -954,10 +1049,11 @@ export class SaveGameService {
     }
 
     if (machineId === MachineId.CornCombine1) {
+      const home = getCornCombineHome()
       return {
         machineId: MachineId.CornCombine1,
-        position: { ...CORN_COMBINE_HOME },
-        rotationY: CORN_COMBINE_HOME_ROTATION_Y,
+        position: getGroundedPosition(home.x, home.z),
+        rotationY: getCornCombineHomeRotationY(),
         state: TractorState.Idle,
         activeCommand: null,
         activeWork: null,
@@ -968,10 +1064,14 @@ export class SaveGameService {
     }
 
     if (isPurchasedTractorInstanceId(machineId)) {
+      const slot = findOpenDeliverySlot(DeliveryZoneId.DealerLot, [])
+      const spawn = slot
+        ? getGroundedPosition(slot.x, slot.z)
+        : getGroundedPosition(getTractorHome().x, getTractorHome().z)
       return {
         machineId,
-        position: { x: 2, y: 0, z: 18 },
-        rotationY: TRACTOR_HOME_ROTATION_Y,
+        position: spawn,
+        rotationY: slot?.rotationY ?? getTractorHomeRotationY(),
         state: TractorState.Idle,
         activeCommand: null,
         activeWork: null,
@@ -995,18 +1095,19 @@ export class SaveGameService {
     return {
       items: DEFAULT_ATTACHMENT_SPAWNS.map((spawn) => {
         const catalog = getAttachmentCatalogEntry(spawn.catalogId)!
-        const yardPosition = EQUIPMENT_YARD_SPAWN_POSITIONS[spawn.id] ?? {
+        const yardPosition = getEquipmentYardSpawnPositions()[spawn.id] ?? {
           x: 16,
           y: 0,
           z: 18,
         }
+        const groundedYard = getGroundedPosition(yardPosition.x, yardPosition.z)
 
         return {
           attachmentId: spawn.id,
           attachmentType: catalog.attachmentType,
           catalogId: spawn.catalogId,
           lifecycleState: AttachmentLifecycleState.Detached,
-          position: yardPosition,
+          position: groundedYard,
           rotationY: 0,
           workPosition: AttachmentWorkPosition.Transport,
           mountedOn: null,

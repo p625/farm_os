@@ -1,0 +1,214 @@
+[
+  {
+    "id": "road_primary_farm_village",
+    "name": "Primary — farma → most → vesnice",
+    "roadKind": "asphalt_wide",
+    "category": "primary",
+    "points": [
+      {
+        "x": 0,
+        "z": -920
+      },
+      {
+        "x": 0,
+        "z": -400
+      },
+      {
+        "x": 0,
+        "z": 120
+      },
+      {
+        "x": 0,
+        "z": 460
+      },
+      {
+        "x": 40,
+        "z": 820
+      },
+      {
+        "x": 120,
+        "z": 1320
+      },
+      {
+        "x": 140,
+        "z": 1520
+      }
+    ]
+  },
+  {
+    "id": "road_secondary_samota",
+    "name": "Secondary — odbočka k samotě",
+    "roadKind": "asphalt_narrow",
+    "category": "secondary",
+    "points": [
+      {
+        "x": 0,
+        "z": 460
+      },
+      {
+        "x": -420,
+        "z": 620
+      },
+      {
+        "x": -780,
+        "z": 740
+      }
+    ]
+  },
+  {
+    "id": "road_farm_yard",
+    "name": "Farm road — dvůr",
+    "roadKind": "field_path",
+    "category": "farm",
+    "points": [
+      {
+        "x": -60,
+        "z": -1080
+      },
+      {
+        "x": 0,
+        "z": -1040
+      },
+      {
+        "x": 80,
+        "z": -1020
+      },
+      {
+        "x": 120,
+        "z": -980
+      }
+    ]
+  },
+  {
+    "id": "road_field_access_a",
+    "name": "Field access — Block A",
+    "roadKind": "field_path",
+    "category": "field_access",
+    "points": [
+      {
+        "x": 0,
+        "z": -1020
+      },
+      {
+        "x": -90,
+        "z": -1040
+      },
+      {
+        "x": 80,
+        "z": -820
+      },
+      {
+        "x": 100,
+        "z": -680
+      }
+    ]
+  },
+  {
+    "id": "road_field_access_b",
+    "name": "Field access — Block B (údolí)",
+    "roadKind": "field_path",
+    "category": "field_access",
+    "points": [
+      {
+        "x": 0,
+        "z": 120
+      },
+      {
+        "x": -40,
+        "z": -180
+      },
+      {
+        "x": -220,
+        "z": 360
+      },
+      {
+        "x": 200,
+        "z": 520
+      },
+      {
+        "x": 480,
+        "z": 80
+      }
+    ]
+  },
+  {
+    "id": "road_field_access_c",
+    "name": "Field access — Block C (za mostem)",
+    "roadKind": "field_path",
+    "category": "field_access",
+    "points": [
+      {
+        "x": 0,
+        "z": 460
+      },
+      {
+        "x": 120,
+        "z": 1180
+      },
+      {
+        "x": -280,
+        "z": 1050
+      }
+    ]
+  },
+  {
+    "id": "road_forest_west",
+    "name": "Forest road — západní pás",
+    "roadKind": "field_path",
+    "category": "forest",
+    "points": [
+      {
+        "x": -200,
+        "z": 460
+      },
+      {
+        "x": -900,
+        "z": 800
+      },
+      {
+        "x": -1400,
+        "z": 1100
+      }
+    ]
+  },
+  {
+    "id": "road_service_pond",
+    "name": "Service track — rybník",
+    "roadKind": "field_path",
+    "category": "service",
+    "points": [
+      {
+        "x": 80,
+        "z": -1020
+      },
+      {
+        "x": 280,
+        "z": -1020
+      }
+    ]
+  },
+  {
+    "id": "road_scenic_ridge",
+    "name": "Scenic route — severní hřeben",
+    "roadKind": "field_path",
+    "category": "scenic",
+    "points": [
+      {
+        "x": 120,
+        "z": 1320
+      },
+      {
+        "x": 600,
+        "z": 1500
+      },
+      {
+        "x": 1100,
+        "z": 1680
+      },
+      {
+        "x": 1600,
+        "z": 1780
+      }
+    ]
+  }
+]

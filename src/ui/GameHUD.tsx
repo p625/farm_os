@@ -30,7 +30,7 @@ interface GameHUDProps {
   snapshot: GameSnapshot
 }
 
-const GAME_SPEED_OPTIONS = [1, 2, 3, 5] as const
+const TIME_SCALE_OPTIONS = [1, 2, 4] as const
 
 function MoneyDisplay({ snapshot }: { snapshot: GameSnapshot }) {
   const [popVisible, setPopVisible] = useState(false)
@@ -176,11 +176,18 @@ export function GameHUD({ game, snapshot }: GameHUDProps) {
           </div>
           <div className="game-hud__stat">
             <dt>Day</dt>
-            <dd>{snapshot.currentDay}</dd>
+            <dd>
+              {snapshot.currentDay}{' '}
+              <span className="game-hud__time">{snapshot.timeOfDay}</span>
+            </dd>
           </div>
           <div className="game-hud__stat">
-            <dt>Game speed</dt>
-            <dd>{snapshot.gameSpeed}×</dd>
+            <dt>Season</dt>
+            <dd>{snapshot.seasonLabel}</dd>
+          </div>
+          <div className="game-hud__stat">
+            <dt>Speed</dt>
+            <dd>{snapshot.isPaused ? 'Paused' : `${snapshot.gameSpeed}×`}</dd>
           </div>
         </dl>
       </section>
@@ -837,12 +844,23 @@ export function GameHUD({ game, snapshot }: GameHUDProps) {
       <section className="game-hud__panel">
         <h2 className="game-hud__section-title">Time Control</h2>
         <div className="game-hud__speeds">
-          {GAME_SPEED_OPTIONS.map((speed) => (
+          <button
+            type="button"
+            className={
+              snapshot.isPaused
+                ? 'game-hud__speed game-hud__speed--active'
+                : 'game-hud__speed'
+            }
+            onClick={() => game.togglePause()}
+          >
+            Pause
+          </button>
+          {TIME_SCALE_OPTIONS.map((speed) => (
             <button
               key={speed}
               type="button"
               className={
-                snapshot.gameSpeed === speed
+                !snapshot.isPaused && snapshot.gameSpeed === speed
                   ? 'game-hud__speed game-hud__speed--active'
                   : 'game-hud__speed'
               }
@@ -852,7 +870,9 @@ export function GameHUD({ game, snapshot }: GameHUDProps) {
             </button>
           ))}
         </div>
-        <p className="game-hud__hint">1 real second ≈ 1 game day at 1× speed.</p>
+        <p className="game-hud__hint">
+          One game day lasts about 45 real minutes at 1×.
+        </p>
       </section>
 
       <section className="game-hud__panel game-hud__panel--fields">

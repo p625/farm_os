@@ -57,6 +57,9 @@ export interface GameSnapshot {
   money: number
   currentDay: number
   gameSpeed: number
+  timeOfDay: string
+  seasonLabel: string
+  isPaused: boolean
   selectedFieldId: string | null
   selectedFieldIds: readonly string[]
   selectedEntity: SelectedEntitySnapshot
@@ -106,6 +109,9 @@ export const EMPTY_GAME_SNAPSHOT: GameSnapshot = {
   money: 0,
   currentDay: 1,
   gameSpeed: 1,
+  timeOfDay: '06:00',
+  seasonLabel: '—',
+  isPaused: false,
   selectedFieldId: null,
   selectedFieldIds: [],
   selectedEntity: EMPTY_SELECTED_ENTITY,

@@ -1,5 +1,5 @@
 import { getMachineCatalogEntry } from '@/config/machine-catalog.ts'
-import { FIELD_LAYOUT, FARM_HUB } from '@/config/map-01-layout.ts'
+import { getActiveFarmHub, getActiveFieldLayout } from '@/config/farm-layout.ts'
 import { getMachineTemplateDefinition } from '@/config/machine-template-catalog.ts'
 import type { AttachmentSystem } from '@systems/AttachmentSystem.ts'
 import type { MachineRegistry } from '@systems/MachineRegistry.ts'
@@ -59,7 +59,7 @@ export function resolveMachineLocationLabel(
     return activeJob.fieldName
   }
 
-  for (const entry of FIELD_LAYOUT) {
+  for (const entry of getActiveFieldLayout()) {
     const halfW = entry.meshSize.width / 2
     const halfD = entry.meshSize.depth / 2
     if (
@@ -77,7 +77,7 @@ export function resolveMachineLocationLabel(
     }
   }
 
-  const hub = FARM_HUB.farmyard
+  const hub = getActiveFarmHub().farmyard
   const hubHalfW = hub.size.width / 2
   const hubHalfD = hub.size.depth / 2
   if (
@@ -95,7 +95,7 @@ export function resolveMachineLocationLabel(
 
   let nearestName: string | null = null
   let nearestDistanceSq = Number.POSITIVE_INFINITY
-  for (const entry of FIELD_LAYOUT) {
+  for (const entry of getActiveFieldLayout()) {
     const dx = position.x - entry.position.x
     const dz = position.z - entry.position.z
     const distanceSq = dx * dx + dz * dz

@@ -2,6 +2,15 @@ import { SoundManager } from '@audio/SoundManager.ts'
 import { World } from '@game/World.ts'
 import { GameEventLog } from '@game/GameEventLog.ts'
 import { SaveGameService } from '@game/SaveGameService.ts'
+import { SaveSlotManager } from '@game/SaveSlotManager.ts'
+import { SimulationClock } from '@game/SimulationClock.ts'
+import { loadGamePreferences } from '@game/GamePreferences.ts'
+import type { GameSessionConfig } from '@game/GameSession.ts'
+import { defaultMapPackageRegistry } from '@/maps/MapPackageLoader.ts'
+import { loadExportedMapsIntoRegistry } from '@/maps/ExportedMapStorage.ts'
+import { setActiveMapContext } from '@/maps/MapRuntimeContext.ts'
+import type { TimeScale } from '@/types/simulation-clock.ts'
+import { TIME_SCALE_OPTIONS } from '@/types/simulation-clock.ts'
 import {
   CameraController,
   AttachmentPresentation,
@@ -41,6 +50,7 @@ import { getFarmStoreByInteractionPoint } from '@/config/farm-store-catalog.ts'
 import { getProductDefinition } from '@/config/product-catalog.ts'
 import { getMachineCatalogEntry } from '@/config/machine-catalog.ts'
 import { getFieldCatalogEntry } from '@/config/field-catalog.ts'
+import { simulationSecondsToRealSeconds } from '@/config/time-balance.ts'
 import { getProcessedProductDefinition } from '@/config/production-catalog.ts'
 import { SAVE_VERSION } from '@/config/save.ts'
 import { buildFleetSnapshots } from '@core/buildFleetSnapshots.ts'
@@ -130,6 +140,13 @@ export class Game implements IDisposable {
   private readonly eventLog: GameEventLog
   private readonly soundManager: SoundManager
   private readonly saveGameService: SaveGameService
+  private readonly saveSlotManager: SaveSlotManager
+  private readonly simulationClock: SimulationClock
+  private sessionConfig: GameSessionConfig | null = null
+  private playTimeSeconds = 0
+  private createdAt = new Date().toISOString()
+  private lastTimeScale: TimeScale = 1
+  private timeHudRefreshAccumulator = 0
   private readonly fieldPresentation: FieldPresentation
   private readonly cropPresentation: CropPresentation
   private readonly fieldOverlayPresentation: FieldOverlayPresentation
@@ -166,6 +183,8 @@ export class Game implements IDisposable {
       this.soundManager.playForGameEvent(entry.kind)
     })
     this.saveGameService = new SaveGameService()
+    this.saveSlotManager = new SaveSlotManager()
+    this.simulationClock = new SimulationClock()
     initializeMachineInstanceRegistry()
     this.cropSystem = new CropSystem()
     this.inventorySystem = new InventorySystem()
@@ -265,12 +284,33 @@ export class Game implements IDisposable {
     this.attachmentPresentation = new AttachmentPresentation()
     this.machineInputPresentation = new MachineInputPresentation()
     this.gameLoop = new GameLoop([
-      this.world,
-      this.fieldSystem,
-      this.productionSystem,
-      this.machineTickSystem,
-      this.cameraController,
+      {
+        update: (realDeltaTime) => this.tickSimulation(realDeltaTime),
+      },
     ])
+  }
+
+  private tickSimulation(realDeltaTime: number): void {
+    if (this.simulationClock.getTimeScale() > 0) {
+      this.playTimeSeconds += realDeltaTime
+    }
+    this.simulationClock.tick(realDeltaTime)
+    const simulationDeltaTime = this.simulationClock.getLastSimulationDeltaTime()
+    this.fieldSystem.update(simulationDeltaTime)
+    this.productionSystem.update(simulationDeltaTime)
+    this.machineTickSystem.update(simulationDeltaTime)
+    this.cameraController.update(realDeltaTime)
+    if (this.simulationClock.getTimeScale() > 0) {
+      this.timeHudRefreshAccumulator += realDeltaTime
+      if (this.timeHudRefreshAccumulator >= 0.5) {
+        this.timeHudRefreshAccumulator = 0
+        this.notifyListeners()
+      }
+    }
+  }
+
+  getSimulationClock(): SimulationClock {
+    return this.simulationClock
   }
 
   subscribe(listener: () => void): () => void {
@@ -1298,6 +1338,16 @@ export class Game implements IDisposable {
       buildingId: null,
     }
     this.machinePresentation.setSelectedMachine(machineId)
+    this.syncCameraInteractionMode()
+    this.notifyListeners()
+  }
+
+  clearMapSelection(): void {
+    this.machinePresentation.setSelectedMachine(null)
+    this.fieldSystem.clearSelection()
+    this.selectedEntity = EMPTY_SELECTED_ENTITY
+    this.syncCameraInteractionMode()
+    this.syncFieldVisuals()
     this.notifyListeners()
   }
 
@@ -1321,6 +1371,7 @@ export class Game implements IDisposable {
       buildingId: null,
     }
     this.machinePresentation.setSelectedMachine(null)
+    this.syncCameraInteractionMode()
     this.syncFieldVisuals()
     this.autoSave()
     this.notifyListeners()
@@ -1661,9 +1712,34 @@ export class Game implements IDisposable {
   }
 
   setGameSpeed(speed: number): void {
-    this.world.setGameSpeed(speed)
+    const normalized = TIME_SCALE_OPTIONS.includes(speed as TimeScale)
+      ? (speed as TimeScale)
+      : 1
+    if (normalized > 0) {
+      this.lastTimeScale = normalized
+    }
+    this.simulationClock.setTimeScale(normalized)
+    this.world.setGameSpeed(normalized)
     this.autoSave()
     this.notifyListeners()
+  }
+
+  setPaused(paused: boolean): void {
+    if (paused) {
+      if (this.simulationClock.getTimeScale() > 0) {
+        this.lastTimeScale = this.simulationClock.getTimeScale() as TimeScale
+      }
+      this.simulationClock.setTimeScale(0)
+      this.world.setGameSpeed(0)
+    } else {
+      this.setGameSpeed(this.lastTimeScale)
+    }
+    this.autoSave()
+    this.notifyListeners()
+  }
+
+  togglePause(): void {
+    this.setPaused(this.simulationClock.getTimeScale() !== 0)
   }
 
   saveGame(): void {
@@ -1696,6 +1772,7 @@ export class Game implements IDisposable {
     this.machineContextMenu = null
     this.interactionContextMenu = null
     this.machinePresentation.setSelectedMachine(null)
+    this.syncCameraInteractionMode()
     this.machineAutomationRegistry.clearAll()
     this.workOrderSystem.clear()
     this.eventLog.clear()
@@ -1708,13 +1785,27 @@ export class Game implements IDisposable {
     this.notifyListeners()
   }
 
-  async start(): Promise<void> {
+  async start(session: GameSessionConfig): Promise<void> {
     if (this.disposed || this.started) {
       return
     }
 
-    await this.sceneManager.initialize()
+    this.sessionConfig = session
+    loadExportedMapsIntoRegistry(defaultMapPackageRegistry)
+
+    const mapId = this.resolveStartupMapId(session)
+    const mapContext = await defaultMapPackageRegistry.load(mapId)
     if (this.disposed) {
+      return
+    }
+
+    setActiveMapContext(mapContext)
+
+    const preferences = loadGamePreferences()
+    this.simulationClock.setRealMinutesPerGameDay(preferences.realMinutesPerGameDay)
+
+    await this.sceneManager.initialize()
+    if (this.disposed || !this.sceneManager.isInitialized()) {
       return
     }
 
@@ -1751,6 +1842,9 @@ export class Game implements IDisposable {
       this.notifyListeners()
     })
     this.productionSystem.initialize()
+
+    this.fieldSystem.setSimulationClock(this.simulationClock)
+    this.productionSystem.setSimulationClock(this.simulationClock)
 
     this.fieldSystem.setEventLog(this.eventLog)
     this.fieldSystem.setOnChange(() => {
@@ -1799,15 +1893,25 @@ export class Game implements IDisposable {
     this.interactionContextMenu = null
     this.machinePresentation.setSelectedMachine(null)
 
-    this.loadSavedGame()
+    if (session.isNewGame) {
+      const freshSave = this.saveSlotManager.createNewGameSave(
+        session.mapId,
+        session.farmName,
+      )
+      this.applySaveData(freshSave)
+    } else {
+      const saved = this.saveSlotManager.loadSlot(session.slotId)
+      if (!saved) {
+        throw new Error(`Save slot ${session.slotId} is empty or corrupt`)
+      }
+      this.applySaveData(saved)
+    }
+
+    this.saveSlotManager.setLastPlayedSlotId(session.slotId)
 
     if (this.disposed) {
       return
     }
-
-    this.fieldPresentation.setOnFieldSelected((fieldId) => {
-      this.selectField(fieldId)
-    })
 
     const scene = this.sceneManager.getScene()
     this.fieldPresentation.attach(scene, this.fieldSystem)
@@ -1828,6 +1932,7 @@ export class Game implements IDisposable {
     this.machinePresentation.attach(scene, this.machineRegistry)
     this.attachmentPresentation.attach(scene, this.attachmentSystem)
     this.machineInputPresentation.attach(scene, this)
+    this.syncCameraInteractionMode()
 
     if (this.pendingPurchasedMachineSave) {
       this.hydratePurchasedMachines(this.pendingPurchasedMachineSave)
@@ -1855,6 +1960,7 @@ export class Game implements IDisposable {
 
     this.disposed = true
     this.autoSaveEnabled = false
+    setActiveMapContext(null)
     this.stop()
     this.machineInputPresentation.detach()
     this.attachmentPresentation.detach()
@@ -1884,17 +1990,28 @@ export class Game implements IDisposable {
     this.started = false
   }
 
-  private loadSavedGame(): void {
-    const saved = this.saveGameService.load()
-    if (!saved) {
-      return
+  private resolveStartupMapId(session: GameSessionConfig): string {
+    if (session.isNewGame) {
+      return session.mapId
     }
 
-    this.applySaveData(saved)
+    const saved = this.saveSlotManager.loadSlot(session.slotId)
+    return saved?.mapId || session.mapId
   }
 
   private applySaveData(saved: GameSaveData): void {
     this.autoSaveEnabled = false
+    this.createdAt = saved.createdAt ?? new Date().toISOString()
+    this.playTimeSeconds = saved.playTimeSeconds ?? 0
+
+    const timeScale = TIME_SCALE_OPTIONS.includes(saved.gameSpeed as TimeScale)
+      ? (saved.gameSpeed as TimeScale)
+      : 1
+    if (timeScale > 0) {
+      this.lastTimeScale = timeScale
+    }
+    this.simulationClock.setTimeScale(timeScale)
+    this.simulationClock.setDayFraction(saved.dayFraction ?? 0)
 
     this.world.applySave(saved.money, saved.currentDay, saved.gameSpeed)
     this.ownershipSystem.applySave(saved.ownership)
@@ -1942,6 +2059,7 @@ export class Game implements IDisposable {
     this.machineContextMenu = null
     this.interactionContextMenu = null
     this.machinePresentation.setSelectedMachine(null)
+    this.syncCameraInteractionMode()
     this.reconcileAutomationAfterLoad()
 
     this.autoSaveEnabled = true
@@ -1968,9 +2086,14 @@ export class Game implements IDisposable {
   private captureSaveData(): GameSaveData {
     return {
       version: SAVE_VERSION,
+      mapId: this.sessionConfig?.mapId ?? 'map_01',
+      farmName: this.sessionConfig?.farmName ?? 'My Farm',
+      playTimeSeconds: Math.floor(this.playTimeSeconds),
+      createdAt: this.createdAt,
+      dayFraction: this.simulationClock.getDayFraction(),
       money: this.world.money,
       currentDay: this.world.currentDay,
-      gameSpeed: this.world.gameSpeed,
+      gameSpeed: this.simulationClock.getTimeScale(),
       selectedFieldId: this.fieldSystem.getSelectedFieldId(),
       fields: this.fieldSystem.toSaveFields(),
       ownership: this.ownershipSystem.toSaveOwnership(),
@@ -1994,7 +2117,14 @@ export class Game implements IDisposable {
   }
 
   private persistSave(): void {
-    this.saveGameService.save(this.captureSaveData())
+    if (!this.sessionConfig) {
+      return
+    }
+    this.saveSlotManager.saveSlot(
+      this.sessionConfig.slotId,
+      this.captureSaveData(),
+      { timeOfDay: this.simulationClock.getTimeOfDayLabel() },
+    )
   }
 
   private autoSave(): void {
@@ -2014,6 +2144,14 @@ export class Game implements IDisposable {
     this.ownershipPresentation.syncVisuals()
     this.fieldPresentation.syncSelectionOverlay()
     this.fieldOverlayPresentation.syncVisuals()
+  }
+
+  private syncCameraInteractionMode(): void {
+    this.cameraController.setInteractionMode(
+      this.selectedEntity.kind === SelectedEntityKind.Machine
+        ? 'command'
+        : 'navigate',
+    )
   }
 
   private syncHudFieldWhileMachineSelected(fieldId: string): void {
@@ -2082,7 +2220,10 @@ export class Game implements IDisposable {
     this.cachedSnapshot = {
       money: this.world.money,
       currentDay: this.world.currentDay,
-      gameSpeed: this.world.gameSpeed,
+      gameSpeed: this.simulationClock.getTimeScale(),
+      timeOfDay: this.simulationClock.getTimeOfDayLabel(),
+      seasonLabel: '—',
+      isPaused: this.simulationClock.isPaused(),
       selectedFieldId: this.fieldSystem.getSelectedFieldId(),
       selectedFieldIds: this.fieldSystem.getSelectedFieldIds(),
       selectedEntity: this.selectedEntity,
@@ -2193,6 +2334,24 @@ export class Game implements IDisposable {
       rotationY: EMPTY_GAME_SNAPSHOT.selectedMachine.rotationY,
     }
 
+    const displayTimeScale = this.simulationClock.isPaused()
+      ? this.lastTimeScale
+      : this.simulationClock.getTimeScale()
+    const workRemainingSeconds =
+      operation.workRemainingSeconds != null
+        ? simulationSecondsToRealSeconds(
+            operation.workRemainingSeconds,
+            this.simulationClock.getRealMinutesPerGameDay(),
+            displayTimeScale,
+          )
+        : null
+
+    const displayOperation = {
+      ...operation,
+      workRemainingSeconds:
+        workRemainingSeconds === Infinity ? null : workRemainingSeconds,
+    }
+
     const supportedIds = this.capabilityResolver.getHeaderSupportedCropIds(machineId)
     const supportedCrops = supportedIds.map(
       (cropId) => this.cropSystem.getCropName(cropId),
@@ -2209,7 +2368,7 @@ export class Game implements IDisposable {
       selectedMachine: buildSelectedMachineSnapshot(
         machineId,
         catalog?.name ?? machineId,
-        operation,
+        displayOperation,
         controller?.getGrainBinSnapshot?.() ?? null,
         this.machineAutomationRegistry.getCommandOwner(machineId),
       ),

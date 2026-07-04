@@ -1,4 +1,4 @@
-import { FIELD_CATALOG, getFieldCatalogEntry } from '@/config/field-catalog.ts'
+import { getFieldCatalog, getFieldCatalogEntry } from '@/config/field-catalog.ts'
 import type { GameEventLog } from '@game/GameEventLog.ts'
 import type { World } from '@game/World.ts'
 import { FieldOwnership } from '@/types/ownership.ts'
@@ -27,7 +27,7 @@ export class OwnershipSystem extends GameSystem {
 
   initialize(): void {
     this.ownership.clear()
-    for (const entry of FIELD_CATALOG) {
+    for (const entry of getFieldCatalog()) {
       this.ownership.set(entry.id, entry.initialOwnership)
     }
     this.notifyChange()
@@ -40,7 +40,7 @@ export class OwnershipSystem extends GameSystem {
   applySave(
     savedOwnership: readonly { id: string; ownership: FieldOwnershipValue }[],
   ): void {
-    for (const entry of FIELD_CATALOG) {
+    for (const entry of getFieldCatalog()) {
       this.ownership.set(entry.id, entry.initialOwnership)
     }
 
@@ -61,7 +61,7 @@ export class OwnershipSystem extends GameSystem {
   }
 
   toSaveOwnership(): { id: string; ownership: FieldOwnershipValue }[] {
-    return FIELD_CATALOG.map((entry) => ({
+    return getFieldCatalog().map((entry) => ({
       id: entry.id,
       ownership: this.getOwnership(entry.id),
     }))

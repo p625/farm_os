@@ -8,22 +8,16 @@ import {
 } from '@babylonjs/core'
 import { FarmDecorationsBuilder } from './FarmDecorationsBuilder.ts'
 import { FarmEnvironment } from './FarmEnvironment.ts'
-import { MILL_POSITION } from '@/config/production-catalog.ts'
+import { MapSceneBuilder } from '@/studio/io/MapSceneBuilder.ts'
+import { tryGetActiveMapContext } from '@/maps/MapRuntimeContext.ts'
+import { getGroundedPosition } from '@/maps/grounding.ts'
 import {
-  FARM_HUB,
-  FIELD_LAYOUT,
-  getWorldCenter,
-  getWorldTerrainSize,
-} from '@/config/map-01-layout.ts'
-import { INTERACTION_POINT_CATALOG } from '@/config/interaction-point-catalog.ts'
-import {
-  TRACTOR_HOME,
-  TRACTOR_HOME_ROTATION_Y,
-  GRAIN_COMBINE_HOME,
-  CORN_COMBINE_HOME,
-  GRAIN_COMBINE_HOME_ROTATION_Y,
-  CORN_COMBINE_HOME_ROTATION_Y,
+  getActiveFarmHub,
+  getActiveFieldLayout,
+  getActiveWorldCenter,
+  getActiveWorldTerrainSize,
 } from '@/config/farm-layout.ts'
+import { getInteractionPointCatalog } from '@/config/interaction-point-catalog.ts'
 
 const TERRAIN_COLOR = new Color3(0.26, 0.46, 0.18)
 const VALLEY_COLOR = new Color3(0.22, 0.4, 0.15)
@@ -36,8 +30,18 @@ const TRACTOR_WHEEL_COLOR = new Color3(0.12, 0.12, 0.12)
 export class FarmSceneBuilder {
   private readonly environment = new FarmEnvironment()
   private readonly decorations = new FarmDecorationsBuilder()
+  private readonly mapSceneBuilder = new MapSceneBuilder()
 
   build(scene: Scene): void {
+    const worldMap = tryGetActiveMapContext()?.worldMap
+    if (worldMap) {
+      this.mapSceneBuilder.build(scene, worldMap)
+      this.createTractor(scene)
+      this.createCombines(scene)
+      this.createInteractionPoints(scene)
+      return
+    }
+
     this.environment.apply(scene)
 
     this.createTerrain(scene)
@@ -54,8 +58,8 @@ export class FarmSceneBuilder {
   }
 
   private createTerrain(scene: Scene): void {
-    const { width, depth } = getWorldTerrainSize()
-    const center = getWorldCenter()
+    const { width, depth } = getActiveWorldTerrainSize()
+    const center = getActiveWorldCenter()
 
     const terrain = MeshBuilder.CreateGround(
       'terrain',
@@ -73,7 +77,7 @@ export class FarmSceneBuilder {
   }
 
   private createValleyBackdrop(scene: Scene): void {
-    const center = getWorldCenter()
+    const center = getActiveWorldCenter()
     const valley = MeshBuilder.CreateGround(
       'valley_backdrop',
       { width: 90, height: 50 },
@@ -89,7 +93,7 @@ export class FarmSceneBuilder {
   }
 
   private createFields(scene: Scene): void {
-    for (const field of FIELD_LAYOUT) {
+    for (const field of getActiveFieldLayout()) {
       const fieldMesh = MeshBuilder.CreateBox(
         field.id,
         {
@@ -120,7 +124,7 @@ export class FarmSceneBuilder {
   }
 
   private createFarmyard(scene: Scene): void {
-    const { position, size } = FARM_HUB.farmyard
+    const { position, size } = getActiveFarmHub().farmyard
     const farmyard = MeshBuilder.CreateBox(
       'farmyard',
       { width: size.width, height: 0.06, depth: size.depth },
@@ -137,11 +141,12 @@ export class FarmSceneBuilder {
   }
 
   private createBarn(scene: Scene): void {
+    const barn = getActiveFarmHub().barn
     const root = new TransformNode('barn_root', scene)
     root.position = new Vector3(
-      FARM_HUB.barn.position.x,
+      barn.position.x,
       0,
-      FARM_HUB.barn.position.z,
+      barn.position.z,
     )
 
     const wallMat = new StandardMaterial('barnWallMaterial', scene)
@@ -227,12 +232,13 @@ export class FarmSceneBuilder {
   }
 
   private createMill(scene: Scene): void {
+    const mill = getActiveFarmHub().mill.position
     const body = MeshBuilder.CreateBox(
       'mill_building',
       { width: 3.2, height: 2.8, depth: 3.6 },
       scene,
     )
-    body.position = new Vector3(MILL_POSITION.x, 1.4, MILL_POSITION.z)
+    body.position = new Vector3(mill.x, 1.4, mill.z)
 
     const material = new StandardMaterial('millBuildingMaterial', scene)
     material.diffuseColor = new Color3(0.62, 0.55, 0.42)
@@ -246,7 +252,7 @@ export class FarmSceneBuilder {
       { width: 3.6, height: 0.35, depth: 4 },
       scene,
     )
-    roof.position = new Vector3(MILL_POSITION.x, 2.95, MILL_POSITION.z)
+    roof.position = new Vector3(mill.x, 2.95, mill.z)
     const roofMat = new StandardMaterial('millRoofMaterial', scene)
     roofMat.diffuseColor = new Color3(0.38, 0.28, 0.2)
     roof.material = roofMat
@@ -254,11 +260,12 @@ export class FarmSceneBuilder {
   }
 
   private createDealership(scene: Scene): void {
+    const dealership = getActiveFarmHub().dealership
     const root = new TransformNode('dealership_root', scene)
     root.position = new Vector3(
-      FARM_HUB.dealership.position.x,
+      dealership.position.x,
       0,
-      FARM_HUB.dealership.position.z,
+      dealership.position.z,
     )
 
     const wallMaterial = new StandardMaterial('dealership_wall_mat', scene)
@@ -304,9 +311,14 @@ export class FarmSceneBuilder {
   }
 
   private createTractor(scene: Scene): void {
+    const hub = getActiveFarmHub()
+    const spawn = getGroundedPosition(
+      hub.tractorHome.position.x,
+      hub.tractorHome.position.z,
+    )
     const root = new TransformNode('tractor', scene)
-    root.position = new Vector3(TRACTOR_HOME.x, 0, TRACTOR_HOME.z)
-    root.rotation.y = TRACTOR_HOME_ROTATION_Y
+    root.position = new Vector3(spawn.x, spawn.y, spawn.z)
+    root.rotation.y = hub.tractorHome.rotationY ?? -Math.PI / 6
 
     const bodyMaterial = new StandardMaterial('tractorBodyMaterial', scene)
     bodyMaterial.diffuseColor = TRACTOR_BODY_COLOR
@@ -379,19 +391,28 @@ export class FarmSceneBuilder {
   }
 
   private createCombines(scene: Scene): void {
+    const hub = getActiveFarmHub()
+    const grainSpawn = getGroundedPosition(
+      hub.grainCombineHome.position.x,
+      hub.grainCombineHome.position.z,
+    )
     this.createCombine(
       scene,
       'grain_combine_1',
-      new Vector3(GRAIN_COMBINE_HOME.x, 0, GRAIN_COMBINE_HOME.z),
-      GRAIN_COMBINE_HOME_ROTATION_Y,
+      new Vector3(grainSpawn.x, grainSpawn.y, grainSpawn.z),
+      hub.grainCombineHome.rotationY ?? -Math.PI / 6,
       new Color3(0.75, 0.55, 0.12),
       new Color3(0.85, 0.2, 0.12),
+    )
+    const cornSpawn = getGroundedPosition(
+      hub.cornCombineHome.position.x,
+      hub.cornCombineHome.position.z,
     )
     this.createCombine(
       scene,
       'corn_combine_1',
-      new Vector3(CORN_COMBINE_HOME.x, 0, CORN_COMBINE_HOME.z),
-      CORN_COMBINE_HOME_ROTATION_Y,
+      new Vector3(cornSpawn.x, cornSpawn.y, cornSpawn.z),
+      hub.cornCombineHome.rotationY ?? -Math.PI / 6,
       new Color3(0.7, 0.5, 0.1),
       new Color3(0.2, 0.55, 0.2),
     )
@@ -476,7 +497,7 @@ export class FarmSceneBuilder {
     markerMaterial.diffuseColor = new Color3(0.9, 0.75, 0.2)
     markerMaterial.emissiveColor = new Color3(0.35, 0.25, 0.05)
 
-    for (const point of INTERACTION_POINT_CATALOG) {
+    for (const point of getInteractionPointCatalog()) {
       const root = new TransformNode(`interaction_root_${point.id}`, scene)
       root.position = new Vector3(
         point.position.x,

@@ -1,0 +1,14 @@
+[
+  {
+    "id": "overview",
+    "label": "overview",
+    "alpha": -0.7853981633974483,
+    "beta": 1.05,
+    "radius": 94,
+    "targetOffset": {
+      "x": 32.5,
+      "y": 0,
+      "z": 20.25
+    }
+  }
+]

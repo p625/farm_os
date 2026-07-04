@@ -1,4 +1,4 @@
-import { FIELD_CATALOG, getFieldCatalogEntry } from '@/config/field-catalog.ts'
+import { getFieldCatalog, getFieldCatalogEntry } from '@/config/field-catalog.ts'
 import type { FieldBlockId } from '@/config/map-01-layout.ts'
 import { CommandOwner } from '@/types/machine-automation.ts'
 import type { AutomationTaskKind } from '@/types/machine-automation.ts'
@@ -106,14 +106,14 @@ function formatTaskKindLabel(
   }
 }
 
-const CATALOG_FIELD_ORDER = new Map(
-  FIELD_CATALOG.map((entry, index) => [entry.id, index]),
-)
+const getCatalogFieldOrder = (): Map<string, number> =>
+  new Map(getFieldCatalog().map((entry, index) => [entry.id, index]))
 
 export function sortFieldIdsByCatalogOrder(fieldIds: readonly string[]): string[] {
+  const order = getCatalogFieldOrder()
   return [...fieldIds].sort((left, right) => {
-    const leftIndex = CATALOG_FIELD_ORDER.get(left) ?? Number.MAX_SAFE_INTEGER
-    const rightIndex = CATALOG_FIELD_ORDER.get(right) ?? Number.MAX_SAFE_INTEGER
+    const leftIndex = order.get(left) ?? Number.MAX_SAFE_INTEGER
+    const rightIndex = order.get(right) ?? Number.MAX_SAFE_INTEGER
     return leftIndex - rightIndex
   })
 }
@@ -135,12 +135,12 @@ export function resolveWorkOrderFieldQueue(
       candidates = [...scope.fieldIds]
       break
     case WorkOrderScopeKind.Block:
-      candidates = FIELD_CATALOG.filter(
-        (entry) => entry.blockId === scope.blockId,
-      ).map((entry) => entry.id)
+      candidates = getFieldCatalog()
+        .filter((entry) => entry.blockId === scope.blockId)
+        .map((entry) => entry.id)
       break
     case WorkOrderScopeKind.Eligible:
-      candidates = FIELD_CATALOG.map((entry) => entry.id)
+      candidates = getFieldCatalog().map((entry) => entry.id)
       if (scope.filter.blockId) {
         candidates = candidates.filter(
           (fieldId) => getFieldCatalogEntry(fieldId)?.blockId === scope.filter.blockId,

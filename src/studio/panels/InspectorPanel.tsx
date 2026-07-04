@@ -19,12 +19,51 @@ export function InspectorPanel({
 }: InspectorPanelProps) {
   const { selectedObject, activeModuleId } = useStudioStore(store)
 
-  if (activeModuleId === 'terrain') {
+  if (
+    activeModuleId === 'terrain' ||
+    activeModuleId === 'parcels' ||
+    activeModuleId === 'vegetation' ||
+    activeModuleId === 'buildings' ||
+    activeModuleId === 'water' ||
+    activeModuleId === 'validation' ||
+    activeModuleId === 'export'
+  ) {
+    const hints: Record<string, { title: string; hint: string }> = {
+      terrain: {
+        title: 'Terrain module is active.',
+        hint: 'Use Terrain tools on the left — paint on the ground.',
+      },
+      parcels: {
+        title: 'Parcel module is active.',
+        hint: 'Use Parcel tools on the left — draw or select fields.',
+      },
+      vegetation: {
+        title: 'Vegetation module is active.',
+        hint: 'Use Vegetation tools on the left — place or select trees and shrubs.',
+      },
+      buildings: {
+        title: 'Building module is active.',
+        hint: 'Use Building tools on the left — place or select structures.',
+      },
+      water: {
+        title: 'Water module is active.',
+        hint: 'Use Water tools on the left — draw rivers/streams or drag ponds.',
+      },
+      validation: {
+        title: 'Validation module is active.',
+        hint: 'Run validation on the left — click findings to highlight issues in the scene.',
+      },
+      export: {
+        title: 'Export module is active.',
+        hint: 'Export the current map to appear in the New Game map list.',
+      },
+    }
+    const copy = hints[activeModuleId]
     return (
       <div className="studio-panel studio-panel--inspector">
         <h2 className="studio-panel__title">Inspector</h2>
-        <p className="studio-empty">Terrain module is active.</p>
-        <p className="studio-hint">Use Terrain tools on the left — paint on the ground.</p>
+        <p className="studio-empty">{copy.title}</p>
+        <p className="studio-hint">{copy.hint}</p>
       </div>
     )
   }

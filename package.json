@@ -7,7 +7,8 @@
     "dev": "vite --host 127.0.0.1 --port 5174",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "generate:map-01": "npx tsx --tsconfig tsconfig.app.json scripts/generate-map-01-blockout.ts"
   },
   "dependencies": {
     "@babylonjs/core": "^9.15.0",

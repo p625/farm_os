@@ -86,6 +86,11 @@
   color: #edf7e8;
 }
 
+.game-hud__time {
+  font-weight: 500;
+  opacity: 0.85;
+}
+
 .game-hud__actions {
   display: flex;
   flex-direction: column;

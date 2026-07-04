@@ -7,7 +7,7 @@ import {
   type Scene,
   type TransformNode,
 } from '@babylonjs/core'
-import { FIELD_POSITIONS } from '@/config/farm-layout.ts'
+import { getFieldPositions } from '@/config/farm-layout.ts'
 import {
   getMachineCatalogEntry,
   MACHINE_CATALOG,
@@ -280,7 +280,7 @@ export class MachinePresentation {
       const pulse = 1 + Math.sin(snapshot.workProgress * Math.PI * 6) * 0.12
 
       if (snapshot.activeJob) {
-        const fieldPosition = FIELD_POSITIONS[snapshot.activeJob.fieldId]
+        const fieldPosition = getFieldPositions()[snapshot.activeJob.fieldId]
         if (!fieldPosition) {
           continue
         }

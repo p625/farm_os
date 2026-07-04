@@ -7,10 +7,10 @@ import {
   Vector3,
 } from '@babylonjs/core'
 import {
-  FARM_HUB,
-  FIELD_LAYOUT,
-  MAP_01_WORLD_BOUNDS,
-} from '@/config/map-01-layout.ts'
+  getActiveFarmHub,
+  getActiveFieldLayout,
+  getActiveWorldBounds,
+} from '@/config/farm-layout.ts'
 
 const DECOR_METADATA = { decor: true } as const
 
@@ -32,7 +32,7 @@ export class FarmDecorationsBuilder {
     const roadMat = this.mat(scene, 'roadMaterial', new Color3(0.45, 0.4, 0.34))
     roadMat.specularColor = new Color3(0.05, 0.05, 0.05)
 
-    const hub = FARM_HUB.barn.position
+    const hub = getActiveFarmHub().barn.position
     const segments: Array<{ x: number; z: number; w: number; d: number }> = [
       { x: hub.x - 4, z: hub.z + 10, w: 14, d: 2.4 },
       { x: hub.x - 12, z: hub.z, w: 2.4, d: 22 },
@@ -58,7 +58,7 @@ export class FarmDecorationsBuilder {
   private createFences(scene: Scene, root: TransformNode): void {
     const fenceMat = this.mat(scene, 'fenceMaterial', new Color3(0.55, 0.42, 0.28))
 
-    for (const field of FIELD_LAYOUT) {
+    for (const field of getActiveFieldLayout()) {
       const halfW = field.meshSize.width / 2
       const halfD = field.meshSize.depth / 2
       const segments = [
@@ -85,7 +85,7 @@ export class FarmDecorationsBuilder {
       })
     }
 
-    const yard = FARM_HUB.farmyard.position
+    const yard = getActiveFarmHub().farmyard.position
     const yardFence = [
       { x: yard.x, z: yard.z - 10, w: 20, d: 0.2 },
       { x: yard.x + 10, z: yard.z, w: 0.2, d: 14 },
@@ -108,7 +108,7 @@ export class FarmDecorationsBuilder {
     const leafMat = this.mat(scene, 'treeLeafMaterial', new Color3(0.18, 0.42, 0.16))
     leafMat.specularColor = new Color3(0.04, 0.08, 0.03)
 
-    const bounds = MAP_01_WORLD_BOUNDS
+    const bounds = getActiveWorldBounds()
     const edgeTrees: Array<[number, number, number]> = [
       [bounds.minX + 2, 0, bounds.minZ + 8],
       [bounds.minX + 2, 0, -10],
@@ -155,7 +155,7 @@ export class FarmDecorationsBuilder {
 
   private createBushes(scene: Scene, root: TransformNode): void {
     const bushMat = this.mat(scene, 'bushMaterial', new Color3(0.22, 0.48, 0.18))
-    const hub = FARM_HUB.barn.position
+    const hub = getActiveFarmHub().barn.position
     const positions: Array<[number, number, number]> = [
       [hub.x - 6, 0, hub.z + 8],
       [hub.x + 10, 0, hub.z + 12],
@@ -217,7 +217,7 @@ export class FarmDecorationsBuilder {
     const hayMat = this.mat(scene, 'hayMaterial', new Color3(0.78, 0.62, 0.28))
     hayMat.specularColor = new Color3(0.08, 0.06, 0.02)
 
-    const yard = FARM_HUB.farmyard.position
+    const yard = getActiveFarmHub().farmyard.position
     const bales: Array<[number, number, number, number]> = [
       [yard.x - 4, 0, yard.z - 2, 0],
       [yard.x - 2.6, 0, yard.z - 1.8, 0.4],
@@ -241,7 +241,7 @@ export class FarmDecorationsBuilder {
   }
 
   private createProps(scene: Scene, root: TransformNode): void {
-    const hub = FARM_HUB.barn.position
+    const hub = getActiveFarmHub().barn.position
     const barrelMat = this.mat(scene, 'barrelMaterial', new Color3(0.5, 0.32, 0.18))
     const barrel = MeshBuilder.CreateCylinder(
       'decor_barrel',
@@ -264,7 +264,7 @@ export class FarmDecorationsBuilder {
     crate.parent = root
     this.decor(crate)
 
-    const dealer = FARM_HUB.dealership.position
+    const dealer = getActiveFarmHub().dealership.position
     const signMat = this.mat(scene, 'signMaterial', new Color3(0.62, 0.48, 0.3))
     const signPost = MeshBuilder.CreateBox(
       'decor_sign_post',

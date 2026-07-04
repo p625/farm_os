@@ -1,5 +1,6 @@
 import { getInteractionPointDefinition } from '@/config/interaction-point-catalog.ts'
-import { FIELD_POSITIONS, JOB_WORK_DURATION } from '@/config/farm-layout.ts'
+import { WORK_DURATION_SIM_SECONDS } from '@/config/time-balance.ts'
+import { getFieldPositions } from '@/config/farm-layout.ts'
 import type { LogisticsSystem } from './LogisticsSystem.ts'
 import type { MachineRegistry } from './MachineRegistry.ts'
 import {
@@ -83,7 +84,7 @@ export function resolveLogisticsMoveTarget(
       return { ...fallback }
     }
     case 'field':
-      return FIELD_POSITIONS[command.destination.fieldId] ?? { ...fallback }
+      return getFieldPositions()[command.destination.fieldId] ?? { ...fallback }
     case 'world':
       return { x: command.destination.x, y: 0, z: command.destination.z }
     default:
@@ -93,12 +94,12 @@ export function resolveLogisticsMoveTarget(
 
 export function getLogisticsWorkDuration(task: CommandTask): number {
   if (task.kind === 'load_from_combine') {
-    return JOB_WORK_DURATION.load_from_combine ?? 1
+    return WORK_DURATION_SIM_SECONDS.load_from_combine ?? 2_400
   }
   if (task.kind === 'unload_to_silo') {
-    return JOB_WORK_DURATION.unload_to_silo ?? 1
+    return WORK_DURATION_SIM_SECONDS.unload_to_silo ?? 2_400
   }
-  return 1
+  return 2_400
 }
 
 export function getLogisticsRequiredCapability(

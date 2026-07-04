@@ -1,0 +1,131 @@
+.main-menu {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 2rem;
+  background:
+    radial-gradient(circle at top, #2d4a2d 0%, #0f1a12 55%, #060a08 100%);
+  color: #f4f7f2;
+  font-family: system-ui, sans-serif;
+}
+
+.main-menu__card {
+  width: min(100%, 28rem);
+  padding: 2rem;
+  border-radius: 12px;
+  background: rgba(10, 18, 12, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+}
+
+.main-menu__card--wide {
+  width: min(100%, 42rem);
+}
+
+.main-menu__title {
+  margin: 0 0 0.5rem;
+  font-size: 2rem;
+  letter-spacing: 0.04em;
+}
+
+.main-menu__subtitle {
+  margin: 0 0 1.5rem;
+  color: rgba(244, 247, 242, 0.7);
+}
+
+.main-menu__actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.main-menu__actions--stack {
+  flex-direction: column;
+}
+
+.main-menu__actions button,
+.main-menu__slot-actions button {
+  padding: 0.75rem 1rem;
+  border: none;
+  border-radius: 8px;
+  background: #4f8f4a;
+  color: #fff;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.main-menu__actions button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.main-menu__button--secondary {
+  background: rgba(255, 255, 255, 0.12) !important;
+}
+
+.main-menu__button--danger {
+  background: #a33b3b !important;
+}
+
+.main-menu__field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-bottom: 1rem;
+}
+
+.main-menu__field input,
+.main-menu__field select {
+  padding: 0.65rem 0.75rem;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(0, 0, 0, 0.25);
+  color: inherit;
+}
+
+.main-menu__slot-list {
+  list-style: none;
+  margin: 0 0 1.5rem;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.main-menu__slot {
+  padding: 1rem;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.main-menu__slot-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.main-menu__slot-meta,
+.main-menu__slot-details {
+  color: rgba(244, 247, 242, 0.72);
+  font-size: 0.92rem;
+}
+
+.main-menu__slot-details {
+  margin: 0.5rem 0;
+}
+
+.main-menu__slot-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.main-menu__confirm {
+  margin-top: 1rem;
+  padding: 1rem;
+  border-radius: 8px;
+  background: rgba(163, 59, 59, 0.15);
+}

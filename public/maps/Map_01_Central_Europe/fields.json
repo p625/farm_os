@@ -1,0 +1,101 @@
+[
+  {
+    "id": "field_1",
+    "name": "Domácí pole",
+    "purchasePrice": 1824000,
+    "leasePrice": 273600,
+    "area": 456,
+    "fertility": 85,
+    "initialOwnership": "owned",
+    "blockId": "A",
+    "developmentTier": "starter"
+  },
+  {
+    "id": "field_2",
+    "name": "U rybníka",
+    "purchasePrice": 1360000,
+    "leasePrice": 204000,
+    "area": 340,
+    "fertility": 80,
+    "initialOwnership": "available",
+    "blockId": "A",
+    "developmentTier": "starter"
+  },
+  {
+    "id": "field_3",
+    "name": "Přední svah",
+    "purchasePrice": 2464000,
+    "leasePrice": 369600,
+    "area": 616,
+    "fertility": 82,
+    "initialOwnership": "available",
+    "blockId": "A",
+    "developmentTier": "starter"
+  },
+  {
+    "id": "field_4",
+    "name": "Východní lán",
+    "purchasePrice": 1440000,
+    "leasePrice": 216000,
+    "area": 360,
+    "fertility": 78,
+    "initialOwnership": "available",
+    "blockId": "A",
+    "developmentTier": "starter"
+  },
+  {
+    "id": "field_5",
+    "name": "B-01 Horní lán",
+    "purchasePrice": 22464000,
+    "leasePrice": 3369600,
+    "area": 2496,
+    "fertility": 82,
+    "initialOwnership": "available",
+    "blockId": "B",
+    "developmentTier": "mid"
+  },
+  {
+    "id": "field_6",
+    "name": "B-01 Dolní lán",
+    "purchasePrice": 17280000,
+    "leasePrice": 2592000,
+    "area": 1920,
+    "fertility": 88,
+    "initialOwnership": "available",
+    "blockId": "B",
+    "developmentTier": "mid"
+  },
+  {
+    "id": "field_7",
+    "name": "B-02 Údolní pole",
+    "purchasePrice": 17784000,
+    "leasePrice": 2667600,
+    "area": 1976,
+    "fertility": 80,
+    "initialOwnership": "available",
+    "blockId": "B",
+    "developmentTier": "mid"
+  },
+  {
+    "id": "field_8",
+    "name": "B-03 U cesty",
+    "purchasePrice": 17388000,
+    "leasePrice": 2608200,
+    "area": 1932,
+    "fertility": 76,
+    "initialOwnership": "available",
+    "blockId": "B",
+    "developmentTier": "mid"
+  },
+  {
+    "id": "field_9",
+    "name": "C-01 Přes údolí",
+    "purchasePrice": 18240000,
+    "leasePrice": 2736000,
+    "area": 1216,
+    "fertility": 84,
+    "initialOwnership": "available",
+    "blockId": "C",
+    "developmentTier": "late"
+  }
+]

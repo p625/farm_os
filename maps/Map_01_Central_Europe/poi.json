@@ -1,0 +1,49 @@
+[
+  {
+    "id": "poi_tractor_spawn",
+    "name": "Tractor Home",
+    "kind": "spawn",
+    "position": {
+      "x": 0,
+      "z": -1040
+    },
+    "properties": {
+      "entity": "tractor"
+    }
+  },
+  {
+    "id": "poi_hero_view_farm",
+    "name": "Hero View — CM-01",
+    "kind": "camera_moment",
+    "position": {
+      "x": 0,
+      "z": -1120
+    },
+    "properties": {
+      "viewId": "CM-01",
+      "label": "Moje farma"
+    }
+  },
+  {
+    "id": "poi_hero_view_panorama",
+    "name": "Hero View — CM-02",
+    "kind": "camera_moment",
+    "position": {
+      "x": 0,
+      "z": -1080
+    },
+    "properties": {
+      "viewId": "CM-02",
+      "label": "Panorama"
+    }
+  },
+  {
+    "id": "poi_bridge",
+    "name": "Most přes řeku",
+    "kind": "landmark",
+    "position": {
+      "x": 0,
+      "z": 460
+    }
+  }
+]

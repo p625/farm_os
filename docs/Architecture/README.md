@@ -27,6 +27,7 @@
 | [012_Phase16B_GpsAutowork.md](./012_Phase16B_GpsAutowork.md) | Specification | Phase 16B GPS Autowork |
 | [013_Phase16C_WorkOrders.md](./013_Phase16C_WorkOrders.md) | Specification | Phase 16C Work Orders |
 | [014_Phase16D_BlockWorkOrders.md](./014_Phase16D_BlockWorkOrders.md) | Specification | Phase 16D Block Work Orders |
+| [015_Phase17_GameFramework.md](./015_Phase17_GameFramework.md) | Specification | Phase 17 Game Framework (planning) |
 
 ## Change Policy
 

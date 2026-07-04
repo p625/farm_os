@@ -1,4 +1,4 @@
-import { FIELD_CATALOG, getFieldCatalogEntry } from '@/config/field-catalog.ts'
+import { getFieldCatalog, getFieldCatalogEntry } from '@/config/field-catalog.ts'
 import {
   applyCropCareAction,
   CropCareAction,
@@ -17,7 +17,7 @@ import type { FieldLifecycleState } from '@/types/field.ts'
 import { FieldLifecycleState as States } from '@/types/field.ts'
 import { GameSystem } from './GameSystem.ts'
 
-const SECONDS_PER_DAY = 1
+import type { SimulationClock } from '@game/SimulationClock.ts'
 
 export class FieldSystem extends GameSystem {
   readonly name = 'FieldSystem'
@@ -29,9 +29,9 @@ export class FieldSystem extends GameSystem {
   private marketSystem: MarketSystem | null = null
   private selectedFieldId: string | null = null
   private selectedFieldIds = new Set<string>()
-  private dayTimer = 0
   private onChange: (() => void) | null = null
   private eventLog: GameEventLog | null = null
+  private removeDayListener: (() => void) | null = null
 
   constructor(world: World) {
     super()
@@ -54,6 +54,13 @@ export class FieldSystem extends GameSystem {
     this.marketSystem = marketSystem
   }
 
+  setSimulationClock(clock: SimulationClock): void {
+    this.removeDayListener?.()
+    this.removeDayListener = clock.addOnDayAdvanced(() => {
+      this.advanceDay()
+    })
+  }
+
   setEventLog(eventLog: GameEventLog): void {
     this.eventLog = eventLog
   }
@@ -64,12 +71,11 @@ export class FieldSystem extends GameSystem {
 
   initialize(): void {
     this.fields.clear()
-    for (const definition of FIELD_CATALOG) {
+    for (const definition of getFieldCatalog()) {
       this.fields.set(definition.id, new Field(definition.id, definition.name))
     }
     this.selectedFieldId = 'field_1'
     this.selectedFieldIds = new Set(['field_1'])
-    this.dayTimer = 0
     this.notifyChange()
   }
 
@@ -118,7 +124,6 @@ export class FieldSystem extends GameSystem {
       this.selectedFieldIds = new Set([selectedFieldId])
     }
 
-    this.dayTimer = 0
     this.notifyChange()
   }
 
@@ -126,17 +131,8 @@ export class FieldSystem extends GameSystem {
     return this.getFields().map((field) => field.toSnapshot())
   }
 
-  update(deltaTime: number): void {
-    if (this.world.gameSpeed <= 0) {
-      return
-    }
-
-    this.dayTimer += deltaTime * this.world.gameSpeed
-
-    while (this.dayTimer >= SECONDS_PER_DAY) {
-      this.dayTimer -= SECONDS_PER_DAY
-      this.advanceDay()
-    }
+  update(_deltaTime: number): void {
+    // Day advancement is driven by SimulationClock.
   }
 
   getFields(): readonly Field[] {
@@ -152,7 +148,8 @@ export class FieldSystem extends GameSystem {
   }
 
   getSelectedFieldIds(): readonly string[] {
-    const order = new Map(FIELD_CATALOG.map((entry, index) => [entry.id, index]))
+    const catalog = getFieldCatalog()
+    const order = new Map(catalog.map((entry, index) => [entry.id, index]))
     return [...this.selectedFieldIds].sort(
       (left, right) => (order.get(left) ?? 0) - (order.get(right) ?? 0),
     )
@@ -397,6 +394,8 @@ export class FieldSystem extends GameSystem {
   }
 
   dispose(): void {
+    this.removeDayListener?.()
+    this.removeDayListener = null
     this.fields.clear()
     this.onChange = null
     this.eventLog = null

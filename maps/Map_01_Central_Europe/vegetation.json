@@ -1,0 +1,114 @@
+[
+  {
+    "id": "forest_north_ridge",
+    "name": "Les — severní hřeben",
+    "vegetationType": "tree_tall_wide",
+    "bounds": {
+      "minX": -1700,
+      "maxX": 1700,
+      "minZ": 1650,
+      "maxZ": 1950
+    },
+    "densityPerSqM": 0.00012,
+    "seed": 11,
+    "category": "forest"
+  },
+  {
+    "id": "forest_west_slope",
+    "name": "Les — západní svah",
+    "vegetationType": "tree_tall_narrow",
+    "bounds": {
+      "minX": -1950,
+      "maxX": -1200,
+      "minZ": -400,
+      "maxZ": 1400
+    },
+    "densityPerSqM": 0.0001,
+    "seed": 23,
+    "category": "forest"
+  },
+  {
+    "id": "forest_east_edge",
+    "name": "Les — východní okraj",
+    "vegetationType": "tree_medium_wide",
+    "bounds": {
+      "minX": 1200,
+      "maxX": 1950,
+      "minZ": 200,
+      "maxZ": 1600
+    },
+    "densityPerSqM": 0.00009,
+    "seed": 37,
+    "category": "forest"
+  },
+  {
+    "id": "hedgerow_a_b",
+    "name": "Remízek A–B",
+    "vegetationType": "shrub_medium_wide",
+    "bounds": {
+      "minX": -40,
+      "maxX": 200,
+      "minZ": -620,
+      "maxZ": -480
+    },
+    "densityPerSqM": 0.00035,
+    "seed": 41,
+    "category": "hedgerow"
+  },
+  {
+    "id": "hedgerow_b_river",
+    "name": "Remízek B–řeka",
+    "vegetationType": "shrub_low_wide",
+    "bounds": {
+      "minX": -500,
+      "maxX": 100,
+      "minZ": 280,
+      "maxZ": 420
+    },
+    "densityPerSqM": 0.0003,
+    "seed": 43,
+    "category": "hedgerow"
+  },
+  {
+    "id": "alley_primary",
+    "name": "Alej podél primary",
+    "vegetationType": "tree_medium_narrow",
+    "bounds": {
+      "minX": -30,
+      "maxX": 30,
+      "minZ": -800,
+      "maxZ": 1400
+    },
+    "densityPerSqM": 0.0005,
+    "seed": 51,
+    "category": "alley"
+  },
+  {
+    "id": "solitary_farm",
+    "name": "Solitérní stromy u farmy",
+    "vegetationType": "tree_tall_narrow",
+    "bounds": {
+      "minX": -300,
+      "maxX": 400,
+      "minZ": -1250,
+      "maxZ": -900
+    },
+    "densityPerSqM": 0.00004,
+    "seed": 61,
+    "category": "solitary"
+  },
+  {
+    "id": "conifer_patch_east",
+    "name": "Jehličnatý pás",
+    "vegetationType": "tree_tall_narrow",
+    "bounds": {
+      "minX": 900,
+      "maxX": 1300,
+      "minZ": 900,
+      "maxZ": 1300
+    },
+    "densityPerSqM": 0.00014,
+    "seed": 71,
+    "category": "forest"
+  }
+]

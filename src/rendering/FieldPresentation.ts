@@ -8,17 +8,19 @@ import {
   type AbstractMesh,
   type Scene,
 } from '@babylonjs/core'
-import { FIELD_DEFINITIONS, FIELD_POSITIONS } from '@/config/farm-layout.ts'
-import { getFieldLayoutEntry } from '@/config/map-01-layout.ts'
-import { FIELD_IDS } from '@/config/field-catalog.ts'
+import {
+  getFieldDefinitions,
+  getFieldLayoutEntry,
+  getFieldPositions,
+} from '@/config/farm-layout.ts'
+import { resolveFieldIdFromMesh } from './resolveFieldMeshId.ts'
+import { getFieldIds } from '@/config/field-catalog.ts'
 import type { Field } from '@entities/Field.ts'
 import type { FieldSystem } from '@systems/FieldSystem.ts'
 import type { CropSystem } from '@systems/CropSystem.ts'
 import type { OwnershipSystem } from '@systems/OwnershipSystem.ts'
 import { getFieldVisualStyle } from './appearance/FieldAppearance.ts'
 import { FieldLifecycleState as States } from '@/types/field.ts'
-
-const FIELD_MESH_IDS = FIELD_IDS
 
 const HOVER_EMISSIVE = new Color3(0.1, 0.14, 0.05)
 const SELECT_EMISSIVE = new Color3(0.28, 0.36, 0.12)
@@ -29,7 +31,6 @@ export class FieldPresentation {
   private cropSystem: CropSystem | null = null
   private hoveredFieldId: string | null = null
   private onVisualChange: (() => void) | null = null
-  private onFieldSelected: ((fieldId: string) => void) | null = null
   private pointerObserver: ReturnType<Scene['onPointerObservable']['add']> | null =
     null
 
@@ -39,10 +40,6 @@ export class FieldPresentation {
 
   setOnVisualChange(listener: () => void): void {
     this.onVisualChange = listener
-  }
-
-  setOnFieldSelected(listener: (fieldId: string) => void): void {
-    this.onFieldSelected = listener
   }
 
   attach(scene: Scene, fieldSystem: FieldSystem): void {
@@ -55,31 +52,6 @@ export class FieldPresentation {
     this.pointerObserver = scene.onPointerObservable.add((pointerInfo) => {
       if (pointerInfo.type === PointerEventTypes.POINTERMOVE) {
         this.updateHover(pointerInfo.pickInfo?.pickedMesh ?? null)
-        return
-      }
-
-      if (pointerInfo.type !== PointerEventTypes.POINTERDOWN) {
-        return
-      }
-
-      const event = pointerInfo.event as PointerEvent
-      if (event.button !== 0) {
-        return
-      }
-
-      const pick = pointerInfo.pickInfo
-      if (!pick?.hit || !pick.pickedMesh) {
-        return
-      }
-
-      const fieldId = this.resolveFieldId(pick.pickedMesh)
-      if (fieldId) {
-        if (this.onFieldSelected) {
-          this.onFieldSelected(fieldId)
-        } else {
-          this.fieldSystem?.selectField(fieldId)
-        }
-        this.syncSelectionOverlay()
       }
     })
   }
@@ -89,8 +61,10 @@ export class FieldPresentation {
       return
     }
 
-    for (const meshId of FIELD_MESH_IDS) {
-      const mesh = this.scene.getMeshByName(meshId)
+    for (const meshId of getFieldIds()) {
+      const mesh =
+        this.scene.getMeshByName(meshId) ??
+        this.scene.getMeshByName(`studio_${meshId}`)
       const field = this.fieldSystem.getField(meshId)
       if (!mesh?.material || !field) {
         continue
@@ -115,8 +89,10 @@ export class FieldPresentation {
 
     const selectedIds = this.fieldSystem.getSelectedFieldIds()
 
-    for (const meshId of FIELD_MESH_IDS) {
-      const mesh = this.scene.getMeshByName(meshId)
+    for (const meshId of getFieldIds()) {
+      const mesh =
+        this.scene.getMeshByName(meshId) ??
+        this.scene.getMeshByName(`studio_${meshId}`)
       const field = this.fieldSystem.getField(meshId)
       if (!mesh?.material || !field) {
         continue
@@ -178,13 +154,7 @@ export class FieldPresentation {
   }
 
   private resolveFieldId(mesh: AbstractMesh): string | null {
-    if (FIELD_MESH_IDS.includes(mesh.name)) {
-      return mesh.name
-    }
-    if (mesh.parent && FIELD_MESH_IDS.includes(mesh.parent.name)) {
-      return mesh.parent.name
-    }
-    return null
+    return resolveFieldIdFromMesh(mesh)
   }
 }
 
@@ -220,7 +190,7 @@ export class FieldOverlayPresentation {
     const selectedId = this.fieldSystem.getSelectedFieldId()
     const hoveredId = this.fieldPresentation.getHoveredFieldId()
 
-    for (const definition of FIELD_DEFINITIONS) {
+    for (const definition of getFieldDefinitions()) {
       const field = this.fieldSystem.getField(definition.id)
       if (!field) {
         continue
@@ -242,7 +212,7 @@ export class FieldOverlayPresentation {
       return
     }
 
-    for (const definition of FIELD_DEFINITIONS) {
+    for (const definition of getFieldDefinitions()) {
       this.scene.getMeshByName(`field_label_${definition.id}`)?.dispose()
       this.scene.getMeshByName(`field_growth_bg_${definition.id}`)?.dispose()
       this.scene.getMeshByName(`field_growth_fill_${definition.id}`)?.dispose()
@@ -279,8 +249,8 @@ export class FieldOverlayPresentation {
       return
     }
 
-    for (const definition of FIELD_DEFINITIONS) {
-      const position = FIELD_POSITIONS[definition.id]
+    for (const definition of getFieldDefinitions()) {
+      const position = getFieldPositions()[definition.id]
       if (!position) {
         continue
       }
@@ -395,7 +365,7 @@ export class FieldOverlayPresentation {
   private updateGrowthOverlay(fieldId: string, field: Field): void {
     const bg = this.scene?.getMeshByName(`field_growth_bg_${fieldId}`)
     const fill = this.scene?.getMeshByName(`field_growth_fill_${fieldId}`)
-    const position = FIELD_POSITIONS[fieldId]
+    const position = getFieldPositions()[fieldId]
     const layout = getFieldLayoutEntry(fieldId)
     if (!bg || !fill || !position) {
       return

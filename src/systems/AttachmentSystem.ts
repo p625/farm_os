@@ -11,8 +11,9 @@ import {
 import {
   ATTACHMENT_SLOT_OFFSETS,
   DETACH_OFFSET,
-  EQUIPMENT_YARD_SPAWN_POSITIONS,
+  getEquipmentYardSpawnPositions,
 } from '@/config/farm-layout.ts'
+import { getGroundedPosition, groundSavedPosition } from '@/maps/grounding.ts'
 import {
   AttachmentId,
   AttachmentLifecycleState,
@@ -96,11 +97,12 @@ export class AttachmentSystem extends GameSystem {
         continue
       }
 
-      const yardPosition = EQUIPMENT_YARD_SPAWN_POSITIONS[spawn.id] ?? {
+      const yardPosition = getEquipmentYardSpawnPositions()[spawn.id] ?? {
         x: 16,
         y: 0,
         z: 18,
       }
+      const grounded = getGroundedPosition(yardPosition.x, yardPosition.z)
 
       this.attachments.set(spawn.id, {
         id: spawn.id,
@@ -108,7 +110,7 @@ export class AttachmentSystem extends GameSystem {
         attachmentType: catalog.attachmentType,
         lifecycleState: AttachmentLifecycleState.Detached,
         workPosition: AttachmentWorkPosition.Transport,
-        position: { ...yardPosition },
+        position: { ...grounded },
         rotationY: 0,
         mountedOn: null,
         cargo: this.createCargoForCatalog(catalog.id, catalog.attachmentType),
@@ -154,11 +156,12 @@ export class AttachmentSystem extends GameSystem {
         continue
       }
 
-      const yardPosition = EQUIPMENT_YARD_SPAWN_POSITIONS[spawn.id] ?? {
+      const yardPosition = getEquipmentYardSpawnPositions()[spawn.id] ?? {
         x: 16,
         y: 0,
         z: 18,
       }
+      const grounded = getGroundedPosition(yardPosition.x, yardPosition.z)
 
       this.attachments.set(spawn.id, {
         id: spawn.id,
@@ -166,7 +169,7 @@ export class AttachmentSystem extends GameSystem {
         attachmentType: catalog.attachmentType,
         lifecycleState: AttachmentLifecycleState.Detached,
         workPosition: AttachmentWorkPosition.Transport,
-        position: { ...yardPosition },
+        position: { ...grounded },
         rotationY: 0,
         mountedOn: null,
         cargo: this.createCargoForCatalog(catalog.id, catalog.attachmentType),
@@ -437,12 +440,12 @@ export class AttachmentSystem extends GameSystem {
       attachment.position = this.computeDetachPosition(machineTransform)
       attachment.rotationY = machineTransform.rotationY
     } else {
-      const yardPosition = EQUIPMENT_YARD_SPAWN_POSITIONS[attachmentId] ?? {
+      const yardPosition = getEquipmentYardSpawnPositions()[attachmentId] ?? {
         x: 16,
         y: 0,
         z: 18,
       }
-      attachment.position = { ...yardPosition }
+      attachment.position = getGroundedPosition(yardPosition.x, yardPosition.z)
       attachment.rotationY = 0
     }
 
@@ -607,12 +610,12 @@ export class AttachmentSystem extends GameSystem {
   }
 
   private placeAtYard(attachment: AttachmentEntity): void {
-    const yardPosition = EQUIPMENT_YARD_SPAWN_POSITIONS[attachment.id] ?? {
+    const yardPosition = getEquipmentYardSpawnPositions()[attachment.id] ?? {
       x: 16,
       y: 0,
       z: 18,
     }
-    attachment.position = { ...yardPosition }
+    attachment.position = getGroundedPosition(yardPosition.x, yardPosition.z)
     attachment.rotationY = 0
   }
 
@@ -649,8 +652,11 @@ export class AttachmentSystem extends GameSystem {
       typeof item.position.x === 'number' &&
       typeof item.position.y === 'number' &&
       typeof item.position.z === 'number'
-        ? item.position
-        : (EQUIPMENT_YARD_SPAWN_POSITIONS[id] ?? { x: 16, y: 0, z: 18 })
+        ? groundSavedPosition(item.position)
+        : getGroundedPosition(
+            (getEquipmentYardSpawnPositions()[id] ?? { x: 16, z: 18 }).x,
+            (getEquipmentYardSpawnPositions()[id] ?? { x: 16, z: 18 }).z,
+          )
 
     const rotationY =
       typeof item.rotationY === 'number' ? item.rotationY : 0

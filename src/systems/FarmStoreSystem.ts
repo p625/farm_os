@@ -10,6 +10,7 @@ import {
 import {
   findOpenDeliverySlot,
 } from '@/config/delivery-zone-catalog.ts'
+import { getGroundedPosition } from '@/maps/grounding.ts'
 import {
   DeliveryStatus,
   type AttachmentDeliveryFulfillment,
@@ -199,7 +200,7 @@ export class FarmStoreSystem {
       kind: 'machine',
       machineTemplateId: product.fulfillment.machineTemplateId,
       machineInstanceId: '',
-      position: { x: slot.x, y: slot.y, z: slot.z },
+      position: getGroundedPosition(slot.x, slot.z),
       rotationY: slot.rotationY,
     }
 
@@ -228,7 +229,7 @@ export class FarmStoreSystem {
       kind: 'attachment',
       attachmentCatalogId: product.fulfillment.attachmentCatalogId,
       attachmentInstanceId: product.fulfillment.attachmentInstanceId,
-      position: { x: slot.x, y: slot.y, z: slot.z },
+      position: getGroundedPosition(slot.x, slot.z),
       rotationY: slot.rotationY,
     }
 

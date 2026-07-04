@@ -9,6 +9,7 @@ export const STUDIO_LAYER_IDS = [
   'vegetation',
   'buildings',
   'water',
+  'vehicles',
   'poi',
   'debug',
 ] as const

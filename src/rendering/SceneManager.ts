@@ -1,8 +1,13 @@
-import { Engine, Scene } from '@babylonjs/core'
+import type { Engine, Scene } from '@babylonjs/core'
+import { Scene as BabylonScene } from '@babylonjs/core'
 import type { GameConfig } from '@/types/index.ts'
 import { DEFAULT_GAME_CONFIG } from '@/types/index.ts'
 import type { IDisposable } from '@/types/index.ts'
 import { FarmSceneBuilder } from './FarmSceneBuilder.ts'
+import {
+  createWebGLEngine,
+  scheduleCanvasWebGLRelease,
+} from './webgl-bootstrap.ts'
 
 export class SceneManager implements IDisposable {
   private engine: Engine | null = null
@@ -29,10 +34,17 @@ export class SceneManager implements IDisposable {
       return
     }
 
-    this.engine = new Engine(this.canvas, this.config.antialias ?? true, {
+    this.engine = await createWebGLEngine(this.canvas, {
+      antialias: this.config.antialias ?? true,
       adaptToDeviceRatio: this.config.adaptToDeviceRatio ?? true,
     })
-    this.scene = new Scene(this.engine)
+    if (this.disposed) {
+      this.engine.dispose()
+      this.engine = null
+      return
+    }
+
+    this.scene = new BabylonScene(this.engine)
 
     this.farmSceneBuilder.build(this.scene)
 
@@ -78,6 +90,7 @@ export class SceneManager implements IDisposable {
     window.removeEventListener('resize', this.onResize)
     this.scene?.dispose()
     this.engine?.dispose()
+    scheduleCanvasWebGLRelease(this.canvas)
     this.scene = null
     this.engine = null
     this.initialized = false

@@ -1,5 +1,4 @@
-import { getFieldAreaWorkScale } from '@/config/farm-layout.ts'
-import { getFieldCatalogEntry } from '@/config/field-catalog.ts'
+import { getScaledCropCareWorkDurationSimSeconds } from '@/config/time-balance.ts'
 import { CropCareAction, type CropCareAction as CropCareActionValue } from '@/types/crop-care-action.ts'
 import type { FieldCropCare } from '@/types/crop-care.ts'
 /** Reference fertility (percent) for condition baseline mapping. */
@@ -22,8 +21,8 @@ export const CROP_CARE_YIELD = {
 } as const
 
 export const CROP_CARE_WORK_DURATION = {
-  [CropCareAction.Fertilize]: 1.3,
-  [CropCareAction.Spray]: 1.4,
+  [CropCareAction.Fertilize]: 4_800,
+  [CropCareAction.Spray]: 5_200,
 } as const
 
 export function getFertilityYieldFactor(fertility: number): number {
@@ -78,7 +77,5 @@ export function getScaledCropCareWorkDuration(
   fieldId: string,
   shopMultiplier = 1,
 ): number {
-  const base = getCropCareWorkDurationBase(action)
-  const area = getFieldCatalogEntry(fieldId)?.area ?? 10
-  return base * getFieldAreaWorkScale(area) * shopMultiplier
+  return getScaledCropCareWorkDurationSimSeconds(action, fieldId, shopMultiplier)
 }

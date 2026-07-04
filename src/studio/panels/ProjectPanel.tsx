@@ -13,10 +13,42 @@ export function ProjectPanel({ store }: ProjectPanelProps) {
     <div className="studio-panel studio-panel--project">
       <h2 className="studio-panel__title">Project</h2>
       <dl className="studio-kv">
-        <dt>Map</dt>
-        <dd>{map.name}</dd>
-        <dt>ID</dt>
-        <dd className="studio-kv__mono">{map.id}</dd>
+        <dt>Map name</dt>
+        <dd>
+          <input
+            className="studio-input"
+            type="text"
+            maxLength={80}
+            value={map.name}
+            onChange={(event) => {
+              store.updateMapMetadata({ name: event.target.value })
+            }}
+          />
+        </dd>
+        <dt>Map ID</dt>
+        <dd>
+          <input
+            className="studio-input studio-kv__mono"
+            type="text"
+            maxLength={48}
+            value={map.id}
+            onChange={(event) => {
+              store.updateMapMetadata({ id: event.target.value })
+            }}
+          />
+        </dd>
+        <dt>Description</dt>
+        <dd>
+          <input
+            className="studio-input"
+            type="text"
+            maxLength={160}
+            value={map.meta.description ?? ''}
+            onChange={(event) => {
+              store.updateMapMetadata({ description: event.target.value })
+            }}
+          />
+        </dd>
         <dt>Objects</dt>
         <dd>{map.objects.length}</dd>
         <dt>Terrain</dt>

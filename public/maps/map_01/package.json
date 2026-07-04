@@ -1,0 +1,15 @@
+{
+  "packageFormatVersion": 1,
+  "id": "map_01",
+  "name": "Map 01 — Central Europe",
+  "version": "1.0.0",
+  "author": "FarmOS",
+  "description": "Central European starter farm with blocks A, B, and C.",
+  "source": "official",
+  "fieldCount": 9,
+  "blockIds": [
+    "A",
+    "B",
+    "C"
+  ]
+}

@@ -11,6 +11,7 @@ import { STUDIO_ROAD_POINT_KEY, type StudioRoadPointMetadata } from '@/studio/io
 import type { MapSceneBuilder } from '@/studio/io/MapSceneBuilder.ts'
 import type { StudioStore } from '@/studio/core/StudioStore.ts'
 import { getRoadKind, getRoadPoints } from '@/studio/road/roadObject.ts'
+import { resolveDraftExtension } from '@/studio/road/RoadExtension.ts'
 import {
   createJunctionHandleMesh,
   pickRoadPlacementPoint,
@@ -88,9 +89,23 @@ export class StudioRoadEditor {
       this.deps.mapSceneBuilder.disposeRoadDraftMesh(scene)
       return
     }
+
+    const map = this.deps.store.getMap()
+    const extension = resolveDraftExtension(map, roadDraft)
+    if (extension && extension.points.length >= 2) {
+      this.deps.mapSceneBuilder.disposeRoadDraftMesh(scene)
+      this.deps.mapSceneBuilder.refreshRoadMesh(
+        scene,
+        map,
+        extension.anchorId,
+        extension.points,
+      )
+      return
+    }
+
     this.deps.mapSceneBuilder.refreshRoadDraftMesh(
       scene,
-      this.deps.store.getMap(),
+      map,
       roadDraft.points,
       roadDraft.roadKind,
     )
@@ -182,6 +197,7 @@ export class StudioRoadEditor {
       const snapped = this.deps.mapSceneBuilder.snapRoadPoints(
         this.deps.store.getMap(),
         points,
+        getRoadKind(object) ?? undefined,
       )
       addHandles(object.id, snapped, false)
     }
@@ -190,6 +206,7 @@ export class StudioRoadEditor {
       const draftSnapped = this.deps.mapSceneBuilder.snapRoadPoints(
         this.deps.store.getMap(),
         snapshot.roadDraft.points,
+        snapshot.roadDraft.roadKind,
       )
       addHandles(DRAFT_ROAD_ID, draftSnapped, true)
     }

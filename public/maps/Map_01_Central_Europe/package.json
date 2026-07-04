@@ -1,0 +1,18 @@
+{
+  "packageFormatVersion": 1,
+  "id": "map_01_central_europe",
+  "name": "Map 01 — Central Europe",
+  "version": "1.0.0",
+  "author": "FarmOS World Director",
+  "description": "Produkční blockout — středoevropská kotlinová krajina, farma na návrší, údolí řeky, vesnice na hřebeni.",
+  "source": "official",
+  "fieldCount": 9,
+  "blockIds": [
+    "A",
+    "B",
+    "C"
+  ],
+  "createdAt": "2026-07-04T16:35:19.721Z",
+  "updatedAt": "2026-07-04T16:35:19.721Z",
+  "worldMapFile": "Map_01_Central_Europe.farmos-map.json"
+}

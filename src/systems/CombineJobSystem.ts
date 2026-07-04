@@ -1,12 +1,13 @@
 import {
-  CORN_COMBINE_HOME,
-  CORN_COMBINE_HOME_ROTATION_Y,
-  FIELD_POSITIONS,
+  getCornCombineHome,
+  getCornCombineHomeRotationY,
+  getFieldPositions,
+  getGrainCombineHome,
+  getGrainCombineHomeRotationY,
   getScaledFieldWorkDuration,
-  GRAIN_COMBINE_HOME,
-  GRAIN_COMBINE_HOME_ROTATION_Y,
   TRACTOR_MOVE_SPEED,
 } from '@/config/farm-layout.ts'
+import { getGroundedPosition, getTerrainHeightAt } from '@/maps/grounding.ts'
 import { MachineCapability, MachineId, type MachineCommand } from '@/types/machine.ts'
 import type { IMachineController } from '@/types/machine-controller.ts'
 import type { MachineSaveData } from '@/types/save.ts'
@@ -58,7 +59,6 @@ export class CombineJobSystem extends GameSystem implements IMachineController {
   readonly name: string
   readonly machineId: MachineId
   private readonly fieldSystem: FieldSystem
-  private readonly home: CombineHome
   private cropSystem: CropSystem | null = null
   private farmShopSystem: FarmShopSystem | null = null
   private capabilityResolver: MachineCapabilityResolver | null = null
@@ -85,11 +85,11 @@ export class CombineJobSystem extends GameSystem implements IMachineController {
     super()
     this.fieldSystem = fieldSystem
     this.machineId = machineId
-    this.home = home
     this.name = systemName
-    this.position = { ...home.position }
+    const grounded = getGroundedPosition(home.position.x, home.position.z)
+    this.position = { ...grounded }
     this.rotationY = home.rotationY
-    this.moveTarget = { ...home.position }
+    this.moveTarget = { ...grounded }
     this.grainBin = new GrainBin()
   }
 
@@ -130,23 +130,45 @@ export class CombineJobSystem extends GameSystem implements IMachineController {
   }
 
   initialize(): void {
+    const home = this.resolveMapHome()
     this.state = TractorState.Idle
-    this.position = { ...this.home.position }
-    this.rotationY = this.home.rotationY
+    this.position = { ...home.position }
+    this.rotationY = home.rotationY
     this.activeCommand = null
-    this.moveTarget = { ...this.home.position }
+    this.moveTarget = { ...home.position }
     this.activeWork = null
     this.workTimer = 0
     this.grainBin.restoreFromSave(undefined)
     this.notifyChange()
   }
 
+  private resolveMapHome(): CombineHome {
+    if (this.machineId === MachineId.GrainCombine1) {
+      const raw = getGrainCombineHome()
+      return {
+        position: getGroundedPosition(raw.x, raw.z),
+        rotationY: getGrainCombineHomeRotationY(),
+      }
+    }
+
+    const raw = getCornCombineHome()
+    return {
+      position: getGroundedPosition(raw.x, raw.z),
+      rotationY: getCornCombineHomeRotationY(),
+    }
+  }
+
   applySave(saved: MachineSaveData): void {
     this.state = isMachineState(saved.state) ? saved.state : TractorState.Idle
+    const grounded = getGroundedPosition(saved.position.x, saved.position.z)
+    const position =
+      Math.abs(saved.position.y - grounded.y) <= 1.5
+        ? saved.position
+        : grounded
     this.position = {
-      x: saved.position.x,
-      y: saved.position.y,
-      z: saved.position.z,
+      x: position.x,
+      y: position.y,
+      z: position.z,
     }
     this.rotationY = saved.rotationY
     this.activeCommand = saved.activeCommand
@@ -460,7 +482,7 @@ export class CombineJobSystem extends GameSystem implements IMachineController {
 
     this.position.x += (dx / distance) * step
     this.position.z += (dz / distance) * step
-    this.position.y = target.y
+    this.position.y = getTerrainHeightAt(this.position.x, this.position.z)
     this.rotationY = Math.atan2(dx, dz)
     return false
   }
@@ -476,8 +498,8 @@ export class GrainCombineJobSystem extends CombineJobSystem {
       fieldSystem,
       MachineId.GrainCombine1,
       {
-        position: { ...GRAIN_COMBINE_HOME },
-        rotationY: GRAIN_COMBINE_HOME_ROTATION_Y,
+        position: getGrainCombineHome(),
+        rotationY: getGrainCombineHomeRotationY(),
       },
       'GrainCombineJobSystem',
     )
@@ -490,8 +512,8 @@ export class CornCombineJobSystem extends CombineJobSystem {
       fieldSystem,
       MachineId.CornCombine1,
       {
-        position: { ...CORN_COMBINE_HOME },
-        rotationY: CORN_COMBINE_HOME_ROTATION_Y,
+        position: getCornCombineHome(),
+        rotationY: getCornCombineHomeRotationY(),
       },
       'CornCombineJobSystem',
     )
@@ -552,9 +574,11 @@ function resolveMoveTarget(
 
   switch (command.destination.kind) {
     case 'world':
-      return { x: command.destination.x, y: 0, z: command.destination.z }
-    case 'field':
-      return FIELD_POSITIONS[command.destination.fieldId] ?? { ...fallback }
+      return getGroundedPosition(command.destination.x, command.destination.z)
+    case 'field': {
+      const fieldPos = getFieldPositions()[command.destination.fieldId] ?? fallback
+      return getGroundedPosition(fieldPos.x, fieldPos.z)
+    }
     default:
       return { ...fallback }
   }

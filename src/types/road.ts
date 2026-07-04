@@ -13,6 +13,8 @@ export interface RoadPointJunction {
   roadKind: RoadKind
   /** merge = same kind / asphalt↔asphalt, full-width join; edge = stop at partner edge with overlap fill */
   join: 'merge' | 'edge'
+  /** Set when snapped to partner road start/end — enables road extension on commit */
+  anchorEndpoint?: 'start' | 'end'
 }
 
 export interface RoadControlPoint extends MapVec3 {
@@ -39,10 +41,15 @@ function parseJunction(value: unknown): RoadPointJunction | undefined {
   if (entry.join !== 'merge' && entry.join !== 'edge') {
     return undefined
   }
+  const anchorEndpoint =
+    entry.anchorEndpoint === 'start' || entry.anchorEndpoint === 'end'
+      ? entry.anchorEndpoint
+      : undefined
   return {
     roadId: entry.roadId,
     roadKind: entry.roadKind,
     join: entry.join,
+    ...(anchorEndpoint ? { anchorEndpoint } : {}),
   }
 }
 

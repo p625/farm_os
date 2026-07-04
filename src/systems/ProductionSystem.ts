@@ -19,7 +19,8 @@ import {
 import type { ProductionSaveData } from '@/types/save.ts'
 import { GameSystem } from './GameSystem.ts'
 
-const SECONDS_PER_DAY = 1
+import { SIMULATION_SECONDS_PER_DAY } from '@/types/simulation-clock.ts'
+import type { SimulationClock } from '@game/SimulationClock.ts'
 
 function createDefaultMillBuilding(): ProductionBuilding {
   return {
@@ -62,6 +63,7 @@ function isProductionBuildingState(
 export class ProductionSystem extends GameSystem {
   readonly name = 'ProductionSystem'
   private readonly world: World
+  private simulationClock: SimulationClock | null = null
   private readonly buildings = new Map<ProductionBuildingId, ProductionBuilding>()
   private readonly processedInventory = new Map<ProcessedProductId, number>()
   private inventorySystem: InventorySystem | null = null
@@ -99,6 +101,10 @@ export class ProductionSystem extends GameSystem {
     this.onChange = listener
   }
 
+  setSimulationClock(clock: SimulationClock): void {
+    this.simulationClock = clock
+  }
+
   initialize(): void {
     this.ensureDefaultState()
     this.notifyChange()
@@ -131,8 +137,8 @@ export class ProductionSystem extends GameSystem {
     return building
   }
 
-  update(deltaTime: number): void {
-    if (this.world.gameSpeed <= 0) {
+  update(simulationDeltaTime: number): void {
+    if (!this.simulationClock || this.simulationClock.isPaused()) {
       return
     }
 
@@ -142,8 +148,8 @@ export class ProductionSystem extends GameSystem {
     }
 
     const dayProgress =
-      (deltaTime * this.world.gameSpeed) /
-      SECONDS_PER_DAY /
+      simulationDeltaTime /
+      SIMULATION_SECONDS_PER_DAY /
       mill.queue.durationDays
     mill.queue.progress = Math.min(1, mill.queue.progress + dayProgress)
 

@@ -20,10 +20,13 @@ import {
   InteractionRadialActionKind,
 } from '@/types/interaction-point.ts'
 import { MachineRadialActionKind } from '@/types/machine.ts'
+import type { GameSessionConfig } from '@game/GameSession.ts'
 import './GameShell.css'
 import '@/studio/StudioShell.css'
 
 interface GameShellProps {
+  session: GameSessionConfig
+  onExit?: () => void
   onSwitchToStudio?: () => void
 }
 
@@ -35,10 +38,12 @@ interface PendingSeedWork {
   gpsScope: 'this_field' | 'selected_fields' | 'entire_block'
 }
 
-export function GameShell({ onSwitchToStudio }: GameShellProps) {
+export function GameShell({ session, onExit, onSwitchToStudio }: GameShellProps) {
   const shellRef = useRef<HTMLDivElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [game, setGame] = useState<Game | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [startError, setStartError] = useState<string | null>(null)
   const [pendingSeed, setPendingSeed] = useState<PendingSeedWork | null>(null)
 
   useEffect(() => {
@@ -67,22 +72,45 @@ export function GameShell({ onSwitchToStudio }: GameShellProps) {
     }
 
     let active = true
-    const gameInstance = new Game(canvas)
+    let gameInstance: Game | null = null
+    setLoading(true)
+    setStartError(null)
 
-    void gameInstance.start().then(() => {
-      if (active) {
-        setGame(gameInstance)
-      } else {
-        gameInstance.dispose()
+    const frame = requestAnimationFrame(() => {
+      if (!active || !canvasRef.current) {
+        return
       }
+
+      gameInstance = new Game(canvasRef.current)
+      void gameInstance
+        .start(session)
+        .then(() => {
+          if (active) {
+            setGame(gameInstance)
+            setLoading(false)
+          } else {
+            gameInstance?.dispose()
+          }
+        })
+        .catch((error: unknown) => {
+          if (active) {
+            setStartError(
+              error instanceof Error ? error.message : 'Failed to start game',
+            )
+            setLoading(false)
+            gameInstance?.dispose()
+          }
+        })
     })
 
     return () => {
       active = false
-      gameInstance.dispose()
+      cancelAnimationFrame(frame)
+      gameInstance?.dispose()
       setGame(null)
+      setLoading(false)
     }
-  }, [])
+  }, [session])
 
   const snapshot = useSyncExternalStore(
     (listener) => {
@@ -152,15 +180,45 @@ export function GameShell({ onSwitchToStudio }: GameShellProps) {
           event.preventDefault()
         }}
       />
-      {onSwitchToStudio ? (
-        <button
-          type="button"
-          className="game-mode-switch"
-          onClick={onSwitchToStudio}
-          title="Open FarmOS Studio (F10)"
-        >
-          Studio
-        </button>
+      {onSwitchToStudio || onExit ? (
+        <div className="game-shell__top-actions">
+          {onExit ? (
+            <button
+              type="button"
+              className="game-mode-switch"
+              onClick={() => {
+                game?.saveGame()
+                onExit()
+              }}
+              title="Return to main menu"
+            >
+              Menu
+            </button>
+          ) : null}
+          {onSwitchToStudio ? (
+            <button
+              type="button"
+              className="game-mode-switch"
+              onClick={onSwitchToStudio}
+              title="Open FarmOS Studio (F10)"
+            >
+              Studio
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+      {loading ? (
+        <div className="game-shell__loading">Loading farm…</div>
+      ) : null}
+      {startError ? (
+        <div className="game-shell__error">
+          <p>{startError}</p>
+          {onExit ? (
+            <button type="button" onClick={onExit}>
+              Back to menu
+            </button>
+          ) : null}
+        </div>
       ) : null}
       {game ? <GameHUD game={game} snapshot={snapshot} /> : null}
       {game && snapshot.fieldContextMenu ? (

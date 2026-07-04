@@ -37,7 +37,13 @@ export const STUDIO_LAYER_DEFINITIONS: readonly LayerDefinition[] = [
     id: 'buildings',
     label: 'Buildings',
     description: 'Structures and farm infrastructure',
-    editableInFuture: 'Building Editor (v0.7)',
+    editableInFuture: 'Building Editor (v0.8)',
+  },
+  {
+    id: 'vehicles',
+    label: 'Vehicles',
+    description: 'Machines, trailers, spawn anchors',
+    editableInFuture: 'Vehicle Editor (v0.9)',
   },
   {
     id: 'water',
@@ -47,15 +53,15 @@ export const STUDIO_LAYER_DEFINITIONS: readonly LayerDefinition[] = [
   },
   {
     id: 'poi',
-    label: 'POI',
-    description: 'Points of interest and spawns',
-    editableInFuture: 'POI module (v1.0)',
+    label: 'Scene Anchors',
+    description: 'Entry, spawn, parking, interaction points',
+    editableInFuture: 'Anchors via Building/Vehicle editors',
   },
   {
     id: 'debug',
     label: 'Debug',
     description: 'Development markers',
-    editableInFuture: 'Validation (v0.9)',
+    editableInFuture: 'Validation (v0.9) — active',
   },
 ] as const
 

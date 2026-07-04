@@ -2,13 +2,20 @@ import { useEffect, useRef, useState } from 'react'
 import { StudioEngine } from '@/studio/core/StudioEngine.ts'
 import { StudioStore } from '@/studio/core/StudioStore.ts'
 import { MapFileService } from '@/studio/io/MapFileService.ts'
-import { createLegacyPrototypeMap } from '@/studio/io/createLegacyPrototypeMap.ts'
+import { loadMap01BlockoutDocument } from '@/maps/map-01-blockout/loadMap01BlockoutDocument.ts'
 import { useStudioStore } from '@/studio/hooks/useStudioStore.ts'
 import { StudioToolbar } from '@/studio/panels/StudioToolbar.tsx'
 import { ProjectPanel } from '@/studio/panels/ProjectPanel.tsx'
 import { LayersPanel } from '@/studio/panels/LayersPanel.tsx'
 import { TerrainToolsPanel } from '@/studio/panels/TerrainToolsPanel.tsx'
 import { RoadToolsPanel } from '@/studio/panels/RoadToolsPanel.tsx'
+import { ParcelToolsPanel } from '@/studio/panels/ParcelToolsPanel.tsx'
+import { VegetationToolsPanel } from '@/studio/panels/VegetationToolsPanel.tsx'
+import { BuildingToolsPanel } from '@/studio/panels/BuildingToolsPanel.tsx'
+import { VehicleToolsPanel } from '@/studio/panels/VehicleToolsPanel.tsx'
+import { WaterToolsPanel } from '@/studio/panels/WaterToolsPanel.tsx'
+import { ValidationToolsPanel } from '@/studio/panels/ValidationToolsPanel.tsx'
+import { ExportToolsPanel } from '@/studio/panels/ExportToolsPanel.tsx'
 import { InspectorPanel } from '@/studio/panels/InspectorPanel.tsx'
 import { LogPanel } from '@/studio/panels/LogPanel.tsx'
 import './StudioShell.css'
@@ -18,8 +25,14 @@ interface StudioShellProps {
 }
 
 async function resolveInitialMap() {
+  const map01 = await MapFileService.tryFetch(
+    '/maps/Map_01_Central_Europe/Map_01_Central_Europe.farmos-map.json',
+  )
+  if (map01) {
+    return map01
+  }
   const fromFile = await MapFileService.tryFetch('/maps/default.farmos-map.json')
-  return fromFile ?? createLegacyPrototypeMap()
+  return fromFile ?? loadMap01BlockoutDocument()
 }
 
 export function StudioShell({ onSwitchToGame }: StudioShellProps) {
@@ -54,6 +67,7 @@ export function StudioShell({ onSwitchToGame }: StudioShellProps) {
 
     let active = true
     let engine: StudioEngine | null = null
+    let startFrame = 0
 
     const resizeEngine = () => {
       engineRef.current?.resize()
@@ -70,21 +84,33 @@ export function StudioShell({ onSwitchToGame }: StudioShellProps) {
       resizeObserver?.observe(viewport)
     }
 
-    void (async () => {
-      const map = await resolveInitialMap()
-      if (!active) {
+    startFrame = requestAnimationFrame(() => {
+      if (!active || !canvasRef.current) {
         return
       }
-      const studioStore = new StudioStore(map)
-      engine = new StudioEngine(canvas, studioStore)
-      engineRef.current = engine
-      setStore(studioStore)
-      await engine.start()
-      resizeEngine()
-    })()
+
+      void (async () => {
+        const map = await resolveInitialMap()
+        if (!active || !canvasRef.current) {
+          return
+        }
+        const studioStore = new StudioStore(map)
+        engine = new StudioEngine(canvasRef.current, studioStore)
+        engineRef.current = engine
+        setStore(studioStore)
+        await engine.start()
+        if (!active) {
+          engine.dispose()
+          engineRef.current = null
+          return
+        }
+        resizeEngine()
+      })()
+    })
 
     return () => {
       active = false
+      cancelAnimationFrame(startFrame)
       resizeObserver?.disconnect()
       const running = engineRef.current
       engineRef.current = null
@@ -131,6 +157,73 @@ export function StudioShell({ onSwitchToGame }: StudioShellProps) {
         return
       }
 
+      if (snapshot.activeModuleId === 'parcels') {
+        if (event.key === 'Escape' && snapshot.parcelDraft) {
+          event.preventDefault()
+          store?.cancelParcelDraft()
+          engineRef.current?.refreshMap()
+          return
+        }
+        if (
+          (event.key === 'Delete' || event.key === 'Backspace') &&
+          !inTextField
+        ) {
+          event.preventDefault()
+          engineRef.current?.deleteSelectedParcel()
+        }
+        return
+      }
+
+      if (snapshot.activeModuleId === 'vegetation') {
+        if (
+          (event.key === 'Delete' || event.key === 'Backspace') &&
+          !inTextField
+        ) {
+          event.preventDefault()
+          engineRef.current?.deleteSelectedVegetation()
+        }
+        return
+      }
+
+      if (snapshot.activeModuleId === 'buildings') {
+        if (
+          (event.key === 'Delete' || event.key === 'Backspace') &&
+          !inTextField
+        ) {
+          event.preventDefault()
+          engineRef.current?.deleteSelectedBuilding()
+        }
+        return
+      }
+
+      if (snapshot.activeModuleId === 'vehicles') {
+        if (
+          (event.key === 'Delete' || event.key === 'Backspace') &&
+          !inTextField
+        ) {
+          event.preventDefault()
+          engineRef.current?.deleteSelectedVehicle()
+        }
+        return
+      }
+
+      if (snapshot.activeModuleId === 'water') {
+        if (event.key === 'Escape' && snapshot.waterSplineDraft) {
+          event.preventDefault()
+          store?.cancelWaterSplineDraft()
+          engineRef.current?.refreshMap()
+          return
+        }
+        if (
+          (event.key === 'Delete' || event.key === 'Backspace') &&
+          !inTextField
+        ) {
+          event.preventDefault()
+          engineRef.current?.deleteSelectedWater()
+        }
+        return
+      }
+
       if (event.key !== 'Delete' && event.key !== 'Backspace') {
         return
       }
@@ -144,7 +237,7 @@ export function StudioShell({ onSwitchToGame }: StudioShellProps) {
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [onSwitchToGame, snapshot.activeModuleId, snapshot.roadDraft, snapshot.roadSelection, store])
+  }, [onSwitchToGame, snapshot.activeModuleId, snapshot.roadDraft, snapshot.roadSelection, snapshot.parcelDraft, snapshot.waterSplineDraft, store])
 
   const refreshScene = () => {
     engineRef.current?.refreshMap()
@@ -179,6 +272,13 @@ export function StudioShell({ onSwitchToGame }: StudioShellProps) {
               <LayersPanel store={store} />
               <TerrainToolsPanel store={store} />
               <RoadToolsPanel store={store} onSceneRefresh={refreshScene} />
+              <ParcelToolsPanel store={store} onSceneRefresh={refreshScene} />
+              <VegetationToolsPanel store={store} onSceneRefresh={refreshScene} />
+              <BuildingToolsPanel store={store} onSceneRefresh={refreshScene} />
+              <VehicleToolsPanel store={store} onSceneRefresh={refreshScene} />
+              <WaterToolsPanel store={store} onSceneRefresh={refreshScene} />
+              <ValidationToolsPanel store={store} onSceneRefresh={refreshScene} />
+              <ExportToolsPanel store={store} />
             </>
           ) : null}
         </aside>
@@ -186,7 +286,7 @@ export function StudioShell({ onSwitchToGame }: StudioShellProps) {
         <main ref={viewportRef} className="studio-workspace__viewport">
           <canvas ref={canvasRef} className="studio-shell__canvas" />
           <div className="studio-viewport-hint">
-            Transform: drag · Terrain: paint · Roads: draw paths · F10 Game
+            Transform · Terrain · Roads · Parcels · Vegetation · Buildings · Vehicles · Water · Validation · Export · F10
           </div>
         </main>
 

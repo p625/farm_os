@@ -1,5 +1,6 @@
 import { FieldOwnership } from '@/types/ownership.ts'
 import type { FieldBlockId } from '@/config/map-01-layout.ts'
+import { tryGetActiveMapContext } from '@/maps/MapRuntimeContext.ts'
 
 export type FieldDevelopmentTier = 'starter' | 'early' | 'mid' | 'late'
 
@@ -15,6 +16,7 @@ export interface FieldCatalogEntry {
   developmentTier: FieldDevelopmentTier
 }
 
+/** Static catalog — used for Studio export and builtin fallback. */
 export const FIELD_CATALOG: readonly FieldCatalogEntry[] = [
   {
     id: 'field_1',
@@ -117,10 +119,17 @@ export const FIELD_CATALOG: readonly FieldCatalogEntry[] = [
   },
 ] as const
 
+export function getFieldCatalog(): readonly FieldCatalogEntry[] {
+  return tryGetActiveMapContext()?.fields ?? FIELD_CATALOG
+}
+
+export function getFieldIds(): readonly string[] {
+  return getFieldCatalog().map((entry) => entry.id)
+}
+
+/** @deprecated Use getFieldIds() — static ids from bundled catalog. */
 export const FIELD_IDS = FIELD_CATALOG.map((entry) => entry.id)
 
-const catalogById = new Map(FIELD_CATALOG.map((entry) => [entry.id, entry]))
-
 export function getFieldCatalogEntry(id: string): FieldCatalogEntry | undefined {
-  return catalogById.get(id)
+  return getFieldCatalog().find((entry) => entry.id === id)
 }

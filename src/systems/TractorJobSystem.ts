@@ -1,10 +1,11 @@
 import {
-  FIELD_POSITIONS,
+  getFieldPositions,
   getScaledFieldWorkDuration,
-  TRACTOR_HOME,
-  TRACTOR_HOME_ROTATION_Y,
+  getTractorHome,
+  getTractorHomeRotationY,
   TRACTOR_MOVE_SPEED,
 } from '@/config/farm-layout.ts'
+import { getGroundedPosition, getTerrainHeightAt } from '@/maps/grounding.ts'
 import { getScaledCropCareWorkDuration } from '@/config/crop-care-balance.ts'
 import { CropCareAction } from '@/types/crop-care.ts'
 import type { MachineCapabilityResolver } from './MachineCapabilityResolver.ts'
@@ -55,10 +56,10 @@ export class TractorJobSystem extends GameSystem implements IMachineController {
   private cropSystem: CropSystem | null = null
   private farmShopSystem: FarmShopSystem | null = null
   private state: TractorState = TractorState.Idle
-  private position: Vec3 = { ...TRACTOR_HOME }
-  private rotationY = TRACTOR_HOME_ROTATION_Y
+  private position: Vec3 = { x: 0, y: 0, z: 0 }
+  private rotationY = 0
   private activeCommand: MachineCommand | null = null
-  private moveTarget: Vec3 = { ...TRACTOR_HOME }
+  private moveTarget: Vec3 = { x: 0, y: 0, z: 0 }
   private activeWork: ActiveWork | null = null
   private workTimer = 0
   private workDuration = 1.5
@@ -71,8 +72,8 @@ export class TractorJobSystem extends GameSystem implements IMachineController {
   constructor(
     fieldSystem: FieldSystem,
     machineId: MachineId = MachineId.Tractor1,
-    home: Vec3 = { ...TRACTOR_HOME },
-    rotationY: number = TRACTOR_HOME_ROTATION_Y,
+    home: Vec3 = getTractorHome(),
+    rotationY: number = getTractorHomeRotationY(),
   ) {
     super()
     this.fieldSystem = fieldSystem
@@ -123,9 +124,10 @@ export class TractorJobSystem extends GameSystem implements IMachineController {
   initialize(): void {
     this.state = TractorState.Idle
     if (this.machineId === MachineId.Tractor1) {
-      this.position = { ...TRACTOR_HOME }
-      this.rotationY = TRACTOR_HOME_ROTATION_Y
-      this.moveTarget = { ...TRACTOR_HOME }
+      const home = getGroundedPosition(getTractorHome().x, getTractorHome().z)
+      this.position = { ...home }
+      this.rotationY = getTractorHomeRotationY()
+      this.moveTarget = { ...home }
     }
     this.activeCommand = null
     this.activeWork = null
@@ -135,10 +137,15 @@ export class TractorJobSystem extends GameSystem implements IMachineController {
 
   applySave(saved: MachineSaveData): void {
     this.state = isTractorState(saved.state) ? saved.state : TractorState.Idle
+    const grounded = getGroundedPosition(saved.position.x, saved.position.z)
+    const position =
+      Math.abs(saved.position.y - grounded.y) <= 1.5
+        ? saved.position
+        : grounded
     this.position = {
-      x: saved.position.x,
-      y: saved.position.y,
-      z: saved.position.z,
+      x: position.x,
+      y: position.y,
+      z: position.z,
     }
     this.rotationY = saved.rotationY
     this.activeCommand = saved.activeCommand
@@ -481,7 +488,7 @@ export class TractorJobSystem extends GameSystem implements IMachineController {
 
     this.position.x += (dx / distance) * step
     this.position.z += (dz / distance) * step
-    this.position.y = target.y
+    this.position.y = getTerrainHeightAt(this.position.x, this.position.z)
     this.rotationY = Math.atan2(dx, dz)
     return false
   }
@@ -595,9 +602,11 @@ function resolveMoveTarget(
 
   switch (command.destination.kind) {
     case 'world':
-      return { x: command.destination.x, y: 0, z: command.destination.z }
-    case 'field':
-      return FIELD_POSITIONS[command.destination.fieldId] ?? { ...fallback }
+      return getGroundedPosition(command.destination.x, command.destination.z)
+    case 'field': {
+      const fieldPos = getFieldPositions()[command.destination.fieldId] ?? fallback
+      return getGroundedPosition(fieldPos.x, fieldPos.z)
+    }
     case 'farm':
     case 'building':
     case 'machine':

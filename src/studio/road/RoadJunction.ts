@@ -49,7 +49,15 @@ function planarUnitDir(
   return { x: dx / length, z: dz / length }
 }
 
-function edgeOverlapFill(ownHalf: number, partnerHalf: number): number {
+function edgeOverlapFill(
+  ownRoadKind: RoadKind,
+  partnerRoadKind: RoadKind,
+  ownHalf: number,
+  partnerHalf: number,
+): number {
+  if (!isAsphaltKind(ownRoadKind) && isAsphaltKind(partnerRoadKind)) {
+    return 0
+  }
   return Math.min(ownHalf * EDGE_OVERLAP_FACTOR, partnerHalf * 0.22)
 }
 
@@ -58,13 +66,17 @@ function meshOffsetAtEndpoint(
   ownRoadKind: RoadKind,
 ): number {
   if (junction.join === 'merge') {
-    // End ribbon at junction center — no miter past partner (avoids bleed on far side).
     return 0
   }
 
   const ownHalf = getRoadTypeDefinition(ownRoadKind).width * 0.5
   const partnerHalf = getRoadTypeDefinition(junction.roadKind).width * 0.5
-  const overlap = edgeOverlapFill(ownHalf, partnerHalf)
+  const overlap = edgeOverlapFill(
+    ownRoadKind,
+    junction.roadKind,
+    ownHalf,
+    partnerHalf,
+  )
   return Math.max(0, partnerHalf - overlap)
 }
 
@@ -124,6 +136,37 @@ export interface RoadSnapHit {
   x: number
   z: number
   distance: number
+  anchorEndpoint?: 'start' | 'end'
+}
+
+function endpointRole(
+  points: readonly RoadControlPoint[],
+  index: number,
+): 'start' | 'end' | undefined {
+  if (index === 0) {
+    return 'start'
+  }
+  if (index === points.length - 1) {
+    return 'end'
+  }
+  return undefined
+}
+
+function nearRoadEndpoint(
+  points: readonly RoadControlPoint[],
+  worldX: number,
+  worldZ: number,
+): 'start' | 'end' | undefined {
+  const startDistance = Math.hypot(points[0].x - worldX, points[0].z - worldZ)
+  if (startDistance <= CONTROL_SNAP_RADIUS) {
+    return 'start'
+  }
+  const last = points[points.length - 1]
+  const endDistance = Math.hypot(last.x - worldX, last.z - worldZ)
+  if (endDistance <= CONTROL_SNAP_RADIUS) {
+    return 'end'
+  }
+  return undefined
 }
 
 function roadSnapTolerance(roadKind: RoadKind, baseRadius: number): number {
@@ -158,7 +201,8 @@ export function findNearestRoadSnap(
 
     const tolerance = roadSnapTolerance(roadKind, baseRadius)
 
-    for (const point of points) {
+    for (let index = 0; index < points.length; index++) {
+      const point = points[index]
       const distance = Math.hypot(point.x - worldX, point.z - worldZ)
       if (distance > Math.max(CONTROL_SNAP_RADIUS, tolerance * 0.35)) {
         continue
@@ -170,6 +214,7 @@ export function findNearestRoadSnap(
           x: point.x,
           z: point.z,
           distance,
+          anchorEndpoint: endpointRole(points, index),
         }
       }
     }
@@ -187,6 +232,7 @@ export function findNearestRoadSnap(
           x: sample.x,
           z: sample.z,
           distance,
+          anchorEndpoint: nearRoadEndpoint(points, sample.x, sample.z),
         }
       }
     }
@@ -217,6 +263,7 @@ export function trySnapRoadPoint(
       roadId: snap.roadId,
       roadKind: snap.roadKind,
       join: resolveJunctionJoin(newRoadKind, snap.roadKind),
+      ...(snap.anchorEndpoint ? { anchorEndpoint: snap.anchorEndpoint } : {}),
     },
   }
 }
@@ -287,6 +334,10 @@ export function applyJunctionsToAnchorRoads(
 
     const anchorId = point.junction.roadId
     if (anchorId === sourceRoadId) {
+      continue
+    }
+
+    if (point.junction.join === 'merge' && point.junction.anchorEndpoint) {
       continue
     }
 

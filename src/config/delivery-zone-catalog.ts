@@ -2,7 +2,7 @@ import {
   DeliveryZoneId,
   type DeliveryZoneDefinition,
 } from '@/types/delivery.ts'
-import { FARM_HUB } from '@/config/map-01-layout.ts'
+import { getActiveFarmHub } from '@/config/farm-layout.ts'
 
 /**
  * Delivery zones place purchased world objects (machines, attachments).
@@ -10,21 +10,30 @@ import { FARM_HUB } from '@/config/map-01-layout.ts'
  * Phase 14: Dealer lot only. This catalog will evolve into a generic Spawn Zone
  * architecture (see docs/Architecture/009_Phase14_WorldExpansion.md).
  */
-export const DELIVERY_ZONE_CATALOG: readonly DeliveryZoneDefinition[] = [
-  {
-    id: DeliveryZoneId.DealerLot,
-    label: 'Dealer Delivery Zone',
-    clearanceRadius: 2.5,
-    slots: FARM_HUB.deliverySlots.map((slot) => ({ ...slot })),
-  },
-] as const
+function buildDeliveryZoneCatalog(): DeliveryZoneDefinition[] {
+  const hub = getActiveFarmHub()
+  return [
+    {
+      id: DeliveryZoneId.DealerLot,
+      label: 'Dealer Delivery Zone',
+      clearanceRadius: 2.5,
+      slots: hub.deliverySlots.map((slot) => ({ ...slot })),
+    },
+  ]
+}
 
-const zoneById = new Map(DELIVERY_ZONE_CATALOG.map((zone) => [zone.id, zone]))
+/** @deprecated Use getDeliveryZoneCatalog() */
+export const DELIVERY_ZONE_CATALOG: readonly DeliveryZoneDefinition[] =
+  buildDeliveryZoneCatalog()
+
+export function getDeliveryZoneCatalog(): readonly DeliveryZoneDefinition[] {
+  return buildDeliveryZoneCatalog()
+}
 
 export function getDeliveryZoneDefinition(
   zoneId: DeliveryZoneId,
 ): DeliveryZoneDefinition | undefined {
-  return zoneById.get(zoneId)
+  return getDeliveryZoneCatalog().find((zone) => zone.id === zoneId)
 }
 
 export function findOpenDeliverySlot(

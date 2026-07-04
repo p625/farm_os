@@ -4,12 +4,31 @@ import type { RoadControlPoint } from '@/types/road.ts'
 import type { RoadKind } from '@/types/road.ts'
 import {
   adjustControlPointsForJunctionMesh,
+  isAsphaltKind,
   type JunctionMeshContext,
 } from '@/studio/road/RoadJunction.ts'
 import { getRoadTypeDefinition } from '@/studio/road/RoadTypePalette.ts'
 import { sampleRoadSpline } from '@/studio/road/RoadSpline.ts'
 
-const ROAD_SURFACE_OFFSET = 0.08
+const TERRAIN_SURFACE_OFFSET = 0.08
+
+function roadSurfaceOffset(roadKind: RoadKind): number {
+  if (isAsphaltKind(roadKind)) {
+    return TERRAIN_SURFACE_OFFSET + 0.012
+  }
+  return TERRAIN_SURFACE_OFFSET - 0.018
+}
+
+function roadMaterialZOffset(roadKind: RoadKind): number {
+  if (isAsphaltKind(roadKind)) {
+    return -1
+  }
+  return -4
+}
+
+function roadRenderingGroup(roadKind: RoadKind): number {
+  return isAsphaltKind(roadKind) ? 2 : 1
+}
 
 export type TerrainHeightSampler = (worldX: number, worldZ: number) => number
 
@@ -26,6 +45,7 @@ export function createRoadRibbonMesh(
   }
 
   const roadType = getRoadTypeDefinition(roadKind)
+  const surfaceOffset = roadSurfaceOffset(roadKind)
   const meshPoints = adjustControlPointsForJunctionMesh(points, roadKind, junctionContext)
   let samples = sampleRoadSpline(meshPoints, 10)
   if (samples.length < 2) {
@@ -35,7 +55,7 @@ export function createRoadRibbonMesh(
   if (sampleHeight) {
     samples = samples.map((sample) => ({
       ...sample,
-      y: sampleHeight(sample.x, sample.z) + ROAD_SURFACE_OFFSET,
+      y: sampleHeight(sample.x, sample.z) + surfaceOffset,
     }))
   }
 
@@ -82,14 +102,14 @@ export function createRoadRibbonMesh(
   mesh.setIndices(indices)
   mesh.createNormals(true)
   mesh.refreshBoundingInfo()
-  mesh.renderingGroupId = 1
+  mesh.renderingGroupId = roadRenderingGroup(roadKind)
   mesh.isPickable = true
 
   const [r, g, b] = roadType.color
   const material = new StandardMaterial(`mat_${name}`, scene)
   material.diffuseColor = new Color3(r, g, b)
   material.specularColor = new Color3(0.12, 0.12, 0.12)
-  material.zOffset = -2
+  material.zOffset = roadMaterialZOffset(roadKind)
   mesh.material = material
   mesh.receiveShadows = true
 
@@ -99,13 +119,15 @@ export function createRoadRibbonMesh(
 export function snapRoadPointsToTerrain(
   points: readonly RoadControlPoint[],
   sampleHeight: TerrainHeightSampler,
+  roadKind: RoadKind = 'field_path',
 ): RoadControlPoint[] {
+  const surfaceOffset = roadSurfaceOffset(roadKind)
   return points.map((point) => ({
     ...point,
     x: point.x,
-    y: sampleHeight(point.x, point.z) + ROAD_SURFACE_OFFSET,
+    y: sampleHeight(point.x, point.z) + surfaceOffset,
     z: point.z,
   }))
 }
 
-export { ROAD_SURFACE_OFFSET }
+export { TERRAIN_SURFACE_OFFSET as ROAD_SURFACE_OFFSET }

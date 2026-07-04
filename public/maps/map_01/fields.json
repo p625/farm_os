@@ -1,0 +1,101 @@
+[
+  {
+    "id": "field_1",
+    "name": "Domácí pole",
+    "purchasePrice": 0,
+    "leasePrice": 0,
+    "area": 10,
+    "fertility": 85,
+    "initialOwnership": "owned",
+    "blockId": "A",
+    "developmentTier": "starter"
+  },
+  {
+    "id": "field_2",
+    "name": "U rybníka",
+    "purchasePrice": 0,
+    "leasePrice": 0,
+    "area": 11,
+    "fertility": 80,
+    "initialOwnership": "owned",
+    "blockId": "A",
+    "developmentTier": "starter"
+  },
+  {
+    "id": "field_3",
+    "name": "Přední svah",
+    "purchasePrice": 0,
+    "leasePrice": 0,
+    "area": 9,
+    "fertility": 75,
+    "initialOwnership": "owned",
+    "blockId": "A",
+    "developmentTier": "starter"
+  },
+  {
+    "id": "field_4",
+    "name": "Východní lán",
+    "purchasePrice": 3500,
+    "leasePrice": 550,
+    "area": 12,
+    "fertility": 78,
+    "initialOwnership": "available",
+    "blockId": "A",
+    "developmentTier": "early"
+  },
+  {
+    "id": "field_5",
+    "name": "B-01 Horní lán",
+    "purchasePrice": 8000,
+    "leasePrice": 1200,
+    "area": 16,
+    "fertility": 82,
+    "initialOwnership": "available",
+    "blockId": "B",
+    "developmentTier": "mid"
+  },
+  {
+    "id": "field_6",
+    "name": "B-01 Dolní lán",
+    "purchasePrice": 9500,
+    "leasePrice": 1400,
+    "area": 18,
+    "fertility": 88,
+    "initialOwnership": "available",
+    "blockId": "B",
+    "developmentTier": "mid"
+  },
+  {
+    "id": "field_7",
+    "name": "B-02 Údolní pole",
+    "purchasePrice": 11000,
+    "leasePrice": 1600,
+    "area": 20,
+    "fertility": 80,
+    "initialOwnership": "available",
+    "blockId": "B",
+    "developmentTier": "mid"
+  },
+  {
+    "id": "field_8",
+    "name": "B-03 U cesty",
+    "purchasePrice": 7000,
+    "leasePrice": 1000,
+    "area": 14,
+    "fertility": 76,
+    "initialOwnership": "available",
+    "blockId": "B",
+    "developmentTier": "mid"
+  },
+  {
+    "id": "field_9",
+    "name": "C-01 Přes údolí",
+    "purchasePrice": 18000,
+    "leasePrice": 2600,
+    "area": 22,
+    "fertility": 84,
+    "initialOwnership": "available",
+    "blockId": "C",
+    "developmentTier": "late"
+  }
+]

@@ -7,10 +7,16 @@ import {
 } from '@/config/camera-profiles.ts'
 import type { IDisposable, IInitializable, IUpdatable } from '@/types/index.ts'
 
+/** Kept for future input layering; camera always uses LMB pan + RMB rotate. */
+export type CameraNavigateMode = 'navigate'
+export type CameraCommandMode = 'command'
+export type CameraInteractionMode = CameraNavigateMode | CameraCommandMode
+
 export class CameraController implements IInitializable, IUpdatable, IDisposable {
   private camera: ArcRotateCamera | null = null
   private readonly sceneManager: SceneManager
   private activeProfileId: CameraProfileId = DEFAULT_CAMERA_PROFILE_ID
+  private interactionMode: CameraInteractionMode = 'navigate'
 
   constructor(sceneManager: SceneManager) {
     this.sceneManager = sceneManager
@@ -21,7 +27,49 @@ export class CameraController implements IInitializable, IUpdatable, IDisposable
 
     const canvas = this.sceneManager.getEngine().getRenderingCanvas()
     if (canvas && this.camera) {
-      this.camera.attachControl(canvas, false)
+      this.attachCameraControls(canvas)
+    }
+  }
+
+  setInteractionMode(mode: CameraInteractionMode): void {
+    if (this.interactionMode === mode) {
+      return
+    }
+    this.interactionMode = mode
+    this.configurePointerInputs()
+  }
+
+  private attachCameraControls(canvas: HTMLCanvasElement): void {
+    if (!this.camera) {
+      return
+    }
+
+    this.camera.detachControl()
+    this.camera.attachControl(canvas, false)
+    this.configurePointerInputs()
+  }
+
+  private configurePointerInputs(): void {
+    if (!this.camera) {
+      return
+    }
+
+    const input = this.camera.movement.input
+    const nonPointerEntries = input.inputMap.filter((entry) => entry.source !== 'pointer')
+
+    const pointerEntries = [
+      { source: 'pointer' as const, button: 0, interaction: 'pan' as const },
+      { source: 'pointer' as const, button: 2, interaction: 'rotate' as const },
+    ]
+
+    input.inputMap = [...pointerEntries, ...nonPointerEntries]
+
+    const pointers = this.camera.inputs.attached.pointers as
+      | { buttons?: number[] }
+      | undefined
+
+    if (pointers && Array.isArray(pointers.buttons)) {
+      pointers.buttons = [0, 2]
     }
   }
 
@@ -50,10 +98,10 @@ export class CameraController implements IInitializable, IUpdatable, IDisposable
       this.camera.radius = profile.radius
     }
 
-    this.camera.lowerBetaLimit = profile.beta
-    this.camera.upperBetaLimit = profile.beta
-    this.camera.lowerAlphaLimit = profile.alpha
-    this.camera.upperAlphaLimit = profile.alpha
+    this.camera.lowerBetaLimit = profile.lowerBetaLimit
+    this.camera.upperBetaLimit = profile.upperBetaLimit
+    this.camera.lowerAlphaLimit = null
+    this.camera.upperAlphaLimit = null
     this.camera.lowerRadiusLimit = profile.lowerRadiusLimit
     this.camera.upperRadiusLimit = profile.upperRadiusLimit
     this.camera.wheelPrecision = profile.wheelPrecision

@@ -125,6 +125,11 @@ export interface MachinesSaveData {
 
 export interface GameSaveData {
   version: number
+  mapId: string
+  farmName: string
+  playTimeSeconds: number
+  createdAt: string
+  dayFraction: number
   money: number
   currentDay: number
   gameSpeed: number

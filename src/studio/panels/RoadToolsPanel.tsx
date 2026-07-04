@@ -26,8 +26,8 @@ export function RoadToolsPanel({ store, onSceneRefresh }: RoadToolsPanelProps) {
     <div className="studio-panel studio-panel--roads">
       <h2 className="studio-panel__title">Roads</h2>
       <p className="studio-hint">
-        V režimu Draw najížděj na stávající cestu — oranžový kruh = spojení
-        asfaltů, zelený = napojení u kraje. Klikni pro umístění bodu.
+        V režimu Draw najížděj na konec stejné cesty — po dokončení se
+        prodlouží. Polní na asfaltu končí u kraje bez překryvu barev.
       </p>
 
       <h3 className="studio-panel__subtitle">Tool</h3>

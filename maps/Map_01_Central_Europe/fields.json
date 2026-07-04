@@ -1,0 +1,205 @@
+[
+  {
+    "id": "field_1",
+    "name": "Domácí pole",
+    "parcelId": "A-01",
+    "parcelBlock": "A",
+    "center": {
+      "x": -90,
+      "z": -1040
+    },
+    "size": {
+      "width": 240,
+      "depth": 190
+    },
+    "fertility": 85,
+    "roadAccess": "farm_road",
+    "kind": "field"
+  },
+  {
+    "id": "field_2",
+    "name": "U rybníka",
+    "parcelId": "A-02",
+    "parcelBlock": "A",
+    "center": {
+      "x": 310,
+      "z": -990
+    },
+    "size": {
+      "width": 200,
+      "depth": 170
+    },
+    "fertility": 80,
+    "roadAccess": "service_pond",
+    "kind": "field"
+  },
+  {
+    "id": "field_3",
+    "name": "Přední svah",
+    "parcelId": "A-03",
+    "parcelBlock": "A",
+    "center": {
+      "x": 80,
+      "z": -820
+    },
+    "size": {
+      "width": 280,
+      "depth": 220
+    },
+    "rotationY": 0.08,
+    "fertility": 82,
+    "roadAccess": "field_access_a",
+    "kind": "field"
+  },
+  {
+    "id": "field_4",
+    "name": "Východní lán",
+    "parcelId": "A-04",
+    "parcelBlock": "A",
+    "center": {
+      "x": 420,
+      "z": -1120
+    },
+    "size": {
+      "width": 200,
+      "depth": 180
+    },
+    "fertility": 78,
+    "roadAccess": "farm_road",
+    "kind": "field"
+  },
+  {
+    "id": "field_5",
+    "name": "B-01 Horní lán",
+    "parcelId": "B-01",
+    "parcelBlock": "B",
+    "center": {
+      "x": -40,
+      "z": -180
+    },
+    "size": {
+      "width": 520,
+      "depth": 480
+    },
+    "fertility": 82,
+    "roadAccess": "field_access_b",
+    "kind": "field"
+  },
+  {
+    "id": "field_6",
+    "name": "B-01 Dolní lán",
+    "parcelId": "B-01b",
+    "parcelBlock": "B",
+    "center": {
+      "x": 120,
+      "z": 80
+    },
+    "size": {
+      "width": 480,
+      "depth": 400
+    },
+    "fertility": 88,
+    "roadAccess": "field_access_b",
+    "kind": "field"
+  },
+  {
+    "id": "field_7",
+    "name": "B-02 Údolní pole",
+    "parcelId": "B-02",
+    "parcelBlock": "B",
+    "center": {
+      "x": -220,
+      "z": 360
+    },
+    "size": {
+      "width": 520,
+      "depth": 380
+    },
+    "fertility": 80,
+    "roadAccess": "field_access_b",
+    "kind": "field"
+  },
+  {
+    "id": "field_8",
+    "name": "B-03 U cesty",
+    "parcelId": "B-03",
+    "parcelBlock": "B",
+    "center": {
+      "x": 480,
+      "z": 80
+    },
+    "size": {
+      "width": 420,
+      "depth": 460
+    },
+    "fertility": 76,
+    "roadAccess": "field_access_b",
+    "kind": "field"
+  },
+  {
+    "id": "field_9",
+    "name": "C-01 Přes údolí",
+    "parcelId": "C-01",
+    "parcelBlock": "C",
+    "center": {
+      "x": 120,
+      "z": 1180
+    },
+    "size": {
+      "width": 380,
+      "depth": 320
+    },
+    "rotationY": -0.12,
+    "fertility": 84,
+    "roadAccess": "field_access_c",
+    "kind": "field"
+  },
+  {
+    "id": "meadow_m01",
+    "name": "Nivní louka",
+    "parcelId": "M-01",
+    "parcelBlock": "M",
+    "center": {
+      "x": -350,
+      "z": 420
+    },
+    "size": {
+      "width": 480,
+      "depth": 160
+    },
+    "fertility": 0,
+    "kind": "meadow"
+  },
+  {
+    "id": "meadow_m02",
+    "name": "Přechodová louka",
+    "parcelId": "M-02",
+    "parcelBlock": "M",
+    "center": {
+      "x": 60,
+      "z": -520
+    },
+    "size": {
+      "width": 320,
+      "depth": 140
+    },
+    "fertility": 0,
+    "kind": "meadow"
+  },
+  {
+    "id": "meadow_m03",
+    "name": "Louka u potoka",
+    "parcelId": "M-03",
+    "parcelBlock": "M",
+    "center": {
+      "x": 420,
+      "z": -880
+    },
+    "size": {
+      "width": 200,
+      "depth": 120
+    },
+    "fertility": 0,
+    "kind": "meadow"
+  }
+]

@@ -7,7 +7,7 @@ import {
   type Scene,
   type TransformNode,
 } from '@babylonjs/core'
-import { FIELD_POSITIONS } from '@/config/farm-layout.ts'
+import { getFieldPositions } from '@/config/farm-layout.ts'
 import type { TractorJobSystem } from '@systems/TractorJobSystem.ts'
 import { SelectedEntityKind } from '@/types/machine.ts'
 import { TractorState } from '@/types/tractor.ts'
@@ -109,7 +109,7 @@ export class TractorPresentation {
       return
     }
 
-    const fieldPosition = FIELD_POSITIONS[snapshot.activeJob.fieldId]
+    const fieldPosition = getFieldPositions()[snapshot.activeJob.fieldId]
     if (!fieldPosition) {
       return
     }

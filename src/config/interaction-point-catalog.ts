@@ -5,7 +5,7 @@ import {
   type InteractionPointType as InteractionPointTypeValue,
 } from '@/types/interaction-point.ts'
 import { FarmStoreId } from '@/types/farm-store.ts'
-import { FARM_HUB } from '@/config/map-01-layout.ts'
+import { getActiveFarmHub } from '@/config/farm-layout.ts'
 
 export interface InteractionPointDefinition {
   id: InteractionPointIdValue
@@ -22,42 +22,60 @@ export interface InteractionPointDefinition {
   visibilityPriority?: number
 }
 
-export const INTERACTION_POINT_CATALOG: readonly InteractionPointDefinition[] = [
+const BASE_INTERACTION_POINTS = [
   {
     id: InteractionPointId.SiloEntry,
     type: InteractionPointType.Silo,
     label: 'Silo Entry',
     meshName: 'interaction_point_silo_entry',
-    position: FARM_HUB.siloEntry.position,
     arrivalRadius: 2.5,
     visibilityPriority: 10,
+    hubKey: 'siloEntry' as const,
   },
   {
     id: InteractionPointId.DealerEntry,
     type: InteractionPointType.Shop,
     label: 'Farm Dealer',
     meshName: 'interaction_point_dealer_entry',
-    position: FARM_HUB.dealerEntry.position,
     arrivalRadius: 2.5,
     farmStoreId: FarmStoreId.Dealer,
     visibilityPriority: 20,
+    hubKey: 'dealerEntry' as const,
   },
 ] as const
 
-const catalogById = new Map(
-  INTERACTION_POINT_CATALOG.map((entry) => [entry.id, entry]),
-)
+function buildInteractionPointCatalog(): InteractionPointDefinition[] {
+  const hub = getActiveFarmHub()
+  return BASE_INTERACTION_POINTS.map((entry) => ({
+    id: entry.id,
+    type: entry.type,
+    label: entry.label,
+    meshName: entry.meshName,
+    position: hub[entry.hubKey].position,
+    arrivalRadius: entry.arrivalRadius,
+    farmStoreId: 'farmStoreId' in entry ? entry.farmStoreId : undefined,
+    visibilityPriority: entry.visibilityPriority,
+  }))
+}
+
+/** @deprecated Use getInteractionPointCatalog() */
+export const INTERACTION_POINT_CATALOG: readonly InteractionPointDefinition[] =
+  buildInteractionPointCatalog()
+
+export function getInteractionPointCatalog(): readonly InteractionPointDefinition[] {
+  return buildInteractionPointCatalog()
+}
 
 export function getInteractionPointDefinition(
   id: InteractionPointIdValue,
 ): InteractionPointDefinition | undefined {
-  return catalogById.get(id)
+  return getInteractionPointCatalog().find((entry) => entry.id === id)
 }
 
 export function resolveInteractionPointIdFromMesh(
   meshName: string,
 ): InteractionPointIdValue | null {
-  for (const entry of INTERACTION_POINT_CATALOG) {
+  for (const entry of BASE_INTERACTION_POINTS) {
     if (entry.meshName === meshName) {
       return entry.id
     }
