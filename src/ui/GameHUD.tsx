@@ -119,7 +119,7 @@ export function GameHUD({ game, snapshot }: GameHUDProps) {
     <aside className="game-hud">
       <header className="game-hud__header">
         <h1 className="game-hud__title">FarmOS</h1>
-        <p className="game-hud__subtitle">Phase 12C — Harvest Machines</p>
+        <p className="game-hud__subtitle">Phase 12D — Trailer Logistics</p>
       </header>
 
       <section className="game-hud__panel">
@@ -242,28 +242,34 @@ export function GameHUD({ game, snapshot }: GameHUDProps) {
                 <div className="game-hud__stat">
                   <dt>Grain bin</dt>
                   <dd>
-                    {snapshot.selectedMachine.grainBin.quantity > 0
-                      ? `${snapshot.selectedMachine.grainBin.quantity} ${snapshot.selectedMachine.grainBin.cropName ?? 'units'}`
+                    {snapshot.selectedMachine.grainBin.hasCargo
+                      ? `${Math.round(snapshot.selectedMachine.grainBin.fillPercent * 100)}%${snapshot.selectedMachine.grainBin.cropName ? ` ${snapshot.selectedMachine.grainBin.cropName}` : ''}`
                       : 'Empty'}
-                  </dd>
-                </div>
-                <div className="game-hud__stat">
-                  <dt>Bin capacity</dt>
-                  <dd>
-                    {snapshot.selectedMachine.grainBin.quantity} /{' '}
-                    {snapshot.selectedMachine.grainBin.capacity}
+                    {snapshot.selectedMachine.grainBin.isFull ? ' (Full)' : ''}
                   </dd>
                 </div>
               </>
             ) : null}
-            <div className="game-hud__stat">
-              <dt>Trailer</dt>
-              <dd>
-                {snapshot.machineAttachments.slots.find(
-                  (slot) => slot.slotId === 'trailer_hitch',
-                )?.attachmentName ?? 'Empty'}
-              </dd>
-            </div>
+            {snapshot.trailerCargo ? (
+              <div className="game-hud__stat">
+                <dt>Trailer</dt>
+                <dd>
+                  {snapshot.trailerCargo.hasCargo
+                    ? `${Math.round(snapshot.trailerCargo.fillPercent * 100)}%${snapshot.trailerCargo.cropName ? ` ${snapshot.trailerCargo.cropName}` : ''}`
+                    : 'Empty'}
+                  {snapshot.trailerCargo.isFull ? ' (Full)' : ''}
+                </dd>
+              </div>
+            ) : (
+              <div className="game-hud__stat">
+                <dt>Trailer hitch</dt>
+                <dd>
+                  {snapshot.machineAttachments.slots.find(
+                    (slot) => slot.slotId === 'trailer_hitch',
+                  )?.attachmentName ?? 'Empty'}
+                </dd>
+              </div>
+            )}
           </dl>
         ) : null}
         {!activeJob && snapshot.selectedEntity.kind === 'machine' ? (
@@ -386,6 +392,9 @@ export function GameHUD({ game, snapshot }: GameHUDProps) {
             </p>
             {fieldWorkHint ? (
               <p className="game-hud__hint">{fieldWorkHint}</p>
+            ) : null}
+            {snapshot.logisticsHint ? (
+              <p className="game-hud__hint">{snapshot.logisticsHint}</p>
             ) : null}
             {selectedField?.state === States.Plowed && !canAffordAnyCrop ? (
               <p className="game-hud__hint">

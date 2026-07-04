@@ -14,6 +14,15 @@ import type { FarmShopSystem } from './FarmShopSystem.ts'
 import type { CropSystem } from './CropSystem.ts'
 import type { FieldSystem } from './FieldSystem.ts'
 import type { MachineCapabilityResolver } from './MachineCapabilityResolver.ts'
+import type { LogisticsSystem } from './LogisticsSystem.ts'
+import {
+  applyLogisticsWork,
+  getLogisticsRequiredCapability,
+  getLogisticsWorkDuration,
+  isLogisticsTask,
+  resolveLogisticsMoveTarget,
+  validateLogisticsCommand,
+} from './MachineLogisticsSupport.ts'
 import { GrainBin } from './GrainBin.ts'
 import { GameSystem } from './GameSystem.ts'
 import {
@@ -52,6 +61,8 @@ export class CombineJobSystem extends GameSystem implements IMachineController {
   private cropSystem: CropSystem | null = null
   private farmShopSystem: FarmShopSystem | null = null
   private capabilityResolver: MachineCapabilityResolver | null = null
+  private logisticsSystem: LogisticsSystem | null = null
+  private machineRegistry: import('./MachineRegistry.ts').MachineRegistry | null = null
   private readonly grainBin: GrainBin
   private state: TractorState = TractorState.Idle
   private position: Vec3
@@ -91,6 +102,14 @@ export class CombineJobSystem extends GameSystem implements IMachineController {
 
   setCapabilityResolver(resolver: MachineCapabilityResolver): void {
     this.capabilityResolver = resolver
+  }
+
+  setLogisticsSystem(logisticsSystem: LogisticsSystem): void {
+    this.logisticsSystem = logisticsSystem
+  }
+
+  setMachineRegistry(registry: import('./MachineRegistry.ts').MachineRegistry): void {
+    this.machineRegistry = registry
   }
 
   setOnChange(listener: () => void): void {
@@ -140,7 +159,11 @@ export class CombineJobSystem extends GameSystem implements IMachineController {
     this.grainBin.restoreFromSave(saved.grainBin)
 
     if (this.activeCommand) {
-      this.moveTarget = resolveMoveTarget(this.activeCommand, this.position)
+      this.moveTarget = resolveMoveTarget(
+        this.activeCommand,
+        this.position,
+        this.machineRegistry,
+      )
       if (this.state !== TractorState.Moving && this.state !== TractorState.Working) {
         this.state = TractorState.Idle
         this.activeCommand = null
@@ -191,7 +214,11 @@ export class CombineJobSystem extends GameSystem implements IMachineController {
     }
 
     this.activeCommand = cloneCommand(command)
-    this.moveTarget = resolveMoveTarget(command, this.position)
+    this.moveTarget = resolveMoveTarget(
+      command,
+      this.position,
+      this.machineRegistry,
+    )
     this.activeWork = buildActiveWork(command)
     this.workTimer = 0
     this.state = TractorState.Moving
@@ -210,7 +237,12 @@ export class CombineJobSystem extends GameSystem implements IMachineController {
     switch (this.state) {
       case TractorState.Moving: {
         if (this.moveToward(this.moveTarget, step)) {
-          if (!this.activeWork) {
+          if (this.isLogisticsCommand()) {
+            this.state = TractorState.Working
+            this.workTimer = 0
+            this.workDuration = getLogisticsWorkDuration(this.activeCommand!.task)
+            notifyHud = true
+          } else if (!this.activeWork) {
             this.finishCommand()
             notifyHud = true
           } else {
@@ -226,7 +258,11 @@ export class CombineJobSystem extends GameSystem implements IMachineController {
         this.workTimer += deltaTime
         notifyHud = true
         if (this.workTimer >= this.workDuration) {
-          this.applyWork()
+          if (this.isLogisticsCommand()) {
+            this.applyLogistics()
+          } else {
+            this.applyWork()
+          }
           this.finishCommand()
           notifyHud = true
         }
@@ -256,6 +292,10 @@ export class CombineJobSystem extends GameSystem implements IMachineController {
     return this.grainBin.toSnapshot((cropId) =>
       this.cropSystem?.getCropName(cropId) ?? cropId,
     )
+  }
+
+  getGrainBinForLogistics(): GrainBin {
+    return this.grainBin
   }
 
   toSnapshot(): TractorSnapshot {
@@ -313,11 +353,22 @@ export class CombineJobSystem extends GameSystem implements IMachineController {
   }
 
   private validateCommand(command: MachineCommand): boolean {
+    if (isLogisticsTask(command.task)) {
+      return validateLogisticsCommand(
+        this.machineId,
+        command,
+        this.logisticsSystem,
+      )
+    }
+
     switch (command.task.kind) {
       case 'none':
         return command.destination.kind === 'world'
       case 'harvest': {
         if (command.destination.kind !== 'field') {
+          return false
+        }
+        if (this.grainBin.isFull()) {
           return false
         }
         const fieldId = command.destination.fieldId
@@ -334,6 +385,17 @@ export class CombineJobSystem extends GameSystem implements IMachineController {
       default:
         return false
     }
+  }
+
+  private isLogisticsCommand(): boolean {
+    return this.activeCommand ? isLogisticsTask(this.activeCommand.task) : false
+  }
+
+  private applyLogistics(): void {
+    if (!this.activeCommand) {
+      return
+    }
+    applyLogisticsWork(this.machineId, this.activeCommand, this.logisticsSystem)
   }
 
   private applyWork(): void {
@@ -418,6 +480,11 @@ function parseActiveWork(
 function getRequiredCapability(
   task: MachineCommandTask,
 ): MachineCapability | null {
+  const logisticsCapability = getLogisticsRequiredCapability(task)
+  if (logisticsCapability) {
+    return logisticsCapability
+  }
+
   switch (task.kind) {
     case 'none':
       return MachineCapability.Move
@@ -439,7 +506,15 @@ function buildActiveWork(command: MachineCommand): ActiveWork | null {
   }
 }
 
-function resolveMoveTarget(command: MachineCommand, fallback: Vec3): Vec3 {
+function resolveMoveTarget(
+  command: MachineCommand,
+  fallback: Vec3,
+  registry: import('./MachineRegistry.ts').MachineRegistry | null,
+): Vec3 {
+  if (isLogisticsTask(command.task)) {
+    return resolveLogisticsMoveTarget(command, registry, fallback)
+  }
+
   switch (command.destination.kind) {
     case 'world':
       return { x: command.destination.x, y: 0, z: command.destination.z }

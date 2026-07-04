@@ -67,4 +67,8 @@ export const JOB_WORK_DURATION: Record<string, number> = {
   plow: 1.5,
   seed: 1.2,
   harvest: 2,
+  load_from_combine: 1,
+  unload_to_silo: 1,
 }
+
+export const LOGISTICS_ARRIVAL_THRESHOLD = 0.15

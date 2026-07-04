@@ -21,6 +21,7 @@ export interface AttachmentCatalogEntry {
   workingWidth: number
   providesCapabilities?: readonly MachineCapabilityValue[]
   supportedCropIds?: readonly string[]
+  cargoCapacity?: number
 }
 
 export const ATTACHMENT_CATALOG: readonly AttachmentCatalogEntry[] = [
@@ -49,6 +50,7 @@ export const ATTACHMENT_CATALOG: readonly AttachmentCatalogEntry[] = [
     category: AttachmentCategory.Transport,
     behavior: AttachmentBehavior.Passive,
     workingWidth: 0,
+    cargoCapacity: 300,
   },
   {
     id: AttachmentCatalogId.GrainHeader,

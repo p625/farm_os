@@ -12,7 +12,8 @@ import { AttachmentCatalogId } from '@/types/attachment.ts'
 import {
   getAttachmentCatalogEntry,
 } from '@/config/attachment-catalog.ts'
-import { AttachmentId, AttachmentLifecycleState } from '@/types/attachment.ts'
+import { getCargoColorForCrop } from '@/config/cargo-appearance.ts'
+import { AttachmentId, AttachmentLifecycleState, AttachmentType } from '@/types/attachment.ts'
 import type { AttachmentSystem } from '@systems/AttachmentSystem.ts'
 
 const ATTACHMENT_NODE_PREFIX = 'attachment_'
@@ -26,6 +27,7 @@ export class AttachmentPresentation {
   private scene: Scene | null = null
   private attachmentSystem: AttachmentSystem | null = null
   private readonly nodes = new Map<string, TransformNode>()
+  private readonly cargoFillMeshes = new Map<string, Mesh>()
 
   attach(scene: Scene, attachmentSystem: AttachmentSystem): void {
     this.detach()
@@ -60,6 +62,42 @@ export class AttachmentPresentation {
       )
       node.rotation.y = transform.rotationY
       node.setEnabled(true)
+
+      this.syncTrailerCargoVisual(attachment.id, attachment.attachmentType)
+    }
+  }
+
+  private syncTrailerCargoVisual(
+    attachmentId: string,
+    attachmentType: string,
+  ): void {
+    if (attachmentType !== AttachmentType.Trailer || !this.attachmentSystem) {
+      return
+    }
+
+    const fillMesh = this.cargoFillMeshes.get(attachmentId)
+    if (!fillMesh) {
+      return
+    }
+
+    const cargo = this.attachmentSystem.getTrailerCargo(
+      attachmentId as (typeof AttachmentId)[keyof typeof AttachmentId],
+    )
+    if (!cargo || !cargo.hasCargo()) {
+      fillMesh.setEnabled(false)
+      return
+    }
+
+    const fillPercent = cargo.getCapacity() > 0
+      ? cargo.getQuantity() / cargo.getCapacity()
+      : 0
+    fillMesh.setEnabled(true)
+    fillMesh.scaling.y = Math.max(0.05, fillPercent)
+
+    const material = fillMesh.material as StandardMaterial | undefined
+    if (material) {
+      material.diffuseColor = getCargoColorForCrop(cargo.getCropId())
+      material.emissiveColor = material.diffuseColor.scale(0.15)
     }
   }
 
@@ -68,6 +106,7 @@ export class AttachmentPresentation {
       node.dispose()
     }
     this.nodes.clear()
+    this.cargoFillMeshes.clear()
     this.scene = null
     this.attachmentSystem = null
   }
@@ -86,6 +125,7 @@ export class AttachmentPresentation {
         scene,
         attachment.catalogId,
         `${nodeName}_body`,
+        attachment.id,
       )
       body.parent = root
       body.isPickable = true
@@ -98,6 +138,7 @@ export class AttachmentPresentation {
     scene: Scene,
     catalogId: string,
     meshName: string,
+    attachmentId: string,
   ): Mesh {
     const catalog = getAttachmentCatalogEntry(
       catalogId as (typeof AttachmentCatalogId)[keyof typeof AttachmentCatalogId],
@@ -109,7 +150,7 @@ export class AttachmentPresentation {
       case AttachmentCatalogId.Seeder:
         return this.createSeederMesh(scene, meshName)
       case AttachmentCatalogId.Wagon:
-        return this.createTrailerMesh(scene, meshName)
+        return this.createTrailerMesh(scene, meshName, attachmentId)
       default:
         return this.createGenericMesh(scene, meshName, HEADER_COLOR)
     }
@@ -161,13 +202,33 @@ export class AttachmentPresentation {
     return hopper
   }
 
-  private createTrailerMesh(scene: Scene, meshName: string): Mesh {
+  private createTrailerMesh(
+    scene: Scene,
+    meshName: string,
+    attachmentId: string,
+  ): Mesh {
     const bed = MeshBuilder.CreateBox(
       meshName,
       { width: 2.6, height: 0.5, depth: 3.2 },
       scene,
     )
     bed.position.y = 0.35
+
+    const cargoFill = MeshBuilder.CreateBox(
+      `${meshName}_cargo_fill`,
+      { width: 2.2, height: 0.42, depth: 2.8 },
+      scene,
+    )
+    cargoFill.position.y = 0.12
+    cargoFill.parent = bed
+    cargoFill.isPickable = false
+    cargoFill.setEnabled(false)
+    cargoFill.scaling.y = 0.05
+
+    const cargoMaterial = new StandardMaterial(`${meshName}_cargo_mat`, scene)
+    cargoMaterial.diffuseColor = getCargoColorForCrop(null)
+    cargoFill.material = cargoMaterial
+    this.cargoFillMeshes.set(attachmentId, cargoFill)
 
     const wheelMaterial = new StandardMaterial(`${meshName}_wheel_mat`, scene)
     wheelMaterial.diffuseColor = new Color3(0.12, 0.12, 0.12)

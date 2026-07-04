@@ -7,7 +7,13 @@ import { GameHUD } from './GameHUD.tsx'
 import { ChooseCropRadialMenu } from './ChooseCropRadialMenu.tsx'
 import { RadialContextMenu } from './RadialContextMenu.tsx'
 import { AttachmentRadialMenu } from './AttachmentRadialMenu.tsx'
+import { MachineRadialMenu } from './MachineRadialMenu.tsx'
+import { InteractionRadialMenu } from './InteractionRadialMenu.tsx'
 import { AttachmentRadialActionKind } from '@/types/attachment.ts'
+import {
+  InteractionRadialActionKind,
+} from '@/types/interaction-point.ts'
+import { MachineRadialActionKind } from '@/types/machine.ts'
 import './GameShell.css'
 
 export function GameShell() {
@@ -82,6 +88,8 @@ export function GameShell() {
     const hasRadialUi =
       snapshot.fieldContextMenu !== null ||
       snapshot.attachmentContextMenu !== null ||
+      snapshot.machineContextMenu !== null ||
+      snapshot.interactionContextMenu !== null ||
       pendingSeed !== null
     if (!hasRadialUi) {
       return
@@ -93,6 +101,8 @@ export function GameShell() {
       }
       game.closeFieldContextMenu()
       game.closeAttachmentContextMenu()
+      game.closeMachineContextMenu()
+      game.closeInteractionContextMenu()
       setPendingSeed(null)
     }
 
@@ -100,7 +110,7 @@ export function GameShell() {
     return () => {
       window.removeEventListener('keydown', onKeyDown)
     }
-  }, [game, snapshot.fieldContextMenu, snapshot.attachmentContextMenu, pendingSeed])
+  }, [game, snapshot.fieldContextMenu, snapshot.attachmentContextMenu, snapshot.machineContextMenu, snapshot.interactionContextMenu, pendingSeed])
 
   return (
     <div
@@ -200,6 +210,40 @@ export function GameShell() {
               }
               case AttachmentRadialActionKind.Cancel:
                 game.closeAttachmentContextMenu()
+                break
+            }
+          }}
+        />
+      ) : null}
+      {game && snapshot.machineContextMenu ? (
+        <MachineRadialMenu
+          menu={snapshot.machineContextMenu}
+          onDismiss={() => game.closeMachineContextMenu()}
+          onAction={(action) => {
+            const menu = snapshot.machineContextMenu!
+            switch (action) {
+              case MachineRadialActionKind.LoadFromCombine:
+                game.loadFromCombine(menu.targetMachineId)
+                break
+              case MachineRadialActionKind.Cancel:
+                game.closeMachineContextMenu()
+                break
+            }
+          }}
+        />
+      ) : null}
+      {game && snapshot.interactionContextMenu ? (
+        <InteractionRadialMenu
+          menu={snapshot.interactionContextMenu}
+          onDismiss={() => game.closeInteractionContextMenu()}
+          onAction={(action) => {
+            const menu = snapshot.interactionContextMenu!
+            switch (action) {
+              case InteractionRadialActionKind.UnloadToSilo:
+                game.unloadToSilo(menu.interactionPointId)
+                break
+              case InteractionRadialActionKind.Cancel:
+                game.closeInteractionContextMenu()
                 break
             }
           }}

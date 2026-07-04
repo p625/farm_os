@@ -23,6 +23,7 @@ import {
   FieldSystem,
   GrainCombineJobSystem,
   InventorySystem,
+  LogisticsSystem,
   MachineRegistry,
   MarketSystem,
   MachineCapabilityResolver,
@@ -46,11 +47,19 @@ import {
   FieldRadialActionKind,
   MachineCapability,
   MachineId,
+  MachineRadialActionKind,
   SelectedEntityKind,
   type FieldContextMenuSnapshot,
   type MachineCommand,
+  type MachineContextMenuSnapshot,
   type SelectedEntitySnapshot,
 } from '@/types/machine.ts'
+import {
+  InteractionPointId,
+  InteractionRadialActionKind,
+  type InteractionContextMenuSnapshot,
+} from '@/types/interaction-point.ts'
+import { getInteractionPointDefinition } from '@/config/interaction-point-catalog.ts'
 import {
   AttachmentLifecycleState,
   AttachmentRadialActionKind,
@@ -77,6 +86,7 @@ export class Game implements IDisposable {
   private readonly grainCombineJobSystem: GrainCombineJobSystem
   private readonly cornCombineJobSystem: CornCombineJobSystem
   private readonly attachmentSystem: AttachmentSystem
+  private readonly logisticsSystem: LogisticsSystem
   private readonly capabilityResolver: MachineCapabilityResolver
   private readonly machineRegistry: MachineRegistry
   private readonly eventLog: GameEventLog
@@ -96,6 +106,8 @@ export class Game implements IDisposable {
   private selectedEntity: SelectedEntitySnapshot = EMPTY_SELECTED_ENTITY
   private fieldContextMenu: FieldContextMenuSnapshot | null = null
   private attachmentContextMenu: AttachmentContextMenuSnapshot | null = null
+  private machineContextMenu: MachineContextMenuSnapshot | null = null
+  private interactionContextMenu: InteractionContextMenuSnapshot | null = null
   private autoSaveEnabled = false
   private disposed = false
   private started = false
@@ -137,6 +149,7 @@ export class Game implements IDisposable {
       system.setFarmShopSystem(this.farmShopSystem)
     }
     this.attachmentSystem = new AttachmentSystem()
+    this.logisticsSystem = new LogisticsSystem()
     this.attachmentSystem.setMachinePositionProvider((machineId) => {
       const controller = this.machineRegistry.get(machineId)
       if (!controller) {
@@ -163,6 +176,24 @@ export class Game implements IDisposable {
     this.machineRegistry.register(this.tractorJobSystem)
     this.machineRegistry.register(this.grainCombineJobSystem)
     this.machineRegistry.register(this.cornCombineJobSystem)
+    this.logisticsSystem.setMachineRegistry(this.machineRegistry)
+    this.logisticsSystem.setAttachmentSystem(this.attachmentSystem)
+    this.logisticsSystem.setInventorySystem(this.inventorySystem)
+    this.logisticsSystem.setCurrentDayProvider(() => this.world.currentDay)
+    this.logisticsSystem.setOnTransfer(() => {
+      this.autoSave()
+      this.notifyListeners()
+      this.machinePresentation.syncVisuals()
+      this.attachmentPresentation.syncVisuals()
+    })
+    for (const system of [
+      this.tractorJobSystem,
+      this.grainCombineJobSystem,
+      this.cornCombineJobSystem,
+    ]) {
+      system.setLogisticsSystem(this.logisticsSystem)
+      system.setMachineRegistry(this.machineRegistry)
+    }
     this.productionSystem.setInventorySystem(this.inventorySystem)
     this.productionSystem.setCropSystem(this.cropSystem)
     this.productionSystem.setProcessedPriceLookup((productId) =>
@@ -270,6 +301,8 @@ export class Game implements IDisposable {
     screenY: number,
   ): void {
     this.closeAttachmentContextMenu()
+    this.closeMachineContextMenu()
+    this.closeInteractionContextMenu()
     const workActions = this.getFieldRadialWorkActions(fieldId)
     if (workActions.length === 0) {
       return
@@ -299,6 +332,8 @@ export class Game implements IDisposable {
     screenY: number,
   ): void {
     this.closeFieldContextMenu()
+    this.closeMachineContextMenu()
+    this.closeInteractionContextMenu()
     const machineId = this.getSelectedMachineId()
     if (!machineId || this.isMachineBusy(machineId)) {
       return
@@ -332,6 +367,170 @@ export class Game implements IDisposable {
     }
     this.attachmentContextMenu = null
     this.notifyListeners()
+  }
+
+  openMachineContextMenu(
+    targetMachineId: MachineId,
+    screenX: number,
+    screenY: number,
+  ): void {
+    this.closeFieldContextMenu()
+    this.closeAttachmentContextMenu()
+    this.closeInteractionContextMenu()
+
+    const actions = this.getMachineRadialActions(targetMachineId)
+    if (actions.length === 0) {
+      return
+    }
+
+    const anchor = clampRadialAnchor(screenX, screenY)
+    this.machineContextMenu = {
+      targetMachineId,
+      screenX: anchor.x,
+      screenY: anchor.y,
+      actions: [...actions, MachineRadialActionKind.Cancel],
+    }
+    this.notifyListeners()
+  }
+
+  closeMachineContextMenu(): void {
+    if (!this.machineContextMenu) {
+      return
+    }
+    this.machineContextMenu = null
+    this.notifyListeners()
+  }
+
+  openInteractionContextMenu(
+    interactionPointId: InteractionPointId,
+    screenX: number,
+    screenY: number,
+  ): void {
+    this.closeFieldContextMenu()
+    this.closeAttachmentContextMenu()
+    this.closeMachineContextMenu()
+
+    const actions = this.getInteractionRadialActions(interactionPointId)
+    if (actions.length === 0) {
+      return
+    }
+
+    const definition = getInteractionPointDefinition(interactionPointId)
+    if (!definition) {
+      return
+    }
+
+    const anchor = clampRadialAnchor(screenX, screenY)
+    this.interactionContextMenu = {
+      interactionPointId,
+      interactionType: definition.type,
+      label: definition.label,
+      screenX: anchor.x,
+      screenY: anchor.y,
+      actions: [...actions, InteractionRadialActionKind.Cancel],
+    }
+    this.notifyListeners()
+  }
+
+  closeInteractionContextMenu(): void {
+    if (!this.interactionContextMenu) {
+      return
+    }
+    this.interactionContextMenu = null
+    this.notifyListeners()
+  }
+
+  loadFromCombine(targetMachineId: MachineId): void {
+    const selectedMachineId = this.getSelectedMachineId()
+    if (!selectedMachineId) {
+      return
+    }
+
+    this.closeMachineContextMenu()
+
+    if (
+      this.logisticsSystem.machineHasTrailer(selectedMachineId) &&
+      this.logisticsSystem.canLoadFromCombine(targetMachineId, selectedMachineId)
+    ) {
+      this.issueLoadCommand(targetMachineId, selectedMachineId)
+      return
+    }
+
+    if (
+      this.logisticsSystem.machineHasTrailer(targetMachineId) &&
+      this.logisticsSystem.canLoadFromCombine(selectedMachineId, targetMachineId)
+    ) {
+      this.issueLoadCommand(selectedMachineId, targetMachineId)
+    }
+  }
+
+  private issueLoadCommand(
+    sourceMachineId: MachineId,
+    haulerMachineId: MachineId,
+  ): void {
+    this.issueMachineCommand(haulerMachineId, {
+      destination: { kind: 'machine', machineId: sourceMachineId },
+      task: { kind: 'load_from_combine', sourceMachineId },
+    })
+  }
+
+  unloadToSilo(interactionPointId: InteractionPointId): void {
+    const haulerMachineId = this.getSelectedMachineId()
+    if (!haulerMachineId) {
+      return
+    }
+
+    this.closeInteractionContextMenu()
+    this.issueMachineCommand(haulerMachineId, {
+      destination: { kind: 'building', buildingId: interactionPointId },
+      task: { kind: 'unload_to_silo', interactionPointId },
+    })
+  }
+
+  getMachineRadialActions(targetMachineId: MachineId): MachineRadialActionKind[] {
+    const selectedMachineId = this.getSelectedMachineId()
+    if (!selectedMachineId || this.isMachineBusy(selectedMachineId)) {
+      return []
+    }
+
+    if (selectedMachineId === targetMachineId) {
+      return []
+    }
+
+    if (
+      this.logisticsSystem.machineHasTrailer(selectedMachineId) &&
+      this.logisticsSystem.canLoadFromCombine(targetMachineId, selectedMachineId)
+    ) {
+      return [MachineRadialActionKind.LoadFromCombine]
+    }
+
+    if (
+      this.logisticsSystem.machineHasTrailer(targetMachineId) &&
+      this.logisticsSystem.canLoadFromCombine(selectedMachineId, targetMachineId)
+    ) {
+      return [MachineRadialActionKind.LoadFromCombine]
+    }
+
+    return []
+  }
+
+  getInteractionRadialActions(
+    interactionPointId: InteractionPointId,
+  ): InteractionRadialActionKind[] {
+    const haulerMachineId = this.getSelectedMachineId()
+    if (!haulerMachineId || this.isMachineBusy(haulerMachineId)) {
+      return []
+    }
+
+    if (interactionPointId !== InteractionPointId.SiloEntry) {
+      return []
+    }
+
+    if (!this.logisticsSystem.canUnloadToSilo(haulerMachineId)) {
+      return []
+    }
+
+    return [InteractionRadialActionKind.UnloadToSilo]
   }
 
   getAttachmentRadialActions(
@@ -465,12 +664,28 @@ export class Game implements IDisposable {
       this.fieldSystem.canHarvest(fieldId)
     ) {
       const cropId = this.fieldSystem.getFieldCropId(fieldId)
-      if (cropId && this.capabilityResolver.canHarvestCrop(machineId, cropId)) {
+      if (
+        cropId &&
+        this.capabilityResolver.canHarvestCrop(machineId, cropId) &&
+        this.canHarvestIntoBin(machineId, cropId)
+      ) {
         actions.push(FieldRadialActionKind.Harvest)
       }
     }
 
     return actions
+  }
+
+  private canHarvestIntoBin(machineId: MachineId, cropId: string): boolean {
+    const bin = this.machineRegistry.get(machineId)?.getGrainBinSnapshot?.()
+    if (!bin) {
+      return false
+    }
+    if (bin.isFull) {
+      return false
+    }
+    const yieldAmount = this.cropSystem.getYield(cropId)
+    return bin.quantity + yieldAmount <= bin.capacity
   }
 
   issueMachineCommand(machineId: MachineId, command: MachineCommand): boolean {
@@ -651,6 +866,8 @@ export class Game implements IDisposable {
     this.selectedEntity = EMPTY_SELECTED_ENTITY
     this.fieldContextMenu = null
     this.attachmentContextMenu = null
+    this.machineContextMenu = null
+    this.interactionContextMenu = null
     this.machinePresentation.setSelectedMachine(null)
     this.eventLog.clear()
     this.eventLog.recordFarmReset(this.world.currentDay)
@@ -755,6 +972,8 @@ export class Game implements IDisposable {
     this.selectedEntity = EMPTY_SELECTED_ENTITY
     this.fieldContextMenu = null
     this.attachmentContextMenu = null
+    this.machineContextMenu = null
+    this.interactionContextMenu = null
     this.machinePresentation.setSelectedMachine(null)
 
     this.loadSavedGame()
@@ -877,6 +1096,8 @@ export class Game implements IDisposable {
     this.selectedEntity = EMPTY_SELECTED_ENTITY
     this.fieldContextMenu = null
     this.attachmentContextMenu = null
+    this.machineContextMenu = null
+    this.interactionContextMenu = null
     this.machinePresentation.setSelectedMachine(null)
 
     this.autoSaveEnabled = true
@@ -1000,6 +1221,8 @@ export class Game implements IDisposable {
       selectedEntity: this.selectedEntity,
       fieldContextMenu: this.fieldContextMenu,
       attachmentContextMenu: this.attachmentContextMenu,
+      machineContextMenu: this.machineContextMenu,
+      interactionContextMenu: this.interactionContextMenu,
       fields: this.buildFieldSnapshots(),
       crops: this.cropSystem.toSnapshots(),
       inventory: this.inventorySystem.toSnapshots(),
@@ -1032,6 +1255,8 @@ export class Game implements IDisposable {
     | 'effectiveCapabilities'
     | 'headerSupportedCrops'
     | 'harvestCompatibilityHint'
+    | 'logisticsHint'
+    | 'trailerCargo'
   > {
     const machineId = this.getSelectedMachineId() ?? MachineId.Tractor1
     const controller = this.machineRegistry.get(machineId)
@@ -1050,6 +1275,11 @@ export class Game implements IDisposable {
     )
 
     const harvestCompatibilityHint = this.buildHarvestCompatibilityHint(machineId)
+    const logisticsHint = this.buildLogisticsHint(machineId)
+    const trailerCargo = this.attachmentSystem.getMountedTrailerCargoSnapshot(
+      machineId,
+      (cropId) => this.cropSystem.getCropName(cropId),
+    )
 
     return {
       selectedMachine: buildSelectedMachineSnapshot(
@@ -1064,7 +1294,26 @@ export class Game implements IDisposable {
         this.capabilityResolver.getEffectiveCapabilities(machineId),
       headerSupportedCrops: supportedCrops,
       harvestCompatibilityHint,
+      logisticsHint,
+      trailerCargo,
     }
+  }
+
+  private buildLogisticsHint(machineId: MachineId): string | null {
+    const bin = this.machineRegistry.get(machineId)?.getGrainBinSnapshot?.()
+    if (bin?.isFull) {
+      return 'Grain bin full — load trailer to continue harvesting.'
+    }
+
+    const trailer = this.attachmentSystem.getMountedTrailerCargoSnapshot(
+      machineId,
+      (cropId) => this.cropSystem.getCropName(cropId),
+    )
+    if (trailer?.isFull) {
+      return 'Trailer full — unload at silo entry.'
+    }
+
+    return null
   }
 
   private buildHarvestCompatibilityHint(machineId: MachineId): string | null {
@@ -1080,6 +1329,16 @@ export class Game implements IDisposable {
 
     if (!this.capabilityResolver.hasEffectiveCapability(machineId, MachineCapability.Harvest)) {
       return 'This crop requires a harvesting machine.'
+    }
+
+    const bin = this.machineRegistry.get(machineId)?.getGrainBinSnapshot?.()
+    if (bin?.isFull) {
+      return 'Grain bin full — load trailer to continue harvesting.'
+    }
+
+    if (cropId && bin && !this.canHarvestIntoBin(machineId, cropId)) {
+      const cropName = this.cropSystem.getCropName(cropId)
+      return `Grain bin cannot fit a full ${cropName} harvest.`
     }
 
     return this.capabilityResolver.getHarvestIncompatibilityMessage(machineId, cropId)

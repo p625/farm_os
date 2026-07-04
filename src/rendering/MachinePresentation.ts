@@ -17,6 +17,7 @@ import { MachineId } from '@/types/machine.ts'
 import { TractorState } from '@/types/tractor.ts'
 
 const WORK_INDICATOR_PREFIX = 'machine_work_indicator_'
+const FULL_BIN_INDICATOR_PREFIX = 'machine_full_bin_indicator_'
 
 const SELECT_EMISSIVE = new Color3(0.22, 0.3, 0.1)
 const IDLE_BODY_EMISSIVE = new Color3(0, 0, 0)
@@ -26,6 +27,7 @@ export class MachinePresentation {
   private registry: MachineRegistry | null = null
   private selectedMachineId: MachineId | null = null
   private readonly workIndicators = new Map<MachineId, Mesh>()
+  private readonly fullBinIndicators = new Map<MachineId, Mesh>()
 
   attach(scene: Scene, registry: MachineRegistry): void {
     this.detach()
@@ -34,6 +36,7 @@ export class MachinePresentation {
 
     for (const entry of MACHINE_CATALOG) {
       this.createWorkIndicator(scene, entry.id)
+      this.createFullBinIndicator(scene, entry.id)
     }
 
     this.syncVisuals()
@@ -66,6 +69,7 @@ export class MachinePresentation {
 
     this.syncSelectionVisuals()
     this.syncWorkIndicators()
+    this.syncFullBinIndicators()
   }
 
   detach(): void {
@@ -73,6 +77,10 @@ export class MachinePresentation {
       indicator.dispose()
     }
     this.workIndicators.clear()
+    for (const indicator of this.fullBinIndicators.values()) {
+      indicator.dispose()
+    }
+    this.fullBinIndicators.clear()
     this.selectedMachineId = null
     this.scene = null
     this.registry = null
@@ -114,6 +122,50 @@ export class MachinePresentation {
     material.emissiveColor = new Color3(0.45, 0.35, 0.05)
     indicator.material = material
     this.workIndicators.set(machineId, indicator)
+  }
+
+  private createFullBinIndicator(scene: Scene, machineId: MachineId): void {
+    const indicator = MeshBuilder.CreateBox(
+      `${FULL_BIN_INDICATOR_PREFIX}${machineId}`,
+      { width: 0.9, height: 0.9, depth: 0.08 },
+      scene,
+    )
+    indicator.isPickable = false
+    indicator.setEnabled(false)
+
+    const material = new StandardMaterial(
+      `${FULL_BIN_INDICATOR_PREFIX}${machineId}_mat`,
+      scene,
+    )
+    material.diffuseColor = new Color3(0.95, 0.25, 0.15)
+    material.emissiveColor = new Color3(0.5, 0.12, 0.05)
+    indicator.material = material
+    this.fullBinIndicators.set(machineId, indicator)
+  }
+
+  private syncFullBinIndicators(): void {
+    if (!this.registry) {
+      return
+    }
+
+    for (const entry of MACHINE_CATALOG) {
+      const indicator = this.fullBinIndicators.get(entry.id)
+      const controller = this.registry.get(entry.id)
+      if (!indicator || !controller) {
+        continue
+      }
+
+      const bin = controller.getGrainBinSnapshot?.()
+      const isFull = bin?.isFull ?? false
+      indicator.setEnabled(isFull)
+
+      if (!isFull) {
+        continue
+      }
+
+      const position = controller.getPosition()
+      indicator.position = new Vector3(position.x, 4.2, position.z)
+    }
   }
 
   private syncWorkIndicators(): void {

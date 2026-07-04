@@ -44,13 +44,16 @@ Fáze 4 — Production             ← až po uzamčení Art Direction
 | Barvy | [Color Script](00_Strategy/Color_Script.md) |
 | Architektura budov | [Building Style Guide](01_Domain_Bibles/Building_Style_Guide.md) |
 
-| Návrh Map 01 (Vertical Slice) | [Map_01_Design_Bible](Maps/Map_01_Design_Bible.md) |
+| Návrh Map 01 | [Map_01_Design_Bible](Maps/Map_01_Central_Europe/Map_01_Design_Bible.md) |
+| Prostorová logika Map 01 | [Map_01_Spatial_Design](Maps/Map_01_Central_Europe/Map_01_Spatial_Design.md) |
+| Makro layout Map 01 | [Map_01_Landscape_Layout](Maps/Map_01_Central_Europe/Map_01_Landscape_Layout.md) |
+| Principy map | [Map_Design_Principles](Maps/00_Map_Guidelines/Map_Design_Principles.md) |
 
 ---
 
 ## Vertical Slice
 
-První hratelná mapa: **[Maps/Map_01_Design_Bible.md](Maps/Map_01_Design_Bible.md)**
+První hratelná mapa: **[Maps/Map_01_Central_Europe/](Maps/Map_01_Central_Europe/Map_01_Design_Bible.md)**
 
 ---
 
@@ -67,7 +70,9 @@ docs/Art/
 ├── 01_Domain_Bibles/           # T1 — doménové bible
 ├── 02_Production_Guidelines/   # T2 — produkční pravidla (většina až Fáze 4)
 ├── 03_Templates/               # T3 — šablony (Fáze 4)
-├── Maps/                       # Design Bible per mapa (Vertical Slice+)
-│     └── Map_01_Design_Bible.md
+├── Maps/
+│     ├── 00_Map_Guidelines/
+│     ├── Map_01_Central_Europe/
+│     └── archive/
 └── archive/
 ```

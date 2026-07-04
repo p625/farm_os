@@ -6,17 +6,18 @@ import {
   type Vector3,
 } from '@babylonjs/core'
 import type { Game } from '@core/Game.ts'
-import { DEFAULT_MACHINE_ID, isKnownMachineSceneNode } from '@/config/machine-catalog.ts'
+import { isKnownMachineSceneNode } from '@/config/machine-catalog.ts'
 import { FIELD_IDS } from '@/config/field-catalog.ts'
+import { resolveInteractionPointIdFromMesh } from '@/config/interaction-point-catalog.ts'
 import { FIELD_POSITIONS } from '@/config/farm-layout.ts'
 import {
   getAttachmentIdFromMesh,
   isAttachmentMesh,
 } from '@rendering/AttachmentPresentation.ts'
 import {
+  MachineId,
   SelectedEntityKind,
   type MachineCommand,
-  type MachineId,
 } from '@/types/machine.ts'
 import type { AttachmentIdValue } from '@/types/attachment.ts'
 
@@ -154,6 +155,27 @@ export class MachineInputPresentation {
         screenY,
       )
       return
+    }
+
+    const interactionPointId = mesh
+      ? this.resolveInteractionPointId(mesh)
+      : null
+    if (interactionPointId) {
+      this.game?.openInteractionContextMenu(
+        interactionPointId,
+        screenX,
+        screenY,
+      )
+      return
+    }
+
+    const targetMachineId = mesh ? this.resolveMachineId(mesh) : null
+    if (targetMachineId && targetMachineId !== machineId) {
+      const actions = this.game?.getMachineRadialActions(targetMachineId) ?? []
+      if (actions.length > 0) {
+        this.game?.openMachineContextMenu(targetMachineId, screenX, screenY)
+        return
+      }
     }
 
     const fieldId = this.resolveFieldTarget(
@@ -330,8 +352,22 @@ export class MachineInputPresentation {
     return null
   }
 
+  private resolveInteractionPointId(
+    mesh: AbstractMesh,
+  ): import('@/types/interaction-point.ts').InteractionPointId | null {
+    let current: AbstractMesh | null = mesh
+    while (current) {
+      const pointId = resolveInteractionPointIdFromMesh(current.name)
+      if (pointId) {
+        return pointId
+      }
+      current = current.parent as AbstractMesh | null
+    }
+    return null
+  }
+
   private isTractorMesh(mesh: AbstractMesh): boolean {
-    return this.resolveMachineId(mesh) === DEFAULT_MACHINE_ID
+    return this.resolveMachineId(mesh) === MachineId.Tractor1
   }
 
   private isTerrainMesh(mesh: AbstractMesh): boolean {

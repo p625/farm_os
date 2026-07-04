@@ -23,3 +23,5 @@ export {
   CornCombineJobSystem,
 } from './CombineJobSystem.ts'
 export { GrainBin } from './GrainBin.ts'
+export { CargoContainer } from './CargoContainer.ts'
+export { LogisticsSystem } from './LogisticsSystem.ts'

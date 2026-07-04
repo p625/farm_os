@@ -16,6 +16,7 @@ import {
   MachineId,
   type FieldContextMenuSnapshot,
   type MachineCapability as MachineCapabilityValue,
+  type MachineContextMenuSnapshot,
   type MachineId as MachineIdValue,
   type SelectedEntitySnapshot,
 } from '@/types/machine.ts'
@@ -24,6 +25,8 @@ import type {
   MachineAttachmentsSnapshot,
 } from '@/types/attachment.ts'
 import type { GrainBinSnapshot } from '@/types/grain-bin.ts'
+import type { CargoContainerSnapshot } from '@/types/cargo.ts'
+import type { InteractionContextMenuSnapshot } from '@/types/interaction-point.ts'
 import {
   TractorState,
   type TractorJobSnapshot,
@@ -49,6 +52,8 @@ export interface GameSnapshot {
   selectedEntity: SelectedEntitySnapshot
   fieldContextMenu: FieldContextMenuSnapshot | null
   attachmentContextMenu: AttachmentContextMenuSnapshot | null
+  machineContextMenu: MachineContextMenuSnapshot | null
+  interactionContextMenu: InteractionContextMenuSnapshot | null
   fields: readonly FieldSnapshot[]
   crops: readonly CropSnapshot[]
   inventory: readonly InventoryItemSnapshot[]
@@ -62,6 +67,8 @@ export interface GameSnapshot {
   effectiveCapabilities: readonly MachineCapabilityValue[]
   headerSupportedCrops: readonly string[]
   harvestCompatibilityHint: string | null
+  logisticsHint: string | null
+  trailerCargo: CargoContainerSnapshot | null
   eventLog: readonly GameLogEntry[]
   moneyGain: MoneyGainEffect | null
 }
@@ -85,6 +92,8 @@ export const EMPTY_GAME_SNAPSHOT: GameSnapshot = {
   selectedEntity: EMPTY_SELECTED_ENTITY,
   fieldContextMenu: null,
   attachmentContextMenu: null,
+  machineContextMenu: null,
+  interactionContextMenu: null,
   fields: [],
   crops: [],
   inventory: [],
@@ -110,6 +119,8 @@ export const EMPTY_GAME_SNAPSHOT: GameSnapshot = {
   effectiveCapabilities: [],
   headerSupportedCrops: [],
   harvestCompatibilityHint: null,
+  logisticsHint: null,
+  trailerCargo: null,
   eventLog: [],
   moneyGain: null,
 }

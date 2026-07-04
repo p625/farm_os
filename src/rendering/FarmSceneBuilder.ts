@@ -10,6 +10,7 @@ import { FarmDecorationsBuilder } from './FarmDecorationsBuilder.ts'
 import { FarmEnvironment } from './FarmEnvironment.ts'
 import { MILL_POSITION } from '@/config/production-catalog.ts'
 import { FIELD_POSITIONS } from '@/config/farm-layout.ts'
+import { INTERACTION_POINT_CATALOG } from '@/config/interaction-point-catalog.ts'
 
 const TERRAIN_COLOR = new Color3(0.26, 0.46, 0.18)
 const FIELD_BASE_COLOR = new Color3(0.42, 0.28, 0.16)
@@ -33,6 +34,7 @@ export class FarmSceneBuilder {
     this.createMill(scene)
     this.createTractor(scene)
     this.createCombines(scene)
+    this.createInteractionPoints(scene)
   }
 
   private createTerrain(scene: Scene): void {
@@ -353,6 +355,46 @@ export class FarmSceneBuilder {
       wheel.position = new Vector3(x, 0.6, z)
       wheel.parent = root
       wheel.material = wheelMaterial
+    }
+  }
+
+  private createInteractionPoints(scene: Scene): void {
+    const padMaterial = new StandardMaterial('interactionPadMaterial', scene)
+    padMaterial.diffuseColor = new Color3(0.75, 0.62, 0.2)
+    padMaterial.emissiveColor = new Color3(0.2, 0.15, 0.02)
+
+    const markerMaterial = new StandardMaterial('interactionMarkerMaterial', scene)
+    markerMaterial.diffuseColor = new Color3(0.9, 0.75, 0.2)
+    markerMaterial.emissiveColor = new Color3(0.35, 0.25, 0.05)
+
+    for (const point of INTERACTION_POINT_CATALOG) {
+      const root = new TransformNode(`interaction_root_${point.id}`, scene)
+      root.position = new Vector3(
+        point.position.x,
+        point.position.y,
+        point.position.z,
+      )
+
+      const pad = MeshBuilder.CreateCylinder(
+        point.meshName,
+        { height: 0.08, diameter: 3.2 },
+        scene,
+      )
+      pad.position.y = 0.04
+      pad.material = padMaterial
+      pad.parent = root
+      pad.isPickable = true
+      pad.receiveShadows = true
+
+      const marker = MeshBuilder.CreateBox(
+        `${point.meshName}_marker`,
+        { width: 0.4, height: 1.6, depth: 0.4 },
+        scene,
+      )
+      marker.position.y = 0.9
+      marker.material = markerMaterial
+      marker.parent = root
+      marker.isPickable = true
     }
   }
 }

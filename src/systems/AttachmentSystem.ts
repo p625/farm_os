@@ -32,7 +32,12 @@ import type { MachineId } from '@/types/machine.ts'
 import type {
   AttachmentSaveData,
   AttachmentsSaveData,
+  AttachmentContainerSaveData,
 } from '@/types/save.ts'
+import { AttachmentType } from '@/types/attachment.ts'
+import { CARGO_KIND_CROP, DEFAULT_TRAILER_CARGO_CAPACITY } from '@/types/cargo.ts'
+import { CargoContainer } from './CargoContainer.ts'
+import type { CargoContainerSnapshot } from '@/types/cargo.ts'
 import { GameSystem } from './GameSystem.ts'
 
 interface Vec3 {
@@ -50,6 +55,7 @@ interface AttachmentEntity {
   position: Vec3
   rotationY: number
   mountedOn: AttachmentMountedOn | null
+  cargo: CargoContainer | null
 }
 
 type MachinePositionProvider = (
@@ -105,6 +111,7 @@ export class AttachmentSystem extends GameSystem {
         position: { ...yardPosition },
         rotationY: 0,
         mountedOn: null,
+        cargo: this.createCargoForCatalog(catalog.id, catalog.attachmentType),
       })
     }
     this.notifyChange()
@@ -162,11 +169,97 @@ export class AttachmentSystem extends GameSystem {
         position: { ...yardPosition },
         rotationY: 0,
         mountedOn: null,
+        cargo: this.createCargoForCatalog(catalog.id, catalog.attachmentType),
       })
     }
 
     this.reconcileMounts()
     this.notifyChange()
+  }
+
+  getTrailerCargo(attachmentId: AttachmentIdValue): CargoContainer | null {
+    const attachment = this.attachments.get(attachmentId)
+    if (!attachment || attachment.attachmentType !== AttachmentType.Trailer) {
+      return null
+    }
+    return attachment.cargo
+  }
+
+  getTrailerCargoSnapshot(
+    attachmentId: AttachmentIdValue,
+    getCropName: (cropId: string) => string,
+  ): CargoContainerSnapshot | null {
+    const cargo = this.getTrailerCargo(attachmentId)
+    return cargo ? cargo.toSnapshot(getCropName) : null
+  }
+
+  getMountedTrailerCargoSnapshot(
+    machineId: MachineId,
+    getCropName: (cropId: string) => string,
+  ): CargoContainerSnapshot | null {
+    const trailerId = this.getSlotAttachmentId(
+      machineId,
+      MachineSlotId.TrailerHitch,
+    )
+    if (!trailerId) {
+      return null
+    }
+    return this.getTrailerCargoSnapshot(trailerId, getCropName)
+  }
+
+  private createCargoForCatalog(
+    catalogId: AttachmentCatalogIdValue,
+    attachmentType: AttachmentTypeValue,
+  ): CargoContainer | null {
+    if (attachmentType !== AttachmentType.Trailer) {
+      return null
+    }
+    const catalog = getAttachmentCatalogEntry(catalogId)
+    const capacity = catalog?.cargoCapacity ?? DEFAULT_TRAILER_CARGO_CAPACITY
+    return new CargoContainer(capacity)
+  }
+
+  private restoreCargoFromContainers(
+    attachmentType: AttachmentTypeValue,
+    catalogId: AttachmentCatalogIdValue,
+    containers: AttachmentContainerSaveData[] | undefined,
+  ): CargoContainer | null {
+    if (attachmentType !== AttachmentType.Trailer) {
+      return null
+    }
+    const catalog = getAttachmentCatalogEntry(catalogId)
+    const capacity = catalog?.cargoCapacity ?? DEFAULT_TRAILER_CARGO_CAPACITY
+    const cargo = new CargoContainer(capacity)
+    const cropContainer = containers?.find(
+      (entry) => entry.cargoKind === CARGO_KIND_CROP,
+    )
+    if (cropContainer) {
+      cargo.restoreFromSave({
+        capacity,
+        quantity: cropContainer.quantity,
+        cropId: cropContainer.itemId ?? null,
+      })
+    }
+    return cargo
+  }
+
+  private cargoToContainers(
+    cargo: CargoContainer | null,
+  ): AttachmentContainerSaveData[] | undefined {
+    if (!cargo) {
+      return undefined
+    }
+    const save = cargo.toSaveData()
+    if (save.quantity <= 0) {
+      return []
+    }
+    return [
+      {
+        cargoKind: CARGO_KIND_CROP,
+        itemId: save.cropId ?? undefined,
+        quantity: save.quantity,
+      },
+    ]
   }
 
   toSaveData(): AttachmentsSaveData {
@@ -542,6 +635,11 @@ export class AttachmentSystem extends GameSystem {
       position: { ...position },
       rotationY,
       mountedOn,
+      cargo: this.restoreCargoFromContainers(
+        catalog.attachmentType,
+        catalog.id,
+        item.containers,
+      ),
     }
   }
 
@@ -560,8 +658,7 @@ export class AttachmentSystem extends GameSystem {
             slotId: attachment.mountedOn.slotId,
           }
         : null,
-      containers:
-        attachment.attachmentType === 'trailer' ? [] : undefined,
+      containers: this.cargoToContainers(attachment.cargo),
     }
   }
 

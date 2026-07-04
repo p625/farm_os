@@ -3,16 +3,13 @@ import {
   type GrainBinSaveData,
   type GrainBinSnapshot,
 } from '@/types/grain-bin.ts'
+import { CargoContainer } from './CargoContainer.ts'
 
 export class GrainBin {
-  private capacity: number
-  private quantity: number
-  private cropId: string | null
+  private readonly container: CargoContainer
 
   constructor(capacity = DEFAULT_GRAIN_BIN_CAPACITY) {
-    this.capacity = capacity
-    this.quantity = 0
-    this.cropId = null
+    this.container = new CargoContainer(capacity)
   }
 
   static fromSave(saved: GrainBinSaveData | undefined): GrainBin {
@@ -22,62 +19,54 @@ export class GrainBin {
   }
 
   restoreFromSave(saved: GrainBinSaveData | undefined): void {
-    this.capacity =
-      typeof saved?.capacity === 'number' && saved.capacity > 0
-        ? saved.capacity
-        : DEFAULT_GRAIN_BIN_CAPACITY
-    this.quantity =
-      typeof saved?.quantity === 'number' && saved.quantity >= 0
-        ? saved.quantity
-        : 0
-    this.cropId = typeof saved?.cropId === 'string' ? saved.cropId : null
-    if (this.quantity === 0) {
-      this.cropId = null
-    }
+    this.container.restoreFromSave(saved)
   }
 
   canAccept(cropId: string, amount: number): boolean {
-    if (amount <= 0) {
-      return false
-    }
-    if (this.quantity === 0) {
-      return amount <= this.capacity
-    }
-    if (this.cropId !== cropId) {
-      return false
-    }
-    return this.quantity + amount <= this.capacity
+    return this.container.canAccept(cropId, amount)
   }
 
   add(cropId: string, amount: number): boolean {
-    if (!this.canAccept(cropId, amount)) {
-      return false
-    }
+    return this.container.add(cropId, amount)
+  }
 
-    if (this.quantity === 0) {
-      this.cropId = cropId
-    }
+  remove(amount: number): number {
+    return this.container.remove(amount)
+  }
 
-    this.quantity += amount
-    return true
+  hasCargo(): boolean {
+    return this.container.hasCargo()
+  }
+
+  isFull(): boolean {
+    return this.container.isFull()
+  }
+
+  getQuantity(): number {
+    return this.container.getQuantity()
+  }
+
+  getCropId(): string | null {
+    return this.container.getCropId()
+  }
+
+  getFreeCapacity(): number {
+    return this.container.getFreeCapacity()
+  }
+
+  getContainer(): CargoContainer {
+    return this.container
+  }
+
+  transferTo(target: CargoContainer, amount?: number): number {
+    return this.container.transferTo(target, amount)
   }
 
   toSaveData(): GrainBinSaveData {
-    return {
-      capacity: this.capacity,
-      quantity: this.quantity,
-      cropId: this.quantity > 0 ? this.cropId : null,
-    }
+    return this.container.toSaveData()
   }
 
   toSnapshot(getCropName: (cropId: string) => string): GrainBinSnapshot {
-    return {
-      capacity: this.capacity,
-      quantity: this.quantity,
-      cropId: this.cropId,
-      cropName: this.cropId ? getCropName(this.cropId) : null,
-      fillPercent:
-        this.capacity > 0 ? Math.min(1, this.quantity / this.capacity) : 0,
-    }
+    return this.container.toSnapshot(getCropName)
   }
 }

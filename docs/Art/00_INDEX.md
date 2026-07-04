@@ -2,7 +2,7 @@
 
 | | |
 |--|--|
-| **Verze** | v0.5.0 |
+| **Verze** | v0.6.0 |
 | **Status** | Draft |
 | **Tier** | T0 |
 | **Vlastník** | Art Director |
@@ -17,7 +17,7 @@
 
 | Verze | Datum | Autor | Shrnutí |
 |-------|-------|-------|---------|
-| v0.5.0 | 2026-07-04 | — | Map 01 Design Bible — první hratelná mapa (Vertical Slice) |
+| v0.6.0 | 2026-07-04 | — | Map_01_Landscape_Layout; reorganizace Maps/ |
 | v0.4.0 | 2026-07-04 | — | World Identity Statement — Vision Lock ve Fázi 1 |
 | v0.3.0 | 2026-07-04 | — | Odkaz na ADR-A01 Decision Framework |
 | v0.2.0 | 2026-07-04 | — | AAA preprodukční roadmapa |
@@ -111,8 +111,9 @@ První hratelná mapa — přechod z art preprodukce do návrhu světa.
 
 | Dokument | Stav | Účel |
 |----------|------|------|
-| [Map_01_Design_Bible.md](Maps/Map_01_Design_Bible.md) | Draft | SoT návrhu první mapy |
-| Map_01_Landscape_Layout (TBD) | — | Topografie, layout |
+| [Map_01_Design_Bible.md](Maps/Map_01_Central_Europe/Map_01_Design_Bible.md) | Draft | SoT návrhu první mapy |
+| [Map_01_Spatial_Design.md](Maps/Map_01_Central_Europe/Map_01_Spatial_Design.md) | Draft | SoT prostorové logiky |
+| [Map_01_Landscape_Layout.md](Maps/Map_01_Central_Europe/Map_01_Landscape_Layout.md) | Draft | Makrokompozice (Varianta A) |
 | Map_01_POI_Guide (TBD) | — | Detail POI |
 | Map_01_Vegetation (TBD) | — | Vegetace mapy |
 | Map_01_Lighting (TBD) | — | Světlo mapy |

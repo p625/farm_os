@@ -22,13 +22,15 @@ export type CommandDestination =
   | { kind: 'field'; fieldId: string }
   | { kind: 'farm'; zoneId: string }
   | { kind: 'building'; buildingId: string }
+  | { kind: 'machine'; machineId: MachineId }
 
 export type CommandTask =
   | { kind: 'none' }
   | { kind: 'plow' }
   | { kind: 'seed'; cropId: string }
   | { kind: 'harvest' }
-  | { kind: 'unload'; targetBuildingId?: string }
+  | { kind: 'load_from_combine'; sourceMachineId: MachineId }
+  | { kind: 'unload_to_silo'; interactionPointId: string }
 
 export interface MachineCommand {
   destination: CommandDestination
@@ -69,9 +71,24 @@ export const FieldRadialActionKind = {
 export type FieldRadialActionKind =
   (typeof FieldRadialActionKind)[keyof typeof FieldRadialActionKind]
 
+export const MachineRadialActionKind = {
+  LoadFromCombine: 'load_from_combine',
+  Cancel: 'cancel',
+} as const
+
+export type MachineRadialActionKind =
+  (typeof MachineRadialActionKind)[keyof typeof MachineRadialActionKind]
+
 export interface FieldContextMenuSnapshot {
   fieldId: string
   screenX: number
   screenY: number
   actions: readonly FieldRadialActionKind[]
+}
+
+export interface MachineContextMenuSnapshot {
+  targetMachineId: MachineId
+  screenX: number
+  screenY: number
+  actions: readonly MachineRadialActionKind[]
 }

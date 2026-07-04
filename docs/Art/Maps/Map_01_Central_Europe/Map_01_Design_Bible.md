@@ -37,9 +37,9 @@ Tento návrh **nemění** rozhodnutí nadřazených dokumentů — převádí je
 
 | Zdroj | Co přebírá Map 01 |
 |-------|-------------------|
-| [Art Bible](../00_Strategy/Art_Bible.md) | Management pohled, pole jako centrum, klid, čitelnost, believable evropská farma |
-| [World Identity Statement](../00_Strategy/World_Identity_Statement.md) | Inspirováno realitou s kurátorovanou idealizací; přehledná jemně zvlněná krajina; správce/hospodář |
-| [ADR-A01 Framework](../00_Strategy/ADR-A01_Regional_Identity_Framework.md) | Středoevropský směr — bez vázání na jeden stát; vlastní identita FarmOS |
+| [Art Bible](../../00_Strategy/Art_Bible.md) | Management pohled, pole jako centrum, klid, čitelnost, believable evropská farma |
+| [World Identity Statement](../../00_Strategy/World_Identity_Statement.md) | Inspirováno realitou s kurátorovanou idealizací; přehledná jemně zvlněná krajina; správce/hospodář |
+| [ADR-A01 Framework](../../00_Strategy/ADR-A01_Regional_Identity_Framework.md) | Středoevropský směr — bez vázání na jeden stát; vlastní identita FarmOS |
 
 ### Rozhodnutí specifická pro Map 01
 
@@ -66,6 +66,9 @@ ADR-A01 (středoevropský směr — Map 01 jako referenční instance)
        │
        ▼
 Map 01 Design Bible          ← tento dokument
+       │
+       ▼
+Map_01_Spatial_Design        ← prostorová logika (před Layout)
        │
        ├──► Map_01_Landscape_Layout (TBD)
        ├──► Map_01_POI_Guide (TBD)
@@ -293,7 +296,7 @@ Střední vzdálenost: rybník → alej → samota → most
 Horizont:        vesnice + kostel → lesní pás → kopce
 ```
 
-**[RULE]** Každý POI musí projít [World Identity checklist](../00_Strategy/World_Identity_Statement.md#9-checklist--odpovídá-asset-identitě-farmos).
+**[RULE]** Každý POI musí projít [World Identity checklist](../../00_Strategy/World_Identity_Statement.md#9-checklist--odpovídá-asset-identitě-farmos).
 
 ---
 
@@ -376,7 +379,7 @@ Léto je **primární referenční sezóna** pro moodboard a první vizuální t
 ### Barvy a světlo
 
 - Paleta **teple měkká** — zlatá obilí, zelená louky, modrošedá obloha.
-- Barvy podléhají [Color Script](../00_Strategy/Color_Script.md) po [Lighting Guide](../02_Production_Guidelines/Lighting_Guide.md) — Map 01 definuje **charakter**, ne hex.
+- Barvy podléhají [Color Script](../../00_Strategy/Color_Script.md) po [Lighting Guide](../../02_Production_Guidelines/Lighting_Guide.md) — Map 01 definuje **charakter**, ne hex.
 - Světlo **difúzní a klidné** — žádné přepálené HDR záře.
 
 ### Celkový pocit
@@ -469,7 +472,7 @@ První mapa **záměrně neobsahuje**:
 
 ## 10. Reference Direction
 
-Následující témata budou potřeba pro moodboard a [Mood Reference Library](../00_Strategy/Mood_Reference_Library.md). **Konkrétní fotografie zatím ne** — pouze směr kurátorství.
+Následující témata budou potřeba pro moodboard a [Mood Reference Library](../../00_Strategy/Mood_Reference_Library.md). **Konkrétní fotografie zatím ne** — pouze směr kurátorství.
 
 ### Krajina a pole
 
@@ -531,9 +534,9 @@ Následující témata budou potřeba pro moodboard a [Mood Reference Library](.
 | Téma | Autorita pro Map 01 |
 |------|---------------------|
 | Návrh první hratelné mapy | **Tento dokument** |
-| Filozofie světa (obecně) | [World Identity Statement](../00_Strategy/World_Identity_Statement.md) |
-| Vizuální ústava | [Art Bible](../00_Strategy/Art_Bible.md) |
-| Obecná krajina (cross-map) | [Environment Bible](../01_Domain_Bibles/Environment_Bible.md) — po dokončení |
+| Filozofie světa (obecně) | [World Identity Statement](../../00_Strategy/World_Identity_Statement.md) |
+| Vizuální ústava | [Art Bible](../../00_Strategy/Art_Bible.md) |
+| Obecná krajina (cross-map) | [Environment Bible](../../01_Domain_Bibles/Environment_Bible.md) — po dokončení |
 | POI detail, layout | Map_01_Landscape_Layout, Map_01_POI_Guide (TBD) |
 
 **[RULE]** Při konfliktu mezi obecným guide a Map 01 Design Bible pro **první mapu** platí tento dokument. Při konfliktu s Art Bible nebo World Identity platí vždy nadřazený dokument.
@@ -546,20 +549,29 @@ Po schválení Map 01 Design Bible vzniknou produkční podklady:
 
 | Dokument | Účel | Vlastník |
 |----------|------|----------|
-| `Map_01_Landscape_Layout.md` | Topografie, field layout, vodní síť, cestní síť — první konkrétní rozložení | World Director / Level Design |
-| `Map_01_POI_Guide.md` | Detail každého POI — architektura, props, vazby | Environment Lead |
-| `Map_01_Vegetation.md` | Druhy plodin, stromy, biotopy, sezónní varianty pro tuto mapu | Vegetation Lead |
-| `Map_01_Lighting.md` | Light scenarios, TOD, weather presets specifické pro mapu | Lighting Lead |
-| `Map_01_Asset_List.md` | Katalog assetů potřebných pro Vertical Slice | Art Producer / Tech Art |
+| [Map_01_Spatial_Design.md](Map_01_Spatial_Design.md) | Prostorová logika, kompozice, sightlines | World Director |
+| [Map_01_Landscape_Layout.md](Map_01_Landscape_Layout.md) | Makrokompozice (Varianta A) | World Director |
+| [Map_01_View_Composition.md](Map_01_View_Composition.md) | Kompozice pohledů z kamery — před Road/Field | World Director |
+| `Map_01_Road_Network.md` | Silnice a polní cesty | World Director |
+| `Map_01_Field_Layout.md` | Parcely polí | Level Design |
+| `Map_01_POI_Guide.md` | Detail POI | Environment Lead |
+| `Map_01_Vegetation.md` | Plodiny a les per zóna | Vegetation Lead |
+| `Map_01_Lighting.md` | Světlo mapy | Lighting Lead |
+| `Map_01_Asset_List.md` | Asset katalog VS | Art Producer |
 
 ```text
-Map_01_Design_Bible (tento dokument — schválit první)
+Map_01_Design_Bible (schválit první)
        │
+       ├── Map_01_Spatial_Design
        ├── Map_01_Landscape_Layout
+       ├── Map_01_View_Composition
+       ├── Map_01_Road_Network
+       ├── Map_01_Field_Layout
        ├── Map_01_POI_Guide
        ├── Map_01_Vegetation
        ├── Map_01_Lighting
-       └── Map_01_Asset_List
+       ├── Map_01_Asset_List
+       └── Map_01_References/
 ```
 
 ---
@@ -589,7 +601,7 @@ Map 01 není jednorázová aréna — je **genetický kód** vizuální identity
 
 ### Navazující dokumenty
 
-`Map_01_Landscape_Layout`, `Map_01_POI_Guide`, `Map_01_Vegetation`, `Map_01_Lighting`, `Map_01_Asset_List` — viz sekce výše.
+`Map_01_View_Composition` (aktuální fáze), poté `Map_01_Road_Network`, `Map_01_Field_Layout`, `Map_01_POI_Guide`, `Map_01_Vegetation`, `Map_01_Lighting`, `Map_01_Asset_List` — viz sekce výše.
 
 ### Rozhodnutí před produkcí
 
@@ -599,8 +611,8 @@ Uzavřít otevřené body M01-D01 až M01-D08; schválit tento Design Bible; syn
 
 ## Související dokumenty
 
-- [Art_Bible.md](../00_Strategy/Art_Bible.md)
-- [World_Identity_Statement.md](../00_Strategy/World_Identity_Statement.md)
-- [ADR-A01_Regional_Identity_Framework.md](../00_Strategy/ADR-A01_Regional_Identity_Framework.md)
-- [00_INDEX.md](../00_INDEX.md)
-- [Environment_Bible.md](../01_Domain_Bibles/Environment_Bible.md)
+- [Art_Bible.md](../../00_Strategy/Art_Bible.md)
+- [World_Identity_Statement.md](../../00_Strategy/World_Identity_Statement.md)
+- [ADR-A01_Regional_Identity_Framework.md](../../00_Strategy/ADR-A01_Regional_Identity_Framework.md)
+- [00_INDEX.md](../../00_INDEX.md)
+- [Environment_Bible.md](../../01_Domain_Bibles/Environment_Bible.md)
