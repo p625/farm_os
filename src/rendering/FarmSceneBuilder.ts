@@ -9,10 +9,24 @@ import {
 import { FarmDecorationsBuilder } from './FarmDecorationsBuilder.ts'
 import { FarmEnvironment } from './FarmEnvironment.ts'
 import { MILL_POSITION } from '@/config/production-catalog.ts'
-import { FIELD_POSITIONS } from '@/config/farm-layout.ts'
+import {
+  FARM_HUB,
+  FIELD_LAYOUT,
+  getWorldCenter,
+  getWorldTerrainSize,
+} from '@/config/map-01-layout.ts'
 import { INTERACTION_POINT_CATALOG } from '@/config/interaction-point-catalog.ts'
+import {
+  TRACTOR_HOME,
+  TRACTOR_HOME_ROTATION_Y,
+  GRAIN_COMBINE_HOME,
+  CORN_COMBINE_HOME,
+  GRAIN_COMBINE_HOME_ROTATION_Y,
+  CORN_COMBINE_HOME_ROTATION_Y,
+} from '@/config/farm-layout.ts'
 
 const TERRAIN_COLOR = new Color3(0.26, 0.46, 0.18)
+const VALLEY_COLOR = new Color3(0.22, 0.4, 0.15)
 const FIELD_BASE_COLOR = new Color3(0.42, 0.28, 0.16)
 const FARMYARD_COLOR = new Color3(0.58, 0.48, 0.34)
 const TRACTOR_BODY_COLOR = new Color3(0.15, 0.42, 0.15)
@@ -27,6 +41,7 @@ export class FarmSceneBuilder {
     this.environment.apply(scene)
 
     this.createTerrain(scene)
+    this.createValleyBackdrop(scene)
     this.decorations.build(scene)
     this.createFields(scene)
     this.createFarmyard(scene)
@@ -39,11 +54,16 @@ export class FarmSceneBuilder {
   }
 
   private createTerrain(scene: Scene): void {
+    const { width, depth } = getWorldTerrainSize()
+    const center = getWorldCenter()
+
     const terrain = MeshBuilder.CreateGround(
       'terrain',
-      { width: 60, height: 60 },
+      { width, height: depth },
       scene,
     )
+    terrain.position = new Vector3(center.x, 0, center.z)
+
     const material = new StandardMaterial('terrainMaterial', scene)
     material.diffuseColor = TERRAIN_COLOR
     material.specularColor = new Color3(0.04, 0.06, 0.03)
@@ -52,30 +72,61 @@ export class FarmSceneBuilder {
     terrain.receiveShadows = true
   }
 
+  private createValleyBackdrop(scene: Scene): void {
+    const center = getWorldCenter()
+    const valley = MeshBuilder.CreateGround(
+      'valley_backdrop',
+      { width: 90, height: 50 },
+      scene,
+    )
+    valley.position = new Vector3(center.x - 20, 0.005, center.z - 35)
+    valley.isPickable = false
+
+    const material = new StandardMaterial('valleyBackdropMaterial', scene)
+    material.diffuseColor = VALLEY_COLOR
+    material.specularColor = new Color3(0.03, 0.05, 0.02)
+    valley.material = material
+  }
+
   private createFields(scene: Scene): void {
-    for (const [fieldId, position] of Object.entries(FIELD_POSITIONS)) {
-      const field = MeshBuilder.CreateBox(
-        fieldId,
-        { width: 10, height: 0.08, depth: 14 },
+    for (const field of FIELD_LAYOUT) {
+      const fieldMesh = MeshBuilder.CreateBox(
+        field.id,
+        {
+          width: field.meshSize.width,
+          height: 0.08,
+          depth: field.meshSize.depth,
+        },
         scene,
       )
-      field.position = new Vector3(position.x, 0.04, position.z)
+      fieldMesh.position = new Vector3(
+        field.position.x,
+        0.04,
+        field.position.z,
+      )
+      if (field.rotationY) {
+        fieldMesh.rotation.y = field.rotationY
+      }
 
-      const material = new StandardMaterial(`fieldMaterial_${fieldId}`, scene)
+      const material = new StandardMaterial(
+        `fieldMaterial_${field.id}`,
+        scene,
+      )
       material.diffuseColor = FIELD_BASE_COLOR.clone()
       material.specularColor = new Color3(0.05, 0.04, 0.02)
-      field.material = material
-      field.receiveShadows = true
+      fieldMesh.material = material
+      fieldMesh.receiveShadows = true
     }
   }
 
   private createFarmyard(scene: Scene): void {
+    const { position, size } = FARM_HUB.farmyard
     const farmyard = MeshBuilder.CreateBox(
       'farmyard',
-      { width: 26, height: 0.06, depth: 18 },
+      { width: size.width, height: 0.06, depth: size.depth },
       scene,
     )
-    farmyard.position = new Vector3(18, 0.03, 22)
+    farmyard.position = new Vector3(position.x, 0.03, position.z)
     farmyard.isPickable = false
 
     const farmyardMaterial = new StandardMaterial('farmyardMaterial', scene)
@@ -87,7 +138,11 @@ export class FarmSceneBuilder {
 
   private createBarn(scene: Scene): void {
     const root = new TransformNode('barn_root', scene)
-    root.position = new Vector3(16, 0, 12)
+    root.position = new Vector3(
+      FARM_HUB.barn.position.x,
+      0,
+      FARM_HUB.barn.position.z,
+    )
 
     const wallMat = new StandardMaterial('barnWallMaterial', scene)
     wallMat.diffuseColor = new Color3(0.72, 0.24, 0.18)
@@ -200,7 +255,11 @@ export class FarmSceneBuilder {
 
   private createDealership(scene: Scene): void {
     const root = new TransformNode('dealership_root', scene)
-    root.position = new Vector3(4, 0, 14)
+    root.position = new Vector3(
+      FARM_HUB.dealership.position.x,
+      0,
+      FARM_HUB.dealership.position.z,
+    )
 
     const wallMaterial = new StandardMaterial('dealership_wall_mat', scene)
     wallMaterial.diffuseColor = new Color3(0.72, 0.68, 0.62)
@@ -246,8 +305,8 @@ export class FarmSceneBuilder {
 
   private createTractor(scene: Scene): void {
     const root = new TransformNode('tractor', scene)
-    root.position = new Vector3(6, 0, 10)
-    root.rotation.y = -Math.PI / 6
+    root.position = new Vector3(TRACTOR_HOME.x, 0, TRACTOR_HOME.z)
+    root.rotation.y = TRACTOR_HOME_ROTATION_Y
 
     const bodyMaterial = new StandardMaterial('tractorBodyMaterial', scene)
     bodyMaterial.diffuseColor = TRACTOR_BODY_COLOR
@@ -323,16 +382,16 @@ export class FarmSceneBuilder {
     this.createCombine(
       scene,
       'grain_combine_1',
-      new Vector3(22, 0, 10),
-      -Math.PI / 6,
+      new Vector3(GRAIN_COMBINE_HOME.x, 0, GRAIN_COMBINE_HOME.z),
+      GRAIN_COMBINE_HOME_ROTATION_Y,
       new Color3(0.75, 0.55, 0.12),
       new Color3(0.85, 0.2, 0.12),
     )
     this.createCombine(
       scene,
       'corn_combine_1',
-      new Vector3(30, 0, 10),
-      -Math.PI / 6,
+      new Vector3(CORN_COMBINE_HOME.x, 0, CORN_COMBINE_HOME.z),
+      CORN_COMBINE_HOME_ROTATION_Y,
       new Color3(0.7, 0.5, 0.1),
       new Color3(0.2, 0.55, 0.2),
     )

@@ -26,6 +26,7 @@ export default defineConfig({
       '@audio': path.resolve(projectRoot, './src/audio'),
       '@types': path.resolve(projectRoot, './src/types'),
       '@utils': path.resolve(projectRoot, './src/utils'),
+      '@studio': path.resolve(projectRoot, './src/studio'),
     },
   },
 })

@@ -21,6 +21,8 @@
 | [006_Phase11_ManualMachineControl.md](./006_Phase11_ManualMachineControl.md) | Specification | Phase 11 implementation spec |
 | [007_Phase12_AttachmentsAndHarvestMachines.md](./007_Phase12_AttachmentsAndHarvestMachines.md) | Specification | Phase 12 implementation spec |
 | [008_Phase13_FarmStore.md](./008_Phase13_FarmStore.md) | Specification | Phase 13 Farm Store (Dealer MVP) |
+| [009_Phase14_WorldExpansion.md](./009_Phase14_WorldExpansion.md) | Specification | Phase 14 world expansion |
+| [010_Phase16_Automation.md](./010_Phase16_Automation.md) | Specification | Phase 16 automation (approved, deferred) |
 
 ## Change Policy
 

@@ -45,4 +45,4 @@ export function getMillRecipe(): ProductionRecipe {
   return recipeByBuilding.get(ProductionBuildingId.Mill)!
 }
 
-export const MILL_POSITION = { x: 10, y: 0, z: 14 } as const
+export { MILL_POSITION } from '@/config/farm-layout.ts'

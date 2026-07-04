@@ -102,6 +102,12 @@ export class SaveGameService {
       }
       return this.repairSave(this.migrateFromV7(data as LegacySaveData))
     }
+    if (data.version === 9) {
+      if (!this.isValidCoreSave(data)) {
+        return null
+      }
+      return this.repairSave(this.migrateFromV9(data as LegacySaveData))
+    }
     if (!this.isValidCoreSave(data)) {
       return null
     }
@@ -388,8 +394,8 @@ export class SaveGameService {
       currentDay: data.currentDay,
       gameSpeed: data.gameSpeed,
       selectedFieldId: data.selectedFieldId ?? null,
-      fields: data.fields,
-      ownership: data.ownership,
+      fields: this.mergeFieldSaveSlices(data.fields),
+      ownership: this.mergeOwnershipSaveSlices(data.ownership),
       inventory: data.inventory,
       marketPrices: data.marketPrices,
       processedMarketPrices: Array.isArray(data.processedMarketPrices)
@@ -415,6 +421,56 @@ export class SaveGameService {
       },
       attachments: this.emptyAttachments(),
     }
+  }
+
+  private migrateFromV9(data: LegacySaveData): LegacySaveData {
+    return {
+      ...data,
+      version: SAVE_VERSION,
+      fields: this.mergeFieldSaveSlices(data.fields),
+      ownership: this.mergeOwnershipSaveSlices(data.ownership),
+    }
+  }
+
+  private mergeFieldSaveSlices(
+    fields: LegacySaveData['fields'],
+  ): LegacySaveData['fields'] {
+    const byId = new Map(
+      (Array.isArray(fields) ? fields : []).map((field) => [field.id, field]),
+    )
+
+    return FIELD_CATALOG.map((entry) => {
+      const saved = byId.get(entry.id)
+      if (saved) {
+        return saved
+      }
+      return {
+        id: entry.id,
+        state: States.Grass,
+        growthPercent: 0,
+        cropId: null,
+        daysGrown: 0,
+      }
+    })
+  }
+
+  private mergeOwnershipSaveSlices(
+    ownership: LegacySaveData['ownership'],
+  ): LegacySaveData['ownership'] {
+    const byId = new Map(
+      (Array.isArray(ownership) ? ownership : []).map((entry) => [
+        entry.id,
+        entry,
+      ]),
+    )
+
+    return FIELD_CATALOG.map((entry) => {
+      const saved = byId.get(entry.id)
+      if (saved) {
+        return saved
+      }
+      return { id: entry.id, ownership: entry.initialOwnership }
+    })
   }
 
   resolveMachinesSave(data: LegacySaveData): MachinesSaveData {

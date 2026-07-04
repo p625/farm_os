@@ -20,7 +20,8 @@
       "@assets/*": ["src/assets/*"],
       "@audio/*": ["src/audio/*"],
       "@types/*": ["src/types/*"],
-      "@utils/*": ["src/utils/*"]
+      "@utils/*": ["src/utils/*"],
+      "@studio/*": ["src/studio/*"]
     },
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,

@@ -2,9 +2,9 @@ import {
   CORN_COMBINE_HOME,
   CORN_COMBINE_HOME_ROTATION_Y,
   FIELD_POSITIONS,
+  getScaledFieldWorkDuration,
   GRAIN_COMBINE_HOME,
   GRAIN_COMBINE_HOME_ROTATION_Y,
-  JOB_WORK_DURATION,
   TRACTOR_MOVE_SPEED,
 } from '@/config/farm-layout.ts'
 import { MachineCapability, MachineId, type MachineCommand } from '@/types/machine.ts'
@@ -261,7 +261,10 @@ export class CombineJobSystem extends GameSystem implements IMachineController {
           } else {
             this.state = TractorState.Working
             this.workTimer = 0
-            this.workDuration = this.getWorkDuration(this.activeWork.type)
+            this.workDuration = this.getWorkDuration(
+              this.activeWork.type,
+              this.activeWork.fieldId,
+            )
             notifyHud = true
           }
         }
@@ -363,10 +366,9 @@ export class CombineJobSystem extends GameSystem implements IMachineController {
     return this.farmShopSystem?.getTractorSpeedMultiplier() ?? 1
   }
 
-  private getWorkDuration(type: JobTypeValue): number {
-    const base = JOB_WORK_DURATION[type] ?? 1.5
+  private getWorkDuration(type: JobTypeValue, fieldId: string): number {
     const multiplier = this.farmShopSystem?.getWorkDurationMultiplier() ?? 1
-    return base * multiplier
+    return getScaledFieldWorkDuration(type, fieldId, multiplier)
   }
 
   private validateCommand(command: MachineCommand): boolean {

@@ -2,17 +2,20 @@ import {
   DeliveryZoneId,
   type DeliveryZoneDefinition,
 } from '@/types/delivery.ts'
+import { FARM_HUB } from '@/config/map-01-layout.ts'
 
+/**
+ * Delivery zones place purchased world objects (machines, attachments).
+ *
+ * Phase 14: Dealer lot only. This catalog will evolve into a generic Spawn Zone
+ * architecture (see docs/Architecture/009_Phase14_WorldExpansion.md).
+ */
 export const DELIVERY_ZONE_CATALOG: readonly DeliveryZoneDefinition[] = [
   {
     id: DeliveryZoneId.DealerLot,
     label: 'Dealer Delivery Zone',
     clearanceRadius: 2.5,
-    slots: [
-      { x: 2, y: 0, z: 18, rotationY: -Math.PI / 6 },
-      { x: 6, y: 0, z: 20, rotationY: -Math.PI / 6 },
-      { x: 10, y: 0, z: 18, rotationY: -Math.PI / 6 },
-    ],
+    slots: FARM_HUB.deliverySlots.map((slot) => ({ ...slot })),
   },
 ] as const
 

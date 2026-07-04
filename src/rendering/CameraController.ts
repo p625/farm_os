@@ -1,44 +1,68 @@
 import { ArcRotateCamera, Vector3 } from '@babylonjs/core'
 import type { SceneManager } from './SceneManager.ts'
+import {
+  DEFAULT_CAMERA_PROFILE_ID,
+  getCameraProfile,
+  type CameraProfileId,
+} from '@/config/camera-profiles.ts'
 import type { IDisposable, IInitializable, IUpdatable } from '@/types/index.ts'
-
-const ISOMETRIC_ALPHA = -Math.PI / 4
-const ISOMETRIC_BETA = 1.05
-const ISOMETRIC_RADIUS = 42
-const LOOK_AT_TARGET = new Vector3(4, 0, 4)
 
 export class CameraController implements IInitializable, IUpdatable, IDisposable {
   private camera: ArcRotateCamera | null = null
   private readonly sceneManager: SceneManager
+  private activeProfileId: CameraProfileId = DEFAULT_CAMERA_PROFILE_ID
 
   constructor(sceneManager: SceneManager) {
     this.sceneManager = sceneManager
   }
 
   initialize(): void {
-    const scene = this.sceneManager.getScene()
-    this.camera = new ArcRotateCamera(
-      'mainCamera',
-      ISOMETRIC_ALPHA,
-      ISOMETRIC_BETA,
-      ISOMETRIC_RADIUS,
-      LOOK_AT_TARGET,
-      scene,
-    )
-
-    this.camera.lowerBetaLimit = ISOMETRIC_BETA
-    this.camera.upperBetaLimit = ISOMETRIC_BETA
-    this.camera.lowerAlphaLimit = ISOMETRIC_ALPHA
-    this.camera.upperAlphaLimit = ISOMETRIC_ALPHA
-    this.camera.lowerRadiusLimit = 25
-    this.camera.upperRadiusLimit = 70
-    this.camera.wheelPrecision = 12
-    this.camera.panningSensibility = 80
+    this.applyProfile(DEFAULT_CAMERA_PROFILE_ID)
 
     const canvas = this.sceneManager.getEngine().getRenderingCanvas()
-    if (canvas) {
+    if (canvas && this.camera) {
       this.camera.attachControl(canvas, false)
     }
+  }
+
+  applyProfile(profileId: CameraProfileId): void {
+    const profile = getCameraProfile(profileId)
+    const scene = this.sceneManager.getScene()
+    const target = new Vector3(
+      profile.target.x,
+      profile.target.y,
+      profile.target.z,
+    )
+
+    if (!this.camera) {
+      this.camera = new ArcRotateCamera(
+        'mainCamera',
+        profile.alpha,
+        profile.beta,
+        profile.radius,
+        target,
+        scene,
+      )
+    } else {
+      this.camera.setTarget(target)
+      this.camera.alpha = profile.alpha
+      this.camera.beta = profile.beta
+      this.camera.radius = profile.radius
+    }
+
+    this.camera.lowerBetaLimit = profile.beta
+    this.camera.upperBetaLimit = profile.beta
+    this.camera.lowerAlphaLimit = profile.alpha
+    this.camera.upperAlphaLimit = profile.alpha
+    this.camera.lowerRadiusLimit = profile.lowerRadiusLimit
+    this.camera.upperRadiusLimit = profile.upperRadiusLimit
+    this.camera.wheelPrecision = profile.wheelPrecision
+    this.camera.panningSensibility = profile.panningSensibility
+    this.activeProfileId = profileId
+  }
+
+  getActiveProfileId(): CameraProfileId {
+    return this.activeProfileId
   }
 
   getCamera(): ArcRotateCamera {

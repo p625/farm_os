@@ -9,6 +9,7 @@ import {
   type Scene,
 } from '@babylonjs/core'
 import { FIELD_DEFINITIONS, FIELD_POSITIONS } from '@/config/farm-layout.ts'
+import { getFieldLayoutEntry } from '@/config/map-01-layout.ts'
 import { FIELD_IDS } from '@/config/field-catalog.ts'
 import type { Field } from '@entities/Field.ts'
 import type { FieldSystem } from '@systems/FieldSystem.ts'
@@ -355,12 +356,16 @@ export class FieldOverlayPresentation {
       return
     }
 
+    const layout = getFieldLayoutEntry(fieldId)
+    const barWidth = layout ? Math.min(layout.meshSize.width - 2, 8) : 6
+    const barZ = position.z + (layout ? layout.meshSize.depth / 2 + 0.6 : 5.2)
+
     const bg = MeshBuilder.CreateBox(
       `field_growth_bg_${fieldId}`,
-      { width: 6, height: 0.02, depth: 0.35 },
+      { width: barWidth, height: 0.02, depth: 0.35 },
       this.scene,
     )
-    bg.position.set(position.x, 0.14, position.z + 5.2)
+    bg.position.set(position.x, 0.14, barZ)
     bg.isPickable = false
 
     const bgMaterial = new StandardMaterial(`field_growth_bg_mat_${fieldId}`, this.scene)
@@ -370,10 +375,10 @@ export class FieldOverlayPresentation {
 
     const fill = MeshBuilder.CreateBox(
       `field_growth_fill_${fieldId}`,
-      { width: 6, height: 0.03, depth: 0.28 },
+      { width: barWidth, height: 0.03, depth: 0.28 },
       this.scene,
     )
-    fill.position.set(position.x - 3, 0.16, position.z + 5.2)
+    fill.position.set(position.x - barWidth / 2, 0.16, barZ)
     fill.isPickable = false
 
     const fillMaterial = new StandardMaterial(
@@ -391,9 +396,13 @@ export class FieldOverlayPresentation {
     const bg = this.scene?.getMeshByName(`field_growth_bg_${fieldId}`)
     const fill = this.scene?.getMeshByName(`field_growth_fill_${fieldId}`)
     const position = FIELD_POSITIONS[fieldId]
+    const layout = getFieldLayoutEntry(fieldId)
     if (!bg || !fill || !position) {
       return
     }
+
+    const barWidth = layout ? Math.min(layout.meshSize.width - 2, 8) : 6
+    const barZ = position.z + (layout ? layout.meshSize.depth / 2 + 0.6 : 5.2)
 
     const isGrowing = Boolean(
       this.ownershipSystem?.canUseField(fieldId) &&
@@ -408,7 +417,9 @@ export class FieldOverlayPresentation {
 
     const progress = Math.max(0.04, field.growthPercent / 100)
     fill.scaling.x = progress
-    fill.position.x = position.x - 3 + 3 * progress
+    fill.position.x = position.x - barWidth / 2 + (barWidth / 2) * progress
+    fill.position.z = barZ
+    bg.position.z = barZ
   }
 
   private createOutlineMeshes(
@@ -419,9 +430,13 @@ export class FieldOverlayPresentation {
       return
     }
 
+    const layout = getFieldLayoutEntry(fieldId)
+    const width = layout?.meshSize.width ?? 10
+    const depth = layout?.meshSize.depth ?? 14
+
     const hover = MeshBuilder.CreateBox(
       `field_outline_hover_${fieldId}`,
-      { width: 10.3, height: 0.03, depth: 14.3 },
+      { width: width + 0.3, height: 0.03, depth: depth + 0.3 },
       this.scene,
     )
     hover.position.set(position.x, 0.1, position.z)
@@ -439,7 +454,7 @@ export class FieldOverlayPresentation {
 
     const select = MeshBuilder.CreateBox(
       `field_outline_select_${fieldId}`,
-      { width: 10.6, height: 0.04, depth: 14.6 },
+      { width: width + 0.6, height: 0.04, depth: depth + 0.6 },
       this.scene,
     )
     select.position.set(position.x, 0.12, position.z)

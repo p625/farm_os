@@ -5,6 +5,7 @@ import {
   type InteractionPointType as InteractionPointTypeValue,
 } from '@/types/interaction-point.ts'
 import { FarmStoreId } from '@/types/farm-store.ts'
+import { FARM_HUB } from '@/config/map-01-layout.ts'
 
 export interface InteractionPointDefinition {
   id: InteractionPointIdValue
@@ -14,6 +15,11 @@ export interface InteractionPointDefinition {
   position: { x: number; y: number; z: number }
   arrivalRadius: number
   farmStoreId?: FarmStoreId
+  /**
+   * Reserved for future radial-menu / marker visibility ordering.
+   * Higher values surface first when multiple POIs overlap. No effect in Phase 14.
+   */
+  visibilityPriority?: number
 }
 
 export const INTERACTION_POINT_CATALOG: readonly InteractionPointDefinition[] = [
@@ -22,17 +28,19 @@ export const INTERACTION_POINT_CATALOG: readonly InteractionPointDefinition[] = 
     type: InteractionPointType.Silo,
     label: 'Silo Entry',
     meshName: 'interaction_point_silo_entry',
-    position: { x: 20, y: 0, z: 14 },
+    position: FARM_HUB.siloEntry.position,
     arrivalRadius: 2.5,
+    visibilityPriority: 10,
   },
   {
     id: InteractionPointId.DealerEntry,
     type: InteractionPointType.Shop,
     label: 'Farm Dealer',
     meshName: 'interaction_point_dealer_entry',
-    position: { x: 4, y: 0, z: 16 },
+    position: FARM_HUB.dealerEntry.position,
     arrivalRadius: 2.5,
     farmStoreId: FarmStoreId.Dealer,
+    visibilityPriority: 20,
   },
 ] as const
 

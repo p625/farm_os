@@ -16,8 +16,13 @@ import {
 } from '@/types/interaction-point.ts'
 import { MachineRadialActionKind } from '@/types/machine.ts'
 import './GameShell.css'
+import '@/studio/StudioShell.css'
 
-export function GameShell() {
+interface GameShellProps {
+  onSwitchToStudio?: () => void
+}
+
+export function GameShell({ onSwitchToStudio }: GameShellProps) {
   const shellRef = useRef<HTMLDivElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [game, setGame] = useState<Game | null>(null)
@@ -128,6 +133,16 @@ export function GameShell() {
           event.preventDefault()
         }}
       />
+      {onSwitchToStudio ? (
+        <button
+          type="button"
+          className="game-mode-switch"
+          onClick={onSwitchToStudio}
+          title="Open FarmOS Studio (F10)"
+        >
+          Studio
+        </button>
+      ) : null}
       {game ? <GameHUD game={game} snapshot={snapshot} /> : null}
       {game && snapshot.fieldContextMenu ? (
         <RadialContextMenu

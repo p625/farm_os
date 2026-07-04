@@ -6,7 +6,11 @@ import {
   TransformNode,
   Vector3,
 } from '@babylonjs/core'
-import { FIELD_POSITIONS } from '@/config/farm-layout.ts'
+import {
+  FARM_HUB,
+  FIELD_LAYOUT,
+  MAP_01_WORLD_BOUNDS,
+} from '@/config/map-01-layout.ts'
 
 const DECOR_METADATA = { decor: true } as const
 
@@ -28,13 +32,14 @@ export class FarmDecorationsBuilder {
     const roadMat = this.mat(scene, 'roadMaterial', new Color3(0.45, 0.4, 0.34))
     roadMat.specularColor = new Color3(0.05, 0.05, 0.05)
 
+    const hub = FARM_HUB.barn.position
     const segments: Array<{ x: number; z: number; w: number; d: number }> = [
-      { x: 11, z: 12, w: 12, d: 2.4 },
-      { x: 6, z: 3, w: 2.4, d: 16 },
-      { x: 0, z: -4, w: 28, d: 2.8 },
-      { x: -12, z: -1.5, w: 2.2, d: 5 },
-      { x: 0, z: -1.5, w: 2.2, d: 5 },
-      { x: 12, z: -1.5, w: 2.2, d: 5 },
+      { x: hub.x - 4, z: hub.z + 10, w: 14, d: 2.4 },
+      { x: hub.x - 12, z: hub.z, w: 2.4, d: 22 },
+      { x: 35, z: 16, w: 40, d: 2.8 },
+      { x: 10, z: -2, w: 2.2, d: 28 },
+      { x: -8, z: -22, w: 36, d: 2.6 },
+      { x: 42, z: -18, w: 2.2, d: 24 },
     ]
 
     segments.forEach((segment, index) => {
@@ -53,24 +58,26 @@ export class FarmDecorationsBuilder {
   private createFences(scene: Scene, root: TransformNode): void {
     const fenceMat = this.mat(scene, 'fenceMaterial', new Color3(0.55, 0.42, 0.28))
 
-    for (const [fieldId, position] of Object.entries(FIELD_POSITIONS)) {
+    for (const field of FIELD_LAYOUT) {
+      const halfW = field.meshSize.width / 2
+      const halfD = field.meshSize.depth / 2
       const segments = [
-        { x: 0, z: -7.5, w: 10.6, d: 0.18 },
-        { x: 0, z: 7.5, w: 10.6, d: 0.18 },
-        { x: -5.2, z: 0, w: 0.18, d: 14.6 },
-        { x: 5.2, z: 0, w: 0.18, d: 14.6 },
+        { x: 0, z: -halfD - 0.3, w: field.meshSize.width + 0.6, d: 0.18 },
+        { x: 0, z: halfD + 0.3, w: field.meshSize.width + 0.6, d: 0.18 },
+        { x: -halfW - 0.3, z: 0, w: 0.18, d: field.meshSize.depth + 0.6 },
+        { x: halfW + 0.3, z: 0, w: 0.18, d: field.meshSize.depth + 0.6 },
       ]
 
       segments.forEach((segment, index) => {
         const post = MeshBuilder.CreateBox(
-          `decor_fence_${fieldId}_${index}`,
+          `decor_fence_${field.id}_${index}`,
           { width: segment.w, height: 0.55, depth: segment.d },
           scene,
         )
         post.position = new Vector3(
-          position.x + segment.x,
+          field.position.x + segment.x,
           0.3,
-          position.z + segment.z,
+          field.position.z + segment.z,
         )
         post.material = fenceMat
         post.parent = root
@@ -78,9 +85,10 @@ export class FarmDecorationsBuilder {
       })
     }
 
+    const yard = FARM_HUB.farmyard.position
     const yardFence = [
-      { x: 16, z: 19, w: 16, d: 0.2 },
-      { x: 23, z: 14, w: 0.2, d: 12 },
+      { x: yard.x, z: yard.z - 10, w: 20, d: 0.2 },
+      { x: yard.x + 10, z: yard.z, w: 0.2, d: 14 },
     ]
     yardFence.forEach((segment, index) => {
       const fence = MeshBuilder.CreateBox(
@@ -100,24 +108,25 @@ export class FarmDecorationsBuilder {
     const leafMat = this.mat(scene, 'treeLeafMaterial', new Color3(0.18, 0.42, 0.16))
     leafMat.specularColor = new Color3(0.04, 0.08, 0.03)
 
+    const bounds = MAP_01_WORLD_BOUNDS
     const edgeTrees: Array<[number, number, number]> = [
-      [-27, 0, -22],
-      [-27, 0, -8],
-      [-27, 0, 6],
-      [-27, 0, 22],
-      [27, 0, -22],
-      [27, 0, -8],
-      [27, 0, 6],
-      [27, 0, 22],
-      [-18, 0, -27],
-      [-6, 0, -27],
-      [6, 0, -27],
-      [18, 0, -27],
-      [-10, 0, 26],
-      [8, 0, 26],
-      [24, 0, 26],
-      [-22, 0, 18],
-      [22, 0, 18],
+      [bounds.minX + 2, 0, bounds.minZ + 8],
+      [bounds.minX + 2, 0, -10],
+      [bounds.minX + 2, 0, 20],
+      [bounds.maxX - 2, 0, bounds.minZ + 8],
+      [bounds.maxX - 2, 0, -10],
+      [bounds.maxX - 2, 0, 20],
+      [-35, 0, bounds.minZ + 2],
+      [-15, 0, bounds.minZ + 2],
+      [5, 0, bounds.minZ + 2],
+      [25, 0, bounds.minZ + 2],
+      [45, 0, bounds.minZ + 2],
+      [-20, 0, bounds.maxZ - 2],
+      [10, 0, bounds.maxZ - 2],
+      [35, 0, bounds.maxZ - 2],
+      [60, 0, bounds.maxZ - 2],
+      [bounds.minX + 8, 0, 30],
+      [bounds.maxX - 8, 0, 40],
     ]
 
     edgeTrees.forEach(([x, , z], index) => {
@@ -146,17 +155,18 @@ export class FarmDecorationsBuilder {
 
   private createBushes(scene: Scene, root: TransformNode): void {
     const bushMat = this.mat(scene, 'bushMaterial', new Color3(0.22, 0.48, 0.18))
+    const hub = FARM_HUB.barn.position
     const positions: Array<[number, number, number]> = [
-      [10, 0, 16],
-      [22, 0, 18],
-      [-8, 0, 8],
-      [18, 0, 6],
-      [-18, 0, -10],
-      [20, 0, -12],
-      [-6, 0, -18],
-      [14, 0, -20],
-      [2, 0, 14],
-      [-14, 0, 14],
+      [hub.x - 6, 0, hub.z + 8],
+      [hub.x + 10, 0, hub.z + 12],
+      [hub.x - 18, 0, hub.z - 4],
+      [hub.x + 4, 0, hub.z - 6],
+      [10, 0, 24],
+      [30, 0, 2],
+      [-10, 0, -8],
+      [20, 0, -28],
+      [hub.x - 2, 0, hub.z + 14],
+      [-30, 0, -30],
     ]
 
     positions.forEach(([x, , z], index) => {
@@ -176,12 +186,12 @@ export class FarmDecorationsBuilder {
   private createRocks(scene: Scene, root: TransformNode): void {
     const rockMat = this.mat(scene, 'rockMaterial', new Color3(0.42, 0.44, 0.4))
     const positions: Array<[number, number, number, number]> = [
-      [-20, 0, -6, 0.3],
-      [-4, 0, 12, -0.5],
-      [11, 0, 8, 0.8],
-      [24, 0, 4, 0.2],
-      [-16, 0, -18, 1.1],
-      [8, 0, -22, -0.4],
+      [8, 0, 18, 0.3],
+      [22, 0, 8, -0.5],
+      [36, 0, 32, 0.8],
+      [-12, 0, -6, 0.2],
+      [-28, 0, -24, 1.1],
+      [14, 0, -36, -0.4],
     ]
 
     positions.forEach(([x, , z, rot], index) => {
@@ -207,11 +217,12 @@ export class FarmDecorationsBuilder {
     const hayMat = this.mat(scene, 'hayMaterial', new Color3(0.78, 0.62, 0.28))
     hayMat.specularColor = new Color3(0.08, 0.06, 0.02)
 
+    const yard = FARM_HUB.farmyard.position
     const bales: Array<[number, number, number, number]> = [
-      [12, 0, 17, 0],
-      [13.4, 0, 17.2, 0.4],
-      [12.2, 0.55, 17.1, 1.2],
-      [20, 0, 15.5, -0.3],
+      [yard.x - 4, 0, yard.z - 2, 0],
+      [yard.x - 2.6, 0, yard.z - 1.8, 0.4],
+      [yard.x - 3.8, 0.55, yard.z - 1.9, 1.2],
+      [yard.x + 6, 0, yard.z - 4, -0.3],
     ]
 
     bales.forEach(([x, y, z, rot], index) => {
@@ -230,13 +241,14 @@ export class FarmDecorationsBuilder {
   }
 
   private createProps(scene: Scene, root: TransformNode): void {
+    const hub = FARM_HUB.barn.position
     const barrelMat = this.mat(scene, 'barrelMaterial', new Color3(0.5, 0.32, 0.18))
     const barrel = MeshBuilder.CreateCylinder(
       'decor_barrel',
       { height: 1.1, diameter: 0.75 },
       scene,
     )
-    barrel.position = new Vector3(19, 0.55, 16)
+    barrel.position = new Vector3(hub.x + 8, 0.55, hub.z + 6)
     barrel.material = barrelMat
     barrel.parent = root
     this.decor(barrel)
@@ -247,18 +259,19 @@ export class FarmDecorationsBuilder {
       { width: 0.9, height: 0.7, depth: 0.9 },
       scene,
     )
-    crate.position = new Vector3(18.2, 0.35, 15.2)
+    crate.position = new Vector3(hub.x + 7.2, 0.35, hub.z + 5.2)
     crate.material = crateMat
     crate.parent = root
     this.decor(crate)
 
+    const dealer = FARM_HUB.dealership.position
     const signMat = this.mat(scene, 'signMaterial', new Color3(0.62, 0.48, 0.3))
     const signPost = MeshBuilder.CreateBox(
       'decor_sign_post',
       { width: 0.15, height: 1.4, depth: 0.15 },
       scene,
     )
-    signPost.position = new Vector3(4, 0.7, 12)
+    signPost.position = new Vector3(dealer.x, 0.7, dealer.z - 2)
     signPost.material = signMat
     signPost.parent = root
     this.decor(signPost)
@@ -268,7 +281,7 @@ export class FarmDecorationsBuilder {
       { width: 1.4, height: 0.7, depth: 0.1 },
       scene,
     )
-    signBoard.position = new Vector3(4, 1.35, 12)
+    signBoard.position = new Vector3(dealer.x, 1.35, dealer.z - 2)
     signBoard.material = signMat
     signBoard.parent = root
     this.decor(signBoard)

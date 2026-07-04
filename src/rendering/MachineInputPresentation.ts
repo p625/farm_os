@@ -14,7 +14,10 @@ import { getMachineTemplateId } from '@systems/MachineInstanceRegistry.ts'
 import { MachineTemplateId } from '@/types/machine-template.ts'
 import { FIELD_IDS } from '@/config/field-catalog.ts'
 import { resolveInteractionPointIdFromMesh } from '@/config/interaction-point-catalog.ts'
-import { FIELD_POSITIONS } from '@/config/farm-layout.ts'
+import {
+  FIELD_POSITIONS,
+  getFieldHalfExtents,
+} from '@/config/farm-layout.ts'
 import {
   getAttachmentIdFromMesh,
   isAttachmentMesh,
@@ -29,8 +32,6 @@ import type { AttachmentIdValue } from '@/types/attachment.ts'
 const TERRAIN_MESH_NAME = 'terrain'
 const FARMYARD_MESH_NAME = 'farmyard'
 const RIGHT_CLICK_DRAG_THRESHOLD_PX = 6
-const FIELD_HALF_WIDTH = 5
-const FIELD_HALF_DEPTH = 7
 
 interface PointerStart {
   x: number
@@ -495,9 +496,10 @@ export class MachineInputPresentation {
     z: number
   }): string | null {
     for (const [fieldId, center] of Object.entries(FIELD_POSITIONS)) {
+      const { halfWidth, halfDepth } = getFieldHalfExtents(fieldId)
       if (
-        Math.abs(position.x - center.x) <= FIELD_HALF_WIDTH &&
-        Math.abs(position.z - center.z) <= FIELD_HALF_DEPTH
+        Math.abs(position.x - center.x) <= halfWidth &&
+        Math.abs(position.z - center.z) <= halfDepth
       ) {
         return fieldId
       }
