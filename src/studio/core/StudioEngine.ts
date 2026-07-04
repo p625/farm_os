@@ -193,7 +193,20 @@ export class StudioEngine {
     this.buildingEditor?.syncModuleState(this.scene)
     this.vehicleEditor?.syncModuleState(this.scene)
     this.waterEditor?.syncModuleState(this.scene)
+    this.syncTerrainBoundaryWireframes()
     this.syncValidationOverlay()
+  }
+
+  private syncTerrainBoundaryWireframes(): void {
+    if (!this.scene) {
+      return
+    }
+    const snapshot = this.store.getSnapshot()
+    this.mapSceneBuilder.refreshTerrainBoundaryWireframes(
+      this.scene,
+      snapshot.map,
+      snapshot.terrainBoundaryVisible,
+    )
   }
 
   private syncValidationOverlay(): void {
@@ -263,10 +276,12 @@ export class StudioEngine {
   }
 
   finishActivePolygonDrawing(): boolean {
-    if (!this.getActivePolygonEditor()?.finishDrawing()) {
+    const editor = this.getActivePolygonEditor()
+    if (!editor?.finishDrawing()) {
       return false
     }
     this.refreshMap()
+    this.syncModules()
     return true
   }
 
@@ -498,8 +513,10 @@ export class StudioEngine {
       return
     }
     this.mapSceneBuilder.dispose(this.scene)
+    const snapshot = this.store.getSnapshot()
     this.mapSceneBuilder.build(this.scene, map, {
-      renderGameplayAnchors: this.store.getSnapshot().gameplayDebugEnabled,
+      renderGameplayAnchors: snapshot.gameplayDebugEnabled,
+      renderTerrainBoundary: snapshot.terrainBoundaryVisible,
     })
     this.renderingSystem.refreshAfterSceneContent()
   }

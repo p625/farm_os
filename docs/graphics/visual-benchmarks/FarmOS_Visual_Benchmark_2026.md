@@ -203,6 +203,18 @@ benchmark-report.txt
 
 Složka `latest/` se při **Shift+F9** před exportem vyčistí a přepíše.
 
+### MS2 Vegetation validace
+
+Po dokončení vegetation milestone porovnej zejména:
+
+- `meadow_ground_view` — hustota trávy, ground readability
+- `forest_edge_view` — remízky, okraj lesa
+- `horizon_view` — vliv vegetace na dálku
+- `dirt_road_view` — okraje cest
+- `field_long_view` — čitelnost polí vs. meze
+
+Viz [MS02_Vegetation_Framework.md](../milestones/MS02_Vegetation_Framework.md) sekce 9.
+
 ### Jednotlivý screenshot (F9)
 
 Uloží PNG pro aktuálně aktivní preset do `latest/` bez mazání ostatních souborů v této složce.

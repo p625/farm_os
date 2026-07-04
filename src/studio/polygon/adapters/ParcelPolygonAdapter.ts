@@ -26,8 +26,27 @@ export class ParcelPolygonAdapter implements PolygonObjectAdapter {
     return activeModuleId === 'parcels'
   }
 
+  isModuleActive(): boolean {
+    return this.store.getSnapshot().activeModuleId === 'parcels'
+  }
+
   getTool(): PolygonEditorTool {
     return this.store.getSnapshot().parcelTool
+  }
+
+  setTool(tool: PolygonEditorTool): void {
+    if (tool === 'rotate') {
+      return
+    }
+    this.store.setParcelTool(tool)
+  }
+
+  getSelectedObject(): MapObject | null {
+    const selected = this.store.getSnapshot().selectedObject
+    if (!selected || selected.layer !== 'fields' || selected.kind !== 'field') {
+      return null
+    }
+    return selected
   }
 
   pickGround(scene: Scene, canvasX: number, canvasY: number) {

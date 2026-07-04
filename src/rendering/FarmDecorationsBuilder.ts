@@ -15,14 +15,16 @@ import {
 const DECOR_METADATA = { decor: true } as const
 
 export class FarmDecorationsBuilder {
-  build(scene: Scene): void {
+  build(scene: Scene, options: { skipVegetation?: boolean } = {}): void {
     const root = new TransformNode('decor_root', scene)
     root.metadata = DECOR_METADATA
 
     this.createRoads(scene, root)
     this.createFences(scene, root)
-    this.createTrees(scene, root)
-    this.createBushes(scene, root)
+    if (!options.skipVegetation) {
+      this.createTrees(scene, root)
+      this.createBushes(scene, root)
+    }
     this.createRocks(scene, root)
     this.createHayBales(scene, root)
     this.createProps(scene, root)

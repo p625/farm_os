@@ -1,4 +1,4 @@
-/** Scene atmosphere parameters — distance fog and horizon (MS1A / MS1A.5). */
+/** @deprecated MS4 — scene atmosphere is owned by SkySystem (`src/config/rendering/sky/`). */
 
 export type FogModeKind = 'linear' | 'exponential' | 'height' | 'weather'
 

@@ -1,6 +1,7 @@
 export { SceneManager } from './SceneManager.ts'
 export { RenderingSystem } from './RenderingSystem.ts'
 export { FarmSceneBuilder } from './FarmSceneBuilder.ts'
+export { VegetationSystem } from './vegetation/VegetationSystem.ts'
 export { FarmDecorationsBuilder } from './FarmDecorationsBuilder.ts'
 export { FarmEnvironment } from './FarmEnvironment.ts'
 export { CameraController } from './CameraController.ts'

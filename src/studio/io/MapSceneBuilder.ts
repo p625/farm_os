@@ -20,10 +20,8 @@ import { parseRoadProperties } from '@/types/road.ts'
 import type { RoadControlPoint, RoadKind } from '@/types/road.ts'
 import type { MapObject, MapPolygonPoint, StudioLayerId, WorldMapDocument } from '@/types/world-map.ts'
 import { isMapPolygonShape } from '@/types/world-map.ts'
-import {
-  TERRAIN_POLYGON_KIND,
-  parseTerrainPolygonProperties,
-} from '@/types/terrain-polygon.ts'
+import { TERRAIN_POLYGON_KIND } from '@/types/terrain-polygon.ts'
+import { TerrainBoundaryWireframeRenderer } from '@/studio/terrain/TerrainBoundaryWireframe.ts'
 import {
   createFieldPolygonMesh,
   createParcelDraftLineMesh,
@@ -117,12 +115,6 @@ const STUDIO_LAYER_RENDER_ORDER: StudioLayerId[] = [
   'debug',
 ]
 
-const TERRAIN_MATERIAL_COLORS: Record<string, Color3> = {
-  grass: new Color3(0.32, 0.52, 0.28),
-  soil: new Color3(0.45, 0.32, 0.22),
-  rock: new Color3(0.5, 0.5, 0.52),
-  sand: new Color3(0.72, 0.65, 0.45),
-}
 
 function layerRenderIndex(layer: StudioLayerId): number {
   const index = STUDIO_LAYER_RENDER_ORDER.indexOf(layer)
@@ -134,12 +126,15 @@ export interface MapSceneBuildOptions {
   omitLayers?: readonly StudioLayerId[]
   /** When false, gameplay anchor gizmos are hidden (runtime / preview mode). */
   renderGameplayAnchors?: boolean
+  /** When false, Terrain Boundary wireframes are omitted (runtime gameplay). */
+  renderTerrainBoundary?: boolean
 }
 
 export class MapSceneBuilder {
   private rootNode: TransformNode | null = null
   private lastMap: WorldMapDocument | null = null
   private renderGameplayAnchors = true
+  private readonly boundaryWireframe = new TerrainBoundaryWireframeRenderer()
 
   build(
     scene: Scene,
@@ -164,10 +159,22 @@ export class MapSceneBuilder {
       this.createObjectMesh(scene, root, object, map)
     }
 
+    const showBoundary = options?.renderTerrainBoundary !== false
+    this.boundaryWireframe.refresh(scene, map, showBoundary)
+
     return root
   }
 
+  refreshTerrainBoundaryWireframes(
+    scene: Scene,
+    map: WorldMapDocument,
+    visible: boolean,
+  ): void {
+    this.boundaryWireframe.refresh(scene, map, visible)
+  }
+
   dispose(scene: Scene): void {
+    this.boundaryWireframe.dispose(scene)
     this.disposeValidationMarkers(scene)
     if (this.rootNode) {
       this.rootNode.dispose(false, true)
@@ -222,35 +229,7 @@ export class MapSceneBuilder {
       depth: 1,
     }
 
-    if (
-      object.layer === 'terrain' &&
-      object.kind === TERRAIN_POLYGON_KIND &&
-      isMapPolygonShape(shape)
-    ) {
-      const mesh = createFieldPolygonMesh(
-        scene,
-        `studio_${object.id}`,
-        shape.points,
-        object.transform.position.y,
-        shape.height,
-      )
-      mesh.parent = root
-      const material = new StandardMaterial(`mat_${object.id}`, scene)
-      const terrainProps = parseTerrainPolygonProperties(object.properties)
-      const base =
-        TERRAIN_MATERIAL_COLORS[terrainProps?.baseMaterial ?? 'grass'] ??
-        LAYER_COLORS.terrain
-      material.diffuseColor = base
-      material.specularColor = base.scale(0.15)
-      mesh.material = material
-      mesh.receiveShadows = true
-      const metadata: StudioMeshMetadata = {
-        objectId: object.id,
-        layer: object.layer,
-        kind: object.kind,
-        mapObject: object,
-      }
-      mesh.metadata = { [STUDIO_METADATA_KEY]: metadata }
+    if (object.kind === TERRAIN_POLYGON_KIND) {
       return
     }
 

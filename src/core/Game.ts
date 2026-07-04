@@ -24,6 +24,7 @@ import {
   ProductionPresentation,
   RenderingSystem,
   SceneManager,
+  VegetationSystem,
 } from '@rendering/index.ts'
 import {
   AttachmentSystem,
@@ -157,6 +158,7 @@ export class Game implements IDisposable {
   private readonly attachmentPresentation: AttachmentPresentation
   private readonly machineInputPresentation: MachineInputPresentation
   private readonly gameLoop: GameLoop
+  private vegetationSystem: VegetationSystem | null = null
   private readonly listeners = new Set<() => void>()
   private cachedSnapshot: GameSnapshot = EMPTY_GAME_SNAPSHOT
   private selectedEntity: SelectedEntitySnapshot = EMPTY_SELECTED_ENTITY
@@ -302,6 +304,11 @@ export class Game implements IDisposable {
     this.productionSystem.update(simulationDeltaTime)
     this.machineTickSystem.update(simulationDeltaTime)
     this.cameraController.update(realDeltaTime)
+    try {
+      this.vegetationSystem?.update(this.cameraController.getCamera())
+    } catch {
+      // Camera not ready yet.
+    }
     if (this.simulationClock.getTimeScale() > 0) {
       this.timeHudRefreshAccumulator += realDeltaTime
       if (this.timeHudRefreshAccumulator >= 0.5) {
@@ -1821,6 +1828,8 @@ export class Game implements IDisposable {
 
     this.renderingSystem.initialize({ shadows: true })
     this.cameraController.initialize()
+    this.vegetationSystem = this.sceneManager.getVegetationSystem()
+    this.vegetationSystem.attachRenderingSystem(this.renderingSystem)
     this.world.initialize()
     this.cropSystem.initialize()
 
@@ -2017,6 +2026,8 @@ export class Game implements IDisposable {
     this.world.dispose()
     this.visualBenchmarkInput?.dispose()
     this.visualBenchmarkInput = null
+    this.vegetationSystem?.dispose()
+    this.vegetationSystem = null
     this.cameraController.dispose()
     this.renderingSystem.dispose()
     this.sceneManager.dispose()

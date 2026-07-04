@@ -68,6 +68,10 @@ export class LightingSystem implements IInitializable, IDisposable {
     return this.directionalLight
   }
 
+  getHemisphericLight(): HemisphericLight | null {
+    return this.hemisphericLight
+  }
+
   dispose(): void {
     this.hemisphericLight?.dispose()
     this.directionalLight?.dispose()

@@ -7,6 +7,7 @@ import {
   Vector3,
 } from '@babylonjs/core'
 import { createTerrainGroundMesh } from '@/rendering/terrain/TerrainRenderPipeline.ts'
+import { VegetationSystem } from '@/rendering/vegetation/VegetationSystem.ts'
 import { FarmDecorationsBuilder } from './FarmDecorationsBuilder.ts'
 import { MapSceneBuilder } from '@/studio/io/MapSceneBuilder.ts'
 import { loadRuntimeMachines } from '@/maps/MapRuntimeLoader.ts'
@@ -31,22 +32,29 @@ const FARMYARD_COLOR = new Color3(0.58, 0.48, 0.34)
 export class FarmSceneBuilder {
   private readonly decorations = new FarmDecorationsBuilder()
   private readonly mapSceneBuilder = new MapSceneBuilder()
+  private readonly vegetationSystem = new VegetationSystem()
+
+  getVegetationSystem(): VegetationSystem {
+    return this.vegetationSystem
+  }
 
   build(scene: Scene): void {
     const worldMap = tryGetActiveMapContext()?.worldMap
     if (worldMap) {
       this.mapSceneBuilder.build(scene, worldMap, {
-        omitLayers: ['vehicles'],
+        omitLayers: ['vehicles', 'vegetation'],
         renderGameplayAnchors: false,
+        renderTerrainBoundary: false,
       })
       loadRuntimeMachines(scene, worldMap)
       this.createInteractionPoints(scene)
+      this.vegetationSystem.build(scene, { worldMap })
       return
     }
 
     this.createTerrain(scene)
     this.createValleyBackdrop(scene)
-    this.decorations.build(scene)
+    this.decorations.build(scene, { skipVegetation: true })
     this.createFields(scene)
     this.createFarmyard(scene)
     this.createBarn(scene)
@@ -55,6 +63,7 @@ export class FarmSceneBuilder {
     this.createTractor(scene)
     this.createCombines(scene)
     this.createInteractionPoints(scene)
+    this.vegetationSystem.build(scene)
   }
 
   private createTerrain(scene: Scene): void {

@@ -3,14 +3,13 @@ import type { MapObject, WorldMapDocument } from '@/types/world-map.ts'
 import type { MapPolygonPoint } from '@/types/world-map.ts'
 import type { PolygonObjectAdapter, PolygonEditorTool } from '@/studio/polygon/PolygonEditorTypes.ts'
 import type { StudioStore } from '@/studio/core/StudioStore.ts'
-import {
-  pickTerrainPlacementPoint,
-  pickTerrainPolygonObjectId,
-} from '@/studio/terrain/TerrainPolygonPick.ts'
+import { pickParcelPlacementPoint } from '@/studio/parcel/ParcelPlacementPick.ts'
 import { getFieldPolygonPoints } from '@/studio/parcel/ParcelPolygon.ts'
-import { validatePolygonGeometry } from '@/studio/polygon/PolygonValidation.ts'
+import { validateTerrainBoundaryGeometry } from '@/studio/polygon/PolygonValidation.ts'
 import { polygonCentroid } from '@/studio/polygon/PolygonGeometryUtils.ts'
 import { sampleFieldSurfaceY } from '@/studio/parcel/parcelSurface.ts'
+import { TERRAIN_POLYGON_KIND } from '@/types/terrain-polygon.ts'
+import { pickTerrainPolygonObjectId } from '@/studio/terrain/TerrainPolygonPick.ts'
 
 export class TerrainPolygonAdapter implements PolygonObjectAdapter {
   readonly objectType = 'terrain_polygon'
@@ -25,12 +24,32 @@ export class TerrainPolygonAdapter implements PolygonObjectAdapter {
     return activeModuleId === 'terrain'
   }
 
+  isModuleActive(): boolean {
+    const snapshot = this.store.getSnapshot()
+    return snapshot.activeModuleId === 'terrain' && snapshot.terrainToolMode === 'polygon'
+  }
+
   getTool(): PolygonEditorTool {
     return this.store.getSnapshot().terrainPolygonTool
   }
 
+  setTool(tool: PolygonEditorTool): void {
+    if (tool === 'rotate') {
+      return
+    }
+    this.store.setTerrainPolygonTool(tool)
+  }
+
+  getSelectedObject(): MapObject | null {
+    const selected = this.store.getSnapshot().selectedObject
+    if (!selected || selected.kind !== TERRAIN_POLYGON_KIND) {
+      return null
+    }
+    return selected
+  }
+
   pickGround(scene: Scene, canvasX: number, canvasY: number) {
-    return pickTerrainPlacementPoint(scene, canvasX, canvasY)
+    return pickParcelPlacementPoint(scene, canvasX, canvasY)
   }
 
   pickObject(scene: Scene, canvasX: number, canvasY: number): string | null {
@@ -51,11 +70,11 @@ export class TerrainPolygonAdapter implements PolygonObjectAdapter {
   }
 
   validatePolygon(
-    map: WorldMapDocument,
+    _map: WorldMapDocument,
     points: readonly MapPolygonPoint[],
-    excludeObjectId?: string,
+    _excludeObjectId?: string,
   ) {
-    return validatePolygonGeometry(map, points, excludeObjectId)
+    return validateTerrainBoundaryGeometry(points)
   }
 
   createFromPolygon(points: readonly MapPolygonPoint[]): MapObject | null {

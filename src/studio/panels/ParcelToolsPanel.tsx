@@ -6,15 +6,16 @@ import { PARCEL_BLOCK_IDS, PARCEL_TYPES } from '@/types/parcel.ts'
 interface ParcelToolsPanelProps {
   store: StudioStore
   onSceneRefresh: () => void
+  onFinishPolygon?: () => void
 }
 
 const TOOLS: { id: ParcelToolMode; label: string; hint: string }[] = [
-  { id: 'draw', label: 'Draw', hint: 'Click points on terrain; close on first point or double-click.' },
+  { id: 'draw', label: 'Draw', hint: 'Click to place vertices. Finish with Enter, double-click, first vertex, or Finish button.' },
   { id: 'select', label: 'Select', hint: 'Select parcel and drag to move.' },
   { id: 'edit', label: 'Edit', hint: 'Drag polygon vertices.' },
 ]
 
-export function ParcelToolsPanel({ store, onSceneRefresh }: ParcelToolsPanelProps) {
+export function ParcelToolsPanel({ store, onSceneRefresh, onFinishPolygon }: ParcelToolsPanelProps) {
   const {
     activeModuleId,
     parcelTool,
@@ -115,9 +116,21 @@ export function ParcelToolsPanel({ store, onSceneRefresh }: ParcelToolsPanelProp
             />
           </label>
           {polygonDrawPointCount > 0 ? (
-            <p className="studio-hint">
-              Points: {polygonDrawPointCount}. Click first point or double-click to finish.
-            </p>
+            <>
+              <p className="studio-hint">
+                Points: {polygonDrawPointCount}. Enter, double-click, or click the first
+                vertex to finish. Escape cancels.
+              </p>
+              {polygonDrawPointCount >= 3 && onFinishPolygon ? (
+                <button
+                  type="button"
+                  className="studio-btn studio-btn--primary"
+                  onClick={() => onFinishPolygon()}
+                >
+                  Finish polygon
+                </button>
+              ) : null}
+            </>
           ) : null}
         </>
       ) : null}

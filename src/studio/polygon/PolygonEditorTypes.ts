@@ -3,6 +3,13 @@ import type { WorldMapDocument } from '@/types/world-map.ts'
 
 export type PolygonEditorTool = 'draw' | 'select' | 'edit' | 'rotate'
 
+export type PolygonEditorState =
+  | 'idle'
+  | 'drawing'
+  | 'editing'
+  | 'movingVertex'
+  | 'movingPolygon'
+
 export interface PolygonValidationResult {
   ok: boolean
   message?: string
@@ -18,7 +25,10 @@ export interface PolygonObjectAdapter {
   readonly previewId: string
 
   isActiveModule(activeModuleId: string): boolean
+  isModuleActive(): boolean
   getTool(): PolygonEditorTool
+  setTool(tool: PolygonEditorTool): void
+  getSelectedObject(): MapObject | null
   pickGround(scene: import('@babylonjs/core').Scene, canvasX: number, canvasY: number): PolygonPickResult | null
   pickObject(scene: import('@babylonjs/core').Scene, canvasX: number, canvasY: number): string | null
   getMap(): WorldMapDocument

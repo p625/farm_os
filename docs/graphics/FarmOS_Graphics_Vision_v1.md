@@ -198,6 +198,56 @@ Dokumentace: [FarmOS_Visual_Benchmark_2026.md](visual-benchmarks/FarmOS_Visual_B
 
 **Další doporučený krok:** MS2 — Vegetation Framework
 
+#### MS2 — Vegetation Framework ✅
+Priorita: ★★★★★ · **Stav: dokončeno (2026-07-04)**
+
+Obsah:
+
+- `src/rendering/vegetation/` — VegetationSystem, layers, instancing, LOD, wind
+- `src/config/rendering/vegetation/` — 9 datově řízených vrstev
+- Babylon **thin instances** — tisíce až desítky tisíc instancí
+- Placement rules — cesty, pole, remízky, lesní okraje
+- MS2 placeholder assety (strom, keř, tráva)
+- Integrace do `FarmSceneBuilder`, `RenderingSystem`, `ShadowManager`
+
+Dokumentace: [MS02_Vegetation_Framework.md](milestones/MS02_Vegetation_Framework.md)
+
+**Další doporučený krok:** MS03 — Environment Art Framework ✅
+
+#### MS3 — Environment Art Framework ✅
+Priorita: ★★★★★ · **Stav: dokončeno (2026-07-04)**
+
+Obsah:
+
+- `src/config/environment/` — biomy, asset library, clustery, ekologie, density, color variation
+- `src/rendering/environment/` — EnvironmentPlacementPlanner (Biome → Rules → Instances)
+- Variant families (Grass → 12 variant, Oak → 8 variant…) — ne Grass01/Grass02
+- Cluster placement s mezerami — přírodní skupiny místo šachovnice
+- Ecology rules — strom/keř/kámen/pole/louka vztahy datově definované
+- Ground clutter architektura (bez finálních meshů)
+- DEV debug — biomy, assety, clustery, instance, color stats
+- Renderer beze změny — 9 thin instance layers, žádné nové draw calls
+
+Dokumentace: [MS03_Environment_Art_Framework.md](milestones/MS03_Environment_Art_Framework.md)
+
+**Další doporučený krok:** MS4 — Sky & Atmosphere ✅
+
+#### MS4 — Sky & Atmosphere ✅
+Priorita: ★★★★★ · **Stav: dokončeno (2026-07-04)**
+
+Obsah:
+
+- `src/config/rendering/sky/` — sky profiles, atmosphere, sun profiles, ambient data
+- `src/rendering/sky/` — SkySystem, gradient dome, haze, noon sunlight
+- Procedurální obloha — tmavší zenith, světlejší horizont
+- Atmospheric haze — lineární perspektiva (ne volumetric)
+- Sun profiles — Morning / Noon / Afternoon (aktivní pouze Noon)
+- DEV debug `[FarmOS Sky]`
+
+Dokumentace: [MS04_Sky_Atmosphere.md](milestones/MS04_Sky_Atmosphere.md)
+
+**Další doporučený krok:** MS5 — Lighting Polish (IBL, cascade shadows) + screenshot validace
+
 #### MS1A.5 — Renderer Foundation ✅
 Priorita: ★★★★★ · **Stav: dokončeno (2026-07-04)**
 
@@ -517,6 +567,56 @@ Nikoli maximalizace počtu efektů.
 
 **Následuje:**
 
-- MS2 — Vegetation Framework
-- Finální texture art pass
+- MS3 — Environment Art Framework ✅
+- MS4 — Sky & Atmosphere ✅
+- MS5 — Lighting Polish
+- Finální texture / vegetation art pass
 - Milestone 2 — Lighting & HDR (IBL, cascade shadows)
+
+### MS3 — Environment Art Framework (2026-07-04)
+
+**Implementováno:**
+
+- `src/config/environment/` — 6 biomes aktivních, 2 budoucí (wetland, village)
+- Asset library — 17 rodin, variant families, GroundClutter architektura
+- `EnvironmentPlacementPlanner` — cluster + ecology + biome sampling
+- Placement API oddělené od rendereru
+- Per-instance color variation → thin instance color buffer
+- DEV debug `[FarmOS Environment]`
+- Dokumentace: `docs/graphics/milestones/MS03_Environment_Art_Framework.md`
+
+**Následuje:**
+
+- MS5 — Lighting Polish
+- Finální vegetation assety (nahrazení placeholder meshSource)
+- Screenshot validace vůči MS1B baseline
+
+### MS4 — Sky & Atmosphere (2026-07-04)
+
+**Implementováno:**
+
+- `src/config/rendering/sky/` — sky profiles, atmosphere, sun/ambient profiles
+- `src/rendering/sky/` — SkySystem, gradient dome, haze, noon sunlight
+- Atmospheric haze — tuned linear fog (95–1280 m), horizon color blend
+- DEV debug `[FarmOS Sky]`
+- Dokumentace: `docs/graphics/milestones/MS04_Sky_Atmosphere.md`
+
+**Následuje:**
+
+- MS5 — Lighting Polish (IBL, cascade shadows)
+- Screenshot porovnání `field_long_view`, `horizon_view`, `forest_edge_view`
+
+### MS2 — Vegetation Framework (2026-07-04)
+
+**Implementováno:**
+
+- `src/rendering/vegetation/` — VegetationSystem, 9 layers, thin instances, placement rules, LOD, wind
+- `src/config/rendering/vegetation/` — layer catalog, density, LOD, wind, biome config
+- Runtime integrace — `FarmSceneBuilder` (omit map vegetation layer), `Game.ts`, `ShadowManager`
+- Placeholder assety označené `MS2_PLACEHOLDER`
+- Dokumentace: `docs/graphics/milestones/MS02_Vegetation_Framework.md`
+
+**Následuje:**
+
+- Screenshot validace vůči MS1B baseline (7 benchmark pohledů)
+- MS2B — finální vegetation assety, billboard LOD, vegetation masks

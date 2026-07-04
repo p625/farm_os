@@ -23,9 +23,14 @@ function resolveToneMappingType(
 }
 
 export class ImageProcessingController {
+  private lastScene: Scene | null = null
+  private baseExposure = IMAGE_PROCESSING_CONFIG.exposure
+
   apply(scene: Scene): void {
+    this.lastScene = scene
     const config = IMAGE_PROCESSING_CONFIG
     const ipc = scene.imageProcessingConfiguration
+    this.baseExposure = config.exposure
 
     ipc.isEnabled = config.enabled
     if (!config.enabled) {
@@ -46,5 +51,17 @@ export class ImageProcessingController {
     curves.shadowsDensity = config.colorCurves.shadowsDensity
     ipc.colorCurves = curves
     ipc.colorCurvesEnabled = config.colorCurves.enabled
+  }
+
+  setExposureBias(bias: number): void {
+    const ipc = this.lastScene?.imageProcessingConfiguration
+    if (!ipc) {
+      return
+    }
+    ipc.exposure = bias
+  }
+
+  resetExposure(): void {
+    this.setExposureBias(this.baseExposure)
   }
 }

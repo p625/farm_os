@@ -44,3 +44,11 @@ export {
   type RenderingQualityConfig,
   type RenderingQualityPreset,
 } from './rendering-quality-config.ts'
+export {
+  SKY_SYSTEM_CONFIG,
+  SKY_PROFILES,
+  ATMOSPHERE_CONFIG,
+  SUN_PROFILES,
+  BIOME_AMBIENT_PROFILES,
+  GLOBAL_AMBIENT_PROFILE,
+} from './sky/index.ts'

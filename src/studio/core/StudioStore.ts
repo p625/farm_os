@@ -114,13 +114,17 @@ import {
   rotateObjectsWithAnchors,
   translateObjectsWithAnchors,
 } from '@/studio/anchor/studioAnchorSync.ts'
-import { validatePolygonGeometry } from '@/studio/polygon/PolygonValidation.ts'
+import {
+  ensureMapTerrainSurface,
+} from '@/studio/terrain/ensureMapTerrainSurface.ts'
+import { validateTerrainBoundaryGeometry } from '@/studio/polygon/PolygonValidation.ts'
 import {
   TERRAIN_POLYGON_KIND,
   computeTerrainBounds,
   patchTerrainPolygonProperties,
   type TerrainBaseMaterial,
 } from '@/types/terrain-polygon.ts'
+import { syncTerrainSurfaceFromBoundary } from '@/studio/terrain/TerrainBoundarySync.ts'
 import {
   createTerrainPolygonObject,
   syncTerrainPolygonIdCounterFromMap,
@@ -193,6 +197,8 @@ export interface StudioSnapshot {
   terrainPolygonTool: TerrainPolygonToolMode
   terrainBaseHeight: number
   terrainBaseMaterial: TerrainBaseMaterial
+  terrainBoundaryVisible: boolean
+  terrainSurfaceRevision: number
   vegetationTool: VegetationToolMode
   vegetationType: VegetationTypeId
   vegetationRandomRotation: boolean
@@ -251,6 +257,8 @@ export class StudioStore {
   private terrainPolygonTool: TerrainPolygonToolMode = 'draw'
   private terrainBaseHeight = 0
   private terrainBaseMaterial: TerrainBaseMaterial = 'grass'
+  private terrainBoundaryVisible = true
+  private terrainSurfaceRevision = 0
   private vegetationTool: VegetationToolMode = 'place'
   private vegetationType: VegetationTypeId = DEFAULT_VEGETATION_TYPE
   private vegetationRandomRotation = true
@@ -279,9 +287,10 @@ export class StudioStore {
 
   constructor(initialMap: WorldMapDocument) {
     const migrated = migrateLegacyBuildings(initialMap)
+    const withTerrain = ensureMapTerrainSurface(migrated)
     this.map = {
-      ...migrated,
-      terrain: ensureTerrainHeightfield(migrated.terrain),
+      ...withTerrain,
+      terrain: ensureTerrainHeightfield(withTerrain.terrain),
     }
     this.layerVisibility = createDefaultLayerVisibility()
     syncFieldParcelIdCounterFromMap(this.map)
@@ -406,9 +415,10 @@ export class StudioStore {
   setMap(map: WorldMapDocument, options?: { markDirty?: boolean }): void {
     const hadLegacy = mapHasLegacyBuildings(map)
     const migrated = migrateLegacyBuildings(map)
+    const withTerrain = ensureMapTerrainSurface(migrated)
     this.map = {
-      ...migrated,
-      terrain: ensureTerrainHeightfield(migrated.terrain),
+      ...withTerrain,
+      terrain: ensureTerrainHeightfield(withTerrain.terrain),
     }
     syncFieldParcelIdCounterFromMap(this.map)
     syncTerrainPolygonIdCounterFromMap(this.map)
@@ -1031,8 +1041,62 @@ export class StudioStore {
     this.emit()
   }
 
+  setTerrainBoundaryVisible(visible: boolean): void {
+    this.terrainBoundaryVisible = visible
+    this.emit()
+  }
+
+  updateTerrainGroundMetadata(patch: {
+    baseMaterial?: TerrainBaseMaterial
+    baseHeight?: number
+  }): boolean {
+    const index = this.map.objects.findIndex((object) => object.id === 'terrain_ground')
+    if (index < 0) {
+      return false
+    }
+
+    const current = this.map.objects[index]
+    const nextObject: MapObject = {
+      ...current,
+      properties: {
+        ...current.properties,
+        ...(patch.baseMaterial !== undefined
+          ? { baseMaterial: patch.baseMaterial }
+          : {}),
+      },
+      transform: {
+        ...current.transform,
+        position: {
+          ...current.transform.position,
+          ...(patch.baseHeight !== undefined ? { y: patch.baseHeight } : {}),
+        },
+      },
+    }
+
+    const objects = [...this.map.objects]
+    objects[index] = nextObject
+    this.map = { ...this.map, objects }
+    this.dirty = true
+    if (this.selectedObject?.id === 'terrain_ground') {
+      this.selectedObject = nextObject
+    }
+    this.emit()
+    return true
+  }
+
+  private commitTerrainSurfaceSync(): boolean {
+    const result = syncTerrainSurfaceFromBoundary(this.map)
+    if (!result.changed) {
+      return false
+    }
+    this.map = result.map
+    this.dirty = true
+    this.terrainSurfaceRevision += 1
+    return true
+  }
+
   createTerrainPolygon(points: readonly MapPolygonPoint[]): MapObject | null {
-    const validation = validatePolygonGeometry(this.map, points)
+    const validation = validateTerrainBoundaryGeometry(points)
     if (!validation.ok) {
       this.log('warn', validation.message ?? 'Invalid terrain polygon.')
       return null
@@ -1051,6 +1115,7 @@ export class StudioStore {
       ...this.map,
       objects: [...this.map.objects, terrain],
     }
+    this.commitTerrainSurfaceSync()
     this.dirty = true
     this.selectedObject = terrain
     this.log('success', `Created ${terrain.name}`)
@@ -1072,7 +1137,7 @@ export class StudioStore {
       return false
     }
 
-    const validation = validatePolygonGeometry(this.map, points, objectId)
+    const validation = validateTerrainBoundaryGeometry(points)
     if (!validation.ok) {
       this.log('warn', validation.message ?? 'Invalid terrain polygon.')
       return false
@@ -1108,6 +1173,7 @@ export class StudioStore {
     const objects = [...this.map.objects]
     objects[index] = nextObject
     this.map = { ...this.map, objects }
+    this.commitTerrainSurfaceSync()
     this.dirty = true
     if (this.selectedObject?.id === objectId) {
       this.selectedObject = nextObject
@@ -1172,7 +1238,7 @@ export class StudioStore {
 
     this.checkpointHistory('duplicate')
     const duplicatePoints = translatePolygonPoints(points, 25, 25)
-    const validation = validatePolygonGeometry(this.map, duplicatePoints)
+    const validation = validateTerrainBoundaryGeometry(duplicatePoints)
     if (!validation.ok) {
       this.log('warn', validation.message ?? 'Cannot duplicate terrain polygon here.')
       return null
@@ -1196,6 +1262,7 @@ export class StudioStore {
       ...this.map,
       objects: [...this.map.objects, duplicate],
     }
+    this.commitTerrainSurfaceSync()
     this.dirty = true
     this.selectedObject = duplicate
     this.log('success', `Duplicated ${source.name ?? source.id}`)
@@ -1214,6 +1281,7 @@ export class StudioStore {
       ...this.map,
       objects: this.map.objects.filter((object) => object.id !== objectId),
     }
+    this.commitTerrainSurfaceSync()
     this.dirty = true
     if (this.selectedObject?.id === objectId) {
       this.selectedObject = null
@@ -2334,6 +2402,8 @@ export class StudioStore {
       terrainPolygonTool: this.terrainPolygonTool,
       terrainBaseHeight: this.terrainBaseHeight,
       terrainBaseMaterial: this.terrainBaseMaterial,
+      terrainBoundaryVisible: this.terrainBoundaryVisible,
+      terrainSurfaceRevision: this.terrainSurfaceRevision,
       vegetationTool: this.vegetationTool,
       vegetationType: this.vegetationType,
       vegetationRandomRotation: this.vegetationRandomRotation,
@@ -2404,6 +2474,8 @@ export const EMPTY_STUDIO_SNAPSHOT: StudioSnapshot = {
   terrainPolygonTool: 'draw',
   terrainBaseHeight: 0,
   terrainBaseMaterial: 'grass',
+  terrainBoundaryVisible: true,
+  terrainSurfaceRevision: 0,
   vegetationTool: 'place',
   vegetationType: DEFAULT_VEGETATION_TYPE,
   vegetationRandomRotation: true,

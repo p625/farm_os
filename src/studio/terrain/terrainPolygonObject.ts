@@ -48,7 +48,7 @@ export function createTerrainPolygonObject(
     id,
     layer: 'terrain',
     kind: TERRAIN_POLYGON_KIND,
-    name: options.name ?? `Terrain ${id.replace('terrain_poly_', '')}`,
+    name: options.name ?? `Terrain Boundary ${id.replace('terrain_poly_', '')}`,
     transform: {
       position: {
         x: centroid.x,

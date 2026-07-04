@@ -6,6 +6,13 @@ import { MapSceneBuilder, getStudioMetadata } from '@/studio/io/MapSceneBuilder.
 import { PolygonDrawingSession } from '@/studio/polygon/PolygonDrawingSession.ts'
 import { validatePolygonGeometry } from '@/studio/polygon/PolygonValidation.ts'
 import { ParcelPolygonAdapter } from '@/studio/polygon/adapters/ParcelPolygonAdapter.ts'
+import { TerrainPolygonAdapter } from '@/studio/polygon/adapters/TerrainPolygonAdapter.ts'
+import {
+  ensureMapTerrainSurface,
+  hasTerrainGround,
+  isSystemTerrainPolygon,
+} from '@/studio/terrain/ensureMapTerrainSurface.ts'
+import { findStudioMeshByObjectId } from '@/studio/io/MapSceneBuilder.ts'
 import { WORLD_MAP_FORMAT_VERSION } from '@/types/world-map.ts'
 import type { WorldMapDocument } from '@/types/world-map.ts'
 import { TERRAIN_POLYGON_KIND } from '@/types/terrain-polygon.ts'
@@ -138,6 +145,250 @@ function runValidationChecks(map: WorldMapDocument, failures: string[]): void {
   }
 }
 
+function runGlobalTerrainSurfaceChecks(failures: string[]): void {
+  const bare: WorldMapDocument = {
+    formatVersion: WORLD_MAP_FORMAT_VERSION,
+    id: 'bare_map',
+    name: 'Bare',
+    meta: {
+      author: 'test',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    },
+    terrain: { width: 0, height: 0 },
+    objects: [],
+  }
+
+  const fixed = ensureMapTerrainSurface(bare)
+  if (!hasTerrainGround(fixed)) {
+    failures.push('Terrain surface: bare map must receive terrain_ground fallback')
+  }
+  if (fixed.terrain.width <= 0 || fixed.terrain.height <= 0) {
+    failures.push('Terrain surface: terrain heightfield dimensions must be positive')
+  }
+
+  const parsed = MapFileService.parse(MapFileService.serialize(fixed))
+  if (!hasTerrainGround(parsed)) {
+    failures.push('Terrain surface: save/load must keep terrain_ground')
+  }
+
+  const engine = new NullEngine({
+    renderWidth: 1,
+    renderHeight: 1,
+    textureSize: 1,
+    deterministicLockstep: true,
+    lockstepMaxSteps: 4,
+  })
+  const scene = new Scene(engine)
+  const builder = new MapSceneBuilder()
+  builder.build(scene, parsed)
+
+  const groundMesh = findStudioMeshByObjectId(scene, 'terrain_ground')
+  if (!groundMesh) {
+    failures.push('Terrain surface: terrain_ground mesh must render in studio')
+  }
+
+  const fallback = parsed.objects.find((object) => isSystemTerrainPolygon(object))
+  if (!fallback) {
+    failures.push('Terrain surface: legacy map without terrain polygon needs bounds fallback metadata')
+  }
+  if (fallback && findStudioMeshByObjectId(scene, fallback.id)) {
+    failures.push('Terrain surface: system fallback terrain polygon must not render opaque mesh')
+  }
+
+  const studioMeshes = scene.meshes
+    .map((mesh) => getStudioMetadata(mesh))
+    .filter((metadata) => metadata !== null)
+  if (studioMeshes[0]?.layer !== 'terrain') {
+    failures.push('Terrain surface: terrain must be first rendered layer')
+  }
+
+  scene.dispose()
+  engine.dispose()
+}
+
+function runTerrainPolygonAdapterChecks(map: WorldMapDocument, failures: string[]): void {
+  const store = new StudioStore(map)
+  store.setActiveModule('terrain')
+  store.setTerrainToolMode('polygon')
+
+  const adapter = new TerrainPolygonAdapter(store)
+  if (!adapter.isModuleActive()) {
+    failures.push('Terrain tool: adapter must be active in terrain polygon mode')
+  }
+
+  const session = new PolygonDrawingSession()
+  session.addPoint(-20, -20)
+  session.addPoint(20, -20)
+  session.addPoint(20, 20)
+  session.addPoint(-20, 20)
+
+  if (session.pointCount !== 4) {
+    failures.push('Terrain tool: drawing session point count mismatch')
+  }
+
+  const created = adapter.createFromPolygon(session.committedPoints())
+  if (!created || created.kind !== TERRAIN_POLYGON_KIND) {
+    failures.push('Terrain tool: createFromPolygon failed')
+    return
+  }
+
+  adapter.setTool('edit')
+  if (store.getSnapshot().terrainPolygonTool !== 'edit') {
+    failures.push('Terrain tool: must switch to edit after create')
+  }
+  if (store.getSnapshot().selectedObject?.id !== created.id) {
+    store.selectObject(created)
+  }
+  if (store.getSnapshot().selectedObject?.id !== created.id) {
+    failures.push('Terrain tool: created polygon must be selected')
+  }
+
+  session.clear()
+  if (session.isActive) {
+    failures.push('Terrain tool: session should be inactive after create (simulated finish)')
+  }
+
+  const polygon = getFieldPolygonPoints(created)
+  if (!polygon) {
+    failures.push('Terrain tool: missing polygon points on created object')
+  } else {
+    const edited = polygon.map((point, index) =>
+      index === 2 ? { x: 25, z: 25 } : point,
+    )
+    if (!adapter.updatePolygon(created.id, edited)) {
+      failures.push('Terrain tool: vertex drag/update failed')
+    }
+  }
+}
+
+function countStudioMeshesByKind(scene: Scene, kind: string): number {
+  return scene.meshes.filter((mesh) => getStudioMetadata(mesh)?.kind === kind).length
+}
+
+function countTerrainGroundInMap(map: WorldMapDocument): number {
+  return map.objects.filter((object) => object.id === 'terrain_ground').length
+}
+
+function runTerrainBoundaryArchitectureChecks(map: WorldMapDocument, failures: string[]): void {
+  const store = new StudioStore(map)
+  const points = [
+    { x: -40, z: -40 },
+    { x: 40, z: -40 },
+    { x: 40, z: 40 },
+    { x: -40, z: 40 },
+  ]
+
+  if (countTerrainGroundInMap(store.getMap()) !== 1) {
+    failures.push('Terrain surface: map must contain exactly one terrain_ground object')
+  }
+
+  const revisionBefore = store.getSnapshot().terrainSurfaceRevision
+
+  const boundary = store.createTerrainPolygon(points)
+  if (!boundary) {
+    failures.push('Terrain boundary: createTerrainPolygon failed')
+    return
+  }
+
+  if (countTerrainGroundInMap(store.getMap()) !== 1) {
+    failures.push('Terrain surface: boundary create must not add a second terrain_ground')
+  }
+
+  if (store.getSnapshot().terrainSurfaceRevision <= revisionBefore) {
+    failures.push('Terrain sync: boundary create must mark terrain surface dirty')
+  }
+
+  const groundAfterCreate = store.getMap().objects.find((object) => object.id === 'terrain_ground')
+  const widthAfterCreate =
+    groundAfterCreate?.shape?.type === 'box' ? groundAfterCreate.shape.width : 0
+  if (Math.abs(widthAfterCreate - 80) > 1) {
+    failures.push(
+      `Terrain sync: terrain_ground width should match boundary (~80), got ${widthAfterCreate}`,
+    )
+  }
+
+  const engine = new NullEngine({
+    renderWidth: 1,
+    renderHeight: 1,
+    textureSize: 1,
+    deterministicLockstep: true,
+    lockstepMaxSteps: 4,
+  })
+  const scene = new Scene(engine)
+  const builder = new MapSceneBuilder()
+  builder.build(scene, store.getMap(), { renderTerrainBoundary: true })
+
+  if (countStudioMeshesByKind(scene, TERRAIN_POLYGON_KIND) > 0) {
+    failures.push('Terrain boundary: must not render opaque studio mesh for terrain_polygon')
+  }
+  if (!findStudioMeshByObjectId(scene, 'terrain_ground')) {
+    failures.push('Terrain surface: terrain_ground mesh must exist alongside boundary')
+  }
+
+  const wireCount = scene.meshes.filter((mesh) =>
+    mesh.name.startsWith('terrain_boundary_wire_'),
+  ).length
+  if (wireCount < 1) {
+    failures.push('Terrain boundary: editor wireframe should be visible when enabled')
+  }
+
+  store.setTerrainBoundaryVisible(false)
+  builder.refreshTerrainBoundaryWireframes(scene, store.getMap(), false)
+  const wireAfterHide = scene.meshes.filter((mesh) =>
+    mesh.name.startsWith('terrain_boundary_wire_'),
+  ).length
+  if (wireAfterHide > 0) {
+    failures.push('Terrain boundary: wireframe must hide when boundary layer is off')
+  }
+  if (!findStudioMeshByObjectId(scene, 'terrain_ground')) {
+    failures.push('Terrain surface: terrain_ground must remain when boundary is hidden')
+  }
+
+  const revisionBeforeEdit = store.getSnapshot().terrainSurfaceRevision
+  const edited = points.map((point, index) =>
+    index === 1 ? { x: 50, z: -40 } : point,
+  )
+  if (!store.updateTerrainPolygon(boundary.id, edited)) {
+    failures.push('Terrain boundary: vertex edit failed')
+  } else if (store.getSnapshot().terrainSurfaceRevision <= revisionBeforeEdit) {
+    failures.push('Terrain sync: boundary vertex edit must mark terrain surface dirty')
+  }
+
+  const serialized = MapFileService.serialize(store.getMap())
+  const loaded = MapFileService.parse(serialized)
+  if (!loaded) {
+    failures.push('Terrain save/load: parse failed')
+  } else {
+    if (!hasTerrainGround(loaded)) {
+      failures.push('Terrain save/load: terrain_ground missing after roundtrip')
+    }
+    const loadedBoundary = loaded.objects.find((object) => object.id === boundary.id)
+    if (!loadedBoundary || loadedBoundary.kind !== TERRAIN_POLYGON_KIND) {
+      failures.push('Terrain save/load: terrain boundary missing after roundtrip')
+    }
+  }
+
+  const runtimeScene = new Scene(engine)
+  builder.build(runtimeScene, store.getMap(), { renderTerrainBoundary: false })
+  const runtimeWire = runtimeScene.meshes.filter((mesh) =>
+    mesh.name.startsWith('terrain_boundary_wire_'),
+  ).length
+  if (runtimeWire > 0) {
+    failures.push('Runtime: terrain boundary wireframes must not be built')
+  }
+  if (!findStudioMeshByObjectId(runtimeScene, 'terrain_ground')) {
+    failures.push('Runtime: terrain_ground surface must still render')
+  }
+  if (countStudioMeshesByKind(runtimeScene, TERRAIN_POLYGON_KIND) > 0) {
+    failures.push('Runtime: must not render terrain_polygon opaque meshes')
+  }
+
+  runtimeScene.dispose()
+  scene.dispose()
+  engine.dispose()
+}
+
 function runTerrainChecks(map: WorldMapDocument, failures: string[]): void {
   const store = new StudioStore(map)
   const points = [
@@ -180,7 +431,14 @@ function runTerrainChecks(map: WorldMapDocument, failures: string[]): void {
   })
   const scene = new Scene(engine)
   const builder = new MapSceneBuilder()
-  builder.build(scene, store.getMap())
+  builder.build(scene, store.getMap(), { renderTerrainBoundary: true })
+
+  const opaqueBoundaryMeshes = scene.meshes.filter(
+    (mesh) => getStudioMetadata(mesh)?.kind === TERRAIN_POLYGON_KIND,
+  )
+  if (opaqueBoundaryMeshes.length > 0) {
+    failures.push('Terrain: user terrain_polygon must not render opaque mesh')
+  }
 
   const studioMeshes = scene.meshes
     .map((mesh) => getStudioMetadata(mesh))
@@ -212,6 +470,11 @@ function runParcelAdapterChecks(map: WorldMapDocument, failures: string[]): void
   if (!created) {
     failures.push('Parcels: adapter createFromPolygon failed')
     return
+  }
+
+  adapter.setTool('edit')
+  if (store.getSnapshot().parcelTool !== 'edit') {
+    failures.push('Parcels: setTool(edit) after create failed')
   }
 
   const props = parseFieldParcelProperties(created.properties)
@@ -269,6 +532,9 @@ export function runPolygonEditorCheck(): PolygonEditorCheckReport {
 
   runDrawingSessionChecks(failures)
   runValidationChecks(map, failures)
+  runGlobalTerrainSurfaceChecks(failures)
+  runTerrainBoundaryArchitectureChecks(map, failures)
+  runTerrainPolygonAdapterChecks(map, failures)
   runTerrainChecks(map, failures)
   runParcelAdapterChecks(map, failures)
 

@@ -4,13 +4,13 @@ import type { TerrainPolygonToolMode } from '@/studio/core/StudioStore.ts'
 import { useStudioStore } from '@/studio/hooks/useStudioStore.ts'
 import { TERRAIN_SURFACES } from '@/studio/terrain/TerrainSurfacePalette.ts'
 import {
-  TERRAIN_BASE_MATERIALS,
   TERRAIN_POLYGON_KIND,
 } from '@/types/terrain-polygon.ts'
 
 interface TerrainToolsPanelProps {
   store: StudioStore
   onSceneRefresh: () => void
+  onFinishPolygon?: () => void
 }
 
 const PAINT_TOOLS: { id: TerrainBrushMode; label: string }[] = [
@@ -23,13 +23,12 @@ const POLYGON_TOOLS: { id: TerrainPolygonToolMode; label: string }[] = [
   { id: 'edit', label: 'Edit' },
 ]
 
-export function TerrainToolsPanel({ store, onSceneRefresh }: TerrainToolsPanelProps) {
+export function TerrainToolsPanel({ store, onSceneRefresh, onFinishPolygon }: TerrainToolsPanelProps) {
   const {
     terrainBrush,
     terrainToolMode,
     terrainPolygonTool,
-    terrainBaseHeight,
-    terrainBaseMaterial,
+    terrainBoundaryVisible,
     polygonDrawPointCount,
     activeModuleId,
     selectedObject,
@@ -46,6 +45,23 @@ export function TerrainToolsPanel({ store, onSceneRefresh }: TerrainToolsPanelPr
     <div className="studio-panel studio-panel--terrain">
       <h2 className="studio-panel__title">Terrain</h2>
 
+      <h3 className="studio-panel__subtitle">Layers</h3>
+      <p className="studio-hint">
+        Terrain Surface is always visible. Terrain Boundary is editor wireframe only.
+      </p>
+      <label className="studio-field studio-field--wide">
+        <span className="studio-field__label">Show terrain boundary</span>
+        <input
+          className="studio-input"
+          type="checkbox"
+          checked={terrainBoundaryVisible}
+          onChange={(event) => {
+            store.setTerrainBoundaryVisible(event.target.checked)
+            onSceneRefresh()
+          }}
+        />
+      </label>
+
       <h3 className="studio-panel__subtitle">Mode</h3>
       <div className="studio-tool-grid">
         <button
@@ -55,7 +71,7 @@ export function TerrainToolsPanel({ store, onSceneRefresh }: TerrainToolsPanelPr
           }`}
           onClick={() => store.setTerrainToolMode('paint')}
         >
-          Height paint
+          Surface paint
         </button>
         <button
           type="button"
@@ -71,7 +87,8 @@ export function TerrainToolsPanel({ store, onSceneRefresh }: TerrainToolsPanelPr
       {terrainToolMode === 'paint' ? (
         <>
           <p className="studio-hint">
-            Paint surfaces on the ground plane. Raise / lower sculpting comes later.
+            Click and drag on the ground to paint surface materials. This does not
+            create polygons — switch to Polygon mode for terrain boundaries.
           </p>
           <h3 className="studio-panel__subtitle">Tool</h3>
           <div className="studio-tool-grid">
@@ -129,7 +146,8 @@ export function TerrainToolsPanel({ store, onSceneRefresh }: TerrainToolsPanelPr
       ) : (
         <>
           <p className="studio-hint">
-            Draw terrain boundary polygons. Min. 3 vertices, Enter or double-click to finish.
+            Draw terrain boundary polygons. Finish with Enter, double-click, first
+            vertex, or Finish button — then edit vertices immediately.
           </p>
           <h3 className="studio-panel__subtitle">Tool</h3>
           <div className="studio-tool-grid">
@@ -148,49 +166,28 @@ export function TerrainToolsPanel({ store, onSceneRefresh }: TerrainToolsPanelPr
           </div>
           {terrainPolygonTool === 'draw' ? (
             <>
-              <label className="studio-field studio-field--wide">
-                <span className="studio-field__label">Base height</span>
-                <input
-                  className="studio-input"
-                  type="number"
-                  step={0.1}
-                  value={terrainBaseHeight}
-                  onChange={(event) => {
-                    const parsed = Number.parseFloat(event.target.value)
-                    if (Number.isFinite(parsed)) {
-                      store.setTerrainBaseHeight(parsed)
-                    }
-                  }}
-                />
-              </label>
-              <label className="studio-field studio-field--wide">
-                <span className="studio-field__label">Base material</span>
-                <select
-                  className="studio-input"
-                  value={terrainBaseMaterial}
-                  onChange={(event) => {
-                    store.setTerrainBaseMaterial(
-                      event.target.value as (typeof TERRAIN_BASE_MATERIALS)[number],
-                    )
-                  }}
-                >
-                  {TERRAIN_BASE_MATERIALS.map((material) => (
-                    <option key={material} value={material}>
-                      {material}
-                    </option>
-                  ))}
-                </select>
-              </label>
               {polygonDrawPointCount > 0 ? (
-                <p className="studio-hint">
-                  Points: {polygonDrawPointCount}. Click first point or double-click to finish.
-                </p>
+                <>
+                  <p className="studio-hint">
+                    Points: {polygonDrawPointCount}. Enter, double-click, or click the
+                    first vertex to finish.
+                  </p>
+                  {polygonDrawPointCount >= 3 && onFinishPolygon ? (
+                    <button
+                      type="button"
+                      className="studio-btn studio-btn--primary"
+                      onClick={() => onFinishPolygon()}
+                    >
+                      Finish polygon
+                    </button>
+                  ) : null}
+                </>
               ) : null}
             </>
           ) : null}
           {selectedTerrain ? (
             <div className="studio-parcel-actions">
-              <h3 className="studio-panel__subtitle">Selected terrain</h3>
+              <h3 className="studio-panel__subtitle">Selected boundary</h3>
               <button
                 type="button"
                 className="studio-btn"
@@ -211,11 +208,11 @@ export function TerrainToolsPanel({ store, onSceneRefresh }: TerrainToolsPanelPr
                   }
                 }}
               >
-                Delete terrain
+                Delete boundary
               </button>
             </div>
           ) : terrainPolygonTool !== 'draw' ? (
-            <p className="studio-hint">Click a terrain polygon in the scene to select.</p>
+            <p className="studio-hint">Click a terrain boundary in the scene to select.</p>
           ) : null}
         </>
       )}

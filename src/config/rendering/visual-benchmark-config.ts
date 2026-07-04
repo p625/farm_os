@@ -122,8 +122,8 @@ export const VISUAL_BENCHMARK_CONFIG: VisualBenchmarkConfig = {
       timeOfDay: 'june_noon',
       weatherProfile: 'clear',
       renderQuality: 'high',
-      validationFocus: ['texture tiling', 'macro variation', 'field material clarity'],
-      notes: 'Hodnotit přirozenost ornice a pole v dlouhém záběru.',
+      validationFocus: ['texture tiling', 'macro variation', 'atmospheric depth', 'sky gradient'],
+      notes: 'MS4: porovnat atmosférickou hloubku a měkčí horizont vůči MS1B baseline.',
     },
     {
       id: 'meadow_ground_view',
@@ -164,8 +164,8 @@ export const VISUAL_BENCHMARK_CONFIG: VisualBenchmarkConfig = {
       timeOfDay: 'june_noon',
       weatherProfile: 'clear',
       renderQuality: 'high',
-      validationFocus: ['forest floor material', 'slope rock rules', 'shadow readability'],
-      notes: 'Slope rules by měly přirozeně přimíchat kameny na svazích.',
+      validationFocus: ['forest floor material', 'atmospheric depth', 'haze on trees', 'sky gradient'],
+      notes: 'MS4: vzdálené stromy by měly mít nižší kontrast díky atmospheric haze.',
     },
     {
       id: 'horizon_view',
@@ -178,8 +178,8 @@ export const VISUAL_BENCHMARK_CONFIG: VisualBenchmarkConfig = {
       timeOfDay: 'june_noon',
       weatherProfile: 'clear',
       renderQuality: 'high',
-      validationFocus: ['fog', 'horizon softness', 'distance readability'],
-      notes: 'Linear fog z RenderingSystem — žádný agresivní mlžný filtr.',
+      validationFocus: ['sky gradient', 'atmospheric haze', 'horizon softness', 'distance readability'],
+      notes: 'MS4 SkySystem — zenith/horizon gradient + linear haze (ne volumetric fog).',
     },
     {
       id: 'material_closeup',
@@ -200,8 +200,8 @@ export const VISUAL_BENCHMARK_CONFIG: VisualBenchmarkConfig = {
     'Stejný benchmark preset (id) jako v referenční sadě',
     'Stejný FOV a render quality (high)',
     'Červnové poledne, clear weather',
-    'RenderingSystem aktivní (ACES, fog, exposure)',
-    'Porovnat vůči MS1B baseline',
+    'SkySystem aktivní (gradient sky, haze, noon sun profile)',
+    'Porovnat field_long_view, horizon_view, forest_edge_view vůči MS1B/MS3 baseline',
   ],
 } as const
 

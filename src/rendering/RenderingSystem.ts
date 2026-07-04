@@ -1,8 +1,7 @@
 import type { Engine, Scene } from '@babylonjs/core'
 import type { SceneManager } from '@/rendering/SceneManager.ts'
 import { LightingSystem } from '@/rendering/LightingSystem.ts'
-import { EnvironmentLightingController } from '@/rendering/core/EnvironmentLightingController.ts'
-import { FogController } from '@/rendering/core/FogController.ts'
+import { SkySystem } from '@/rendering/sky/SkySystem.ts'
 import { HdrController } from '@/rendering/core/HdrController.ts'
 import { ImageProcessingController } from '@/rendering/core/ImageProcessingController.ts'
 import { IblEnvironment } from '@/rendering/core/IblEnvironment.ts'
@@ -29,10 +28,10 @@ export class RenderingSystem implements IInitializable, IDisposable {
   readonly lighting: LightingSystem
   readonly ibl = new IblEnvironment()
 
+  readonly sky = new SkySystem()
+
   private readonly hdr = new HdrController()
   private readonly imageProcessing = new ImageProcessingController()
-  private readonly fog = new FogController()
-  private readonly environment = new EnvironmentLightingController()
 
   constructor(sceneManager?: SceneManager) {
     this.sceneManager = sceneManager ?? null
@@ -48,13 +47,16 @@ export class RenderingSystem implements IInitializable, IDisposable {
     const { scene, engine } = this.resolveContext()
 
     this.hdr.apply(engine, scene)
-    this.environment.apply(scene)
-    this.fog.apply(scene)
     this.imageProcessing.apply(scene)
     this.ibl.initialize(scene)
 
     this.lighting.initialize({
       shadows: options.shadows ?? true,
+    })
+
+    this.sky.initialize(scene, engine, {
+      lighting: this.lighting,
+      imageProcessing: this.imageProcessing,
     })
 
     syncTerrainShaderLighting(scene)
@@ -90,13 +92,16 @@ export class RenderingSystem implements IInitializable, IDisposable {
     }
     const { scene, engine } = this.resolveContext()
     this.hdr.apply(engine, scene)
-    this.environment.apply(scene)
-    this.fog.apply(scene)
     this.imageProcessing.apply(scene)
+    this.sky.apply(scene, {
+      lighting: this.lighting,
+      imageProcessing: this.imageProcessing,
+    })
     syncTerrainShaderLighting(scene)
   }
 
   dispose(): void {
+    this.sky.dispose()
     this.lighting.dispose()
     this.shadows.dispose()
     this.scene = null

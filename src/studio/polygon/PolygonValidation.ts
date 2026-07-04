@@ -16,6 +16,28 @@ export function validatePolygonGeometry(
   points: readonly MapPolygonPoint[],
   excludeObjectId?: string,
 ): PolygonValidationResult {
+  const geometry = validatePolygonShapeGeometry(points)
+  if (!geometry.ok) {
+    return geometry
+  }
+
+  return validateParcelFootprint(
+    map,
+    polygonBoundingFootprint(points),
+    excludeObjectId,
+  )
+}
+
+/** Terrain Boundary is the source of terrain bounds — no terrain_ground footprint clamp. */
+export function validateTerrainBoundaryGeometry(
+  points: readonly MapPolygonPoint[],
+): PolygonValidationResult {
+  return validatePolygonShapeGeometry(points)
+}
+
+function validatePolygonShapeGeometry(
+  points: readonly MapPolygonPoint[],
+): PolygonValidationResult {
   if (points.length < MIN_POLYGON_POINTS) {
     return {
       ok: false,
@@ -44,9 +66,5 @@ export function validatePolygonGeometry(
     }
   }
 
-  return validateParcelFootprint(
-    map,
-    polygonBoundingFootprint(points),
-    excludeObjectId,
-  )
+  return { ok: true }
 }

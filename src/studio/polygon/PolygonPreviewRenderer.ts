@@ -1,6 +1,7 @@
 import {
   Color3,
   Mesh,
+  MeshBuilder,
   StandardMaterial,
   TransformNode,
   VertexBuffer,
@@ -22,65 +23,66 @@ const DEFAULT_STYLE: PolygonPreviewStyle = {
   surfaceY: 0.05,
 }
 
+const CLOSE_VERTEX_COLOR = new Color3(0.98, 0.92, 0.2)
+const VERTEX_COLOR = new Color3(0.98, 0.98, 1)
+const VERTEX_DIAMETER = 1.1
+
 export class PolygonPreviewRenderer {
+  private scene: Scene | null = null
   private root: TransformNode | null = null
-  private pointMesh: Mesh | null = null
   private edgeMesh: Mesh | null = null
   private fillMesh: Mesh | null = null
-  private pointMaterial: StandardMaterial | null = null
+  private readonly vertexMeshes: Mesh[] = []
   private edgeMaterial: StandardMaterial | null = null
   private fillMaterial: StandardMaterial | null = null
   private lastValid = true
 
   attach(scene: Scene, parent: TransformNode): void {
+    this.scene = scene
     this.root = new TransformNode('polygon_preview_root', scene)
     this.root.parent = parent
-    this.pointMesh = new Mesh('polygon_preview_point', scene)
     this.edgeMesh = new Mesh('polygon_preview_edge', scene)
     this.fillMesh = new Mesh('polygon_preview_fill', scene)
-    this.pointMesh.parent = this.root
     this.edgeMesh.parent = this.root
     this.fillMesh.parent = this.root
-    this.pointMesh.isPickable = false
     this.edgeMesh.isPickable = false
     this.fillMesh.isPickable = false
-    this.pointMesh.renderingGroupId = 2
     this.edgeMesh.renderingGroupId = 2
-    this.fillMesh.renderingGroupId = 2
+    this.fillMesh.renderingGroupId = 1
 
-    this.pointMaterial = this.createMaterial(scene, 'polygon_preview_point_mat')
-    this.edgeMaterial = this.createMaterial(scene, 'polygon_preview_edge_mat')
-    this.fillMaterial = this.createMaterial(scene, 'polygon_preview_fill_mat', 0.45)
-    this.pointMesh.material = this.pointMaterial
+    this.edgeMaterial = this.createMaterial(scene, 'polygon_preview_edge_mat', 1)
+    this.fillMaterial = this.createMaterial(scene, 'polygon_preview_fill_mat', 0.42)
     this.edgeMesh.material = this.edgeMaterial
     this.fillMesh.material = this.fillMaterial
     this.clear()
   }
 
   dispose(): void {
-    this.pointMesh?.dispose(false, true)
+    for (const mesh of this.vertexMeshes) {
+      mesh.dispose(false, true)
+    }
+    this.vertexMeshes.length = 0
     this.edgeMesh?.dispose(false, true)
     this.fillMesh?.dispose(false, true)
-    this.pointMaterial?.dispose()
     this.edgeMaterial?.dispose()
     this.fillMaterial?.dispose()
     this.root?.dispose()
-    this.pointMesh = null
     this.edgeMesh = null
     this.fillMesh = null
-    this.pointMaterial = null
     this.edgeMaterial = null
     this.fillMaterial = null
     this.root = null
+    this.scene = null
   }
 
   clear(): void {
-    this.updateMesh(this.pointMesh, [], [])
     this.updateMesh(this.edgeMesh, [], [])
     this.updateMesh(this.fillMesh, [], [])
-    this.pointMesh?.setEnabled(false)
     this.edgeMesh?.setEnabled(false)
     this.fillMesh?.setEnabled(false)
+    for (const mesh of this.vertexMeshes) {
+      mesh.setEnabled(false)
+    }
   }
 
   update(
@@ -91,27 +93,29 @@ export class PolygonPreviewRenderer {
   ): void {
     const merged = { ...DEFAULT_STYLE, ...style }
     if (isValid !== this.lastValid) {
-      this.applyColors(isValid ? merged.validColor : merged.invalidColor)
+      this.applyLineColors(isValid ? merged.validColor : merged.invalidColor)
       this.lastValid = isValid
     }
 
     const y = merged.surfaceY
+    const scene = this.scene
 
-    if (points.length === 0) {
+    if (points.length === 0 || !scene) {
       this.clear()
       return
     }
 
+    const canClose = points.length >= 3
+    this.renderVertexHandles(scene, points, y, canClose)
+
     if (points.length === 1) {
-      this.renderPoint(points[0], y, cursor)
-      this.edgeMesh?.setEnabled(false)
+      this.renderEdge(cursor ? [points[0], cursor] : [points[0]], y, false)
       this.fillMesh?.setEnabled(false)
       return
     }
 
     const edgeOutline = cursor ? [...points, cursor] : [...points]
     this.renderEdge(edgeOutline, y, false)
-    this.renderPoints(points, y)
     this.fillMesh?.setEnabled(false)
 
     if (points.length >= 3 && cursor) {
@@ -121,37 +125,54 @@ export class PolygonPreviewRenderer {
     }
   }
 
-  private renderPoint(point: MapPolygonPoint, y: number, cursor: MapPolygonPoint | null): void {
-    const positions = [point.x, y + 0.08, point.z]
-    if (cursor) {
-      positions.push(cursor.x, y + 0.08, cursor.z)
+  private renderVertexHandles(
+    scene: Scene,
+    points: readonly MapPolygonPoint[],
+    y: number,
+    canClose: boolean,
+  ): void {
+    while (this.vertexMeshes.length < points.length) {
+      const index = this.vertexMeshes.length
+      const mesh = MeshBuilder.CreateSphere(
+        `polygon_preview_vertex_${index}`,
+        { diameter: VERTEX_DIAMETER, segments: 12 },
+        scene,
+      )
+      mesh.parent = this.root
+      mesh.isPickable = false
+      mesh.renderingGroupId = 3
+      const material = new StandardMaterial(`polygon_preview_vertex_mat_${index}`, scene)
+      material.disableLighting = true
+      mesh.material = material
+      this.vertexMeshes.push(mesh)
     }
-    this.updateMesh(this.pointMesh, positions, cursor ? [0, 1] : [])
-    this.pointMesh?.setEnabled(true)
-  }
 
-  private renderPoints(points: readonly MapPolygonPoint[], y: number): void {
-    const positions: number[] = []
-    const indices: number[] = []
-    for (const point of points) {
-      positions.push(point.x, y + 0.08, point.z)
+    while (this.vertexMeshes.length > points.length) {
+      const excess = this.vertexMeshes.pop()
+      excess?.dispose(false, true)
     }
+
     for (let index = 0; index < points.length; index += 1) {
-      indices.push(index, index)
+      const point = points[index]
+      const mesh = this.vertexMeshes[index]
+      const material = mesh.material as StandardMaterial
+      const color = canClose && index === 0 ? CLOSE_VERTEX_COLOR : VERTEX_COLOR
+      material.diffuseColor = color
+      material.emissiveColor = color.scale(0.9)
+      mesh.position.set(point.x, y + 0.14, point.z)
+      mesh.setEnabled(true)
     }
-    this.updateMesh(this.pointMesh, positions, indices)
-    this.pointMesh?.setEnabled(points.length > 0)
   }
 
   private renderEdge(outline: readonly MapPolygonPoint[], y: number, closed: boolean): void {
-    if (outline.length < 2) {
+    if (!this.edgeMesh || outline.length < 2) {
       this.edgeMesh?.setEnabled(false)
       return
     }
     const positions: number[] = []
     const indices: number[] = []
     for (const point of outline) {
-      positions.push(point.x, y + 0.05, point.z)
+      positions.push(point.x, y + 0.06, point.z)
     }
     for (let index = 0; index < outline.length - 1; index += 1) {
       indices.push(index, index + 1)
@@ -160,7 +181,7 @@ export class PolygonPreviewRenderer {
       indices.push(outline.length - 1, 0)
     }
     this.updateMesh(this.edgeMesh, positions, indices)
-    this.edgeMesh?.setEnabled(true)
+    this.edgeMesh.setEnabled(true)
   }
 
   private renderFill(points: readonly MapPolygonPoint[], y: number): void {
@@ -191,19 +212,15 @@ export class PolygonPreviewRenderer {
     vertexData.applyToMesh(mesh, true)
   }
 
-  private createMaterial(
-    scene: Scene,
-    name: string,
-    alpha = 0.9,
-  ): StandardMaterial {
+  private createMaterial(scene: Scene, name: string, alpha = 0.9): StandardMaterial {
     const material = new StandardMaterial(name, scene)
     material.alpha = alpha
     material.disableLighting = true
     return material
   }
 
-  private applyColors(color: Color3): void {
-    for (const material of [this.pointMaterial, this.edgeMaterial, this.fillMaterial]) {
+  private applyLineColors(color: Color3): void {
+    for (const material of [this.edgeMaterial, this.fillMaterial]) {
       if (!material) {
         continue
       }

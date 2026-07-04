@@ -87,6 +87,11 @@ export class ShadowManager {
     return (
       isTerrainMesh(mesh) ||
       mesh.name.startsWith('studio_terrain_ground') ||
+      mesh.name.startsWith('farmos_veg_src_scattered_tree') ||
+      mesh.name.startsWith('farmos_veg_src_tree_line') ||
+      mesh.name.startsWith('farmos_veg_src_shrub') ||
+      mesh.name.startsWith('farmos_veg_src_hedgerow') ||
+      mesh.name.startsWith('farmos_veg_src_forest_edge') ||
       mesh.name.startsWith('field_') ||
       mesh.name.startsWith('barn') ||
       mesh.name.startsWith('tractor') ||

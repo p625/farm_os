@@ -188,6 +188,7 @@ export function StudioShell({ onSwitchToGame }: StudioShellProps) {
         if (
           event.key === 'Enter' &&
           !inTextField &&
+          engineRef.current?.isPolygonDrawingActive() &&
           snapshot.polygonDrawPointCount >= 3
         ) {
           event.preventDefault()
@@ -220,6 +221,7 @@ export function StudioShell({ onSwitchToGame }: StudioShellProps) {
         if (
           event.key === 'Enter' &&
           !inTextField &&
+          engineRef.current?.isPolygonDrawingActive() &&
           snapshot.polygonDrawPointCount >= 3
         ) {
           event.preventDefault()
@@ -312,6 +314,10 @@ export function StudioShell({ onSwitchToGame }: StudioShellProps) {
     engineRef.current?.refreshMap()
   }
 
+  const finishPolygonDrawing = () => {
+    engineRef.current?.finishActivePolygonDrawing()
+  }
+
   const deleteSelected = () => {
     const engine = engineRef.current
     if (!engine) {
@@ -349,9 +355,17 @@ export function StudioShell({ onSwitchToGame }: StudioShellProps) {
             <>
               <ProjectPanel store={store} />
               <LayersPanel store={store} />
-              <TerrainToolsPanel store={store} onSceneRefresh={refreshScene} />
+              <TerrainToolsPanel
+                store={store}
+                onSceneRefresh={refreshScene}
+                onFinishPolygon={finishPolygonDrawing}
+              />
               <RoadToolsPanel store={store} onSceneRefresh={refreshScene} />
-              <ParcelToolsPanel store={store} onSceneRefresh={refreshScene} />
+              <ParcelToolsPanel
+                store={store}
+                onSceneRefresh={refreshScene}
+                onFinishPolygon={finishPolygonDrawing}
+              />
               <VegetationToolsPanel store={store} onSceneRefresh={refreshScene} />
               <BuildingToolsPanel store={store} onSceneRefresh={refreshScene} />
               <VehicleToolsPanel store={store} onSceneRefresh={refreshScene} />

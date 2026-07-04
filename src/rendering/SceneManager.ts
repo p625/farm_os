@@ -4,6 +4,7 @@ import type { GameConfig } from '@/types/index.ts'
 import { DEFAULT_GAME_CONFIG } from '@/types/index.ts'
 import type { IDisposable } from '@/types/index.ts'
 import { FarmSceneBuilder } from './FarmSceneBuilder.ts'
+import type { VegetationSystem } from './vegetation/VegetationSystem.ts'
 import {
   createWebGLEngine,
   scheduleCanvasWebGLRelease,
@@ -72,6 +73,10 @@ export class SceneManager implements IDisposable {
       )
     }
     return this.scene
+  }
+
+  getVegetationSystem(): VegetationSystem {
+    return this.farmSceneBuilder.getVegetationSystem()
   }
 
   render(): void {

@@ -1,6 +1,9 @@
 import type { MapPolygonPoint } from '@/types/world-map.ts'
 
+/** Editor-only Terrain Boundary (`terrain_polygon`). Never the render surface. */
 export const TERRAIN_POLYGON_KIND = 'terrain_polygon'
+/** Alias — boundary metadata object kind (same persisted value). */
+export const TERRAIN_BOUNDARY_KIND = TERRAIN_POLYGON_KIND
 
 export const TERRAIN_BASE_MATERIALS = [
   'grass',

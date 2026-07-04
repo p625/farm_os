@@ -9,7 +9,10 @@ import {
 } from '@/studio/anchor/studioAnchorSync.ts'
 import { FieldStateInspector } from '@/studio/panels/FieldStateInspector.tsx'
 import { PolygonShapeInspector } from '@/studio/panels/PolygonShapeInspector.tsx'
+import { TerrainBoundaryInspector } from '@/studio/panels/TerrainBoundaryInspector.tsx'
+import { TerrainSurfaceInspector } from '@/studio/panels/TerrainSurfaceInspector.tsx'
 import { isMapPolygonShape } from '@/types/world-map.ts'
+import { TERRAIN_POLYGON_KIND } from '@/types/terrain-polygon.ts'
 
 interface InspectorPanelProps {
   store: StudioStore
@@ -425,12 +428,16 @@ export function InspectorPanel({
         </>
       ) : null}
 
-      {shape && isMapPolygonShape(shape) ? (
-        <PolygonShapeInspector
-          store={store}
-          object={selectedObject}
-          onSceneRefresh={onSceneRefresh}
-        />
+      {selectedObject.id === 'terrain_ground' ? (
+        <TerrainSurfaceInspector store={store} />
+      ) : null}
+
+      {selectedObject.kind === TERRAIN_POLYGON_KIND ? (
+        <TerrainBoundaryInspector object={selectedObject} />
+      ) : null}
+
+      {shape && isMapPolygonShape(shape) && selectedObject.kind !== TERRAIN_POLYGON_KIND ? (
+        <PolygonShapeInspector object={selectedObject} />
       ) : null}
 
       {selectedObject.layer === 'fields' && selectedObject.kind === 'field' ? (
