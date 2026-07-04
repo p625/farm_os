@@ -37,7 +37,7 @@ export class CameraController implements IInitializable, IUpdatable, IDisposable
 
     const canvas = this.sceneManager.getEngine().getRenderingCanvas()
     if (canvas) {
-      this.camera.attachControl(canvas, true)
+      this.camera.attachControl(canvas, false)
     }
   }
 

@@ -1,7 +1,9 @@
 import {
   PointerEventTypes,
   type AbstractMesh,
+  type PickingInfo,
   type Scene,
+  type Vector3,
 } from '@babylonjs/core'
 import type { Game } from '@core/Game.ts'
 import { DEFAULT_MACHINE_ID } from '@/config/machine-catalog.ts'
@@ -19,6 +21,8 @@ interface PointerStart {
   x: number
   y: number
   button: number
+  mesh: AbstractMesh | null
+  point: Vector3 | null
 }
 
 export class TractorInputPresentation {
@@ -37,10 +41,13 @@ export class TractorInputPresentation {
       const event = pointerInfo.event as PointerEvent
 
       if (pointerInfo.type === PointerEventTypes.POINTERDOWN) {
+        const pick = this.resolvePick(pointerInfo, event)
         this.pointerStart = {
           x: event.clientX,
           y: event.clientY,
           button: event.button,
+          mesh: pick.mesh,
+          point: pick.point,
         }
         return
       }
@@ -63,18 +70,17 @@ export class TractorInputPresentation {
         return
       }
 
-      const pick = pointerInfo.pickInfo
-      if (!pick?.hit || !pick.pickedMesh) {
+      if (!start.mesh) {
         return
       }
 
       if (event.button === 0) {
-        this.handleLeftClick(pick.pickedMesh)
+        this.handleLeftClick(start.mesh)
         return
       }
 
       if (event.button === 2) {
-        this.handleRightClick(pick.pickedMesh, pick, event)
+        this.handleRightClick(start.mesh, start.point, start.x, start.y)
       }
     })
   }
@@ -97,8 +103,9 @@ export class TractorInputPresentation {
 
   private handleRightClick(
     mesh: AbstractMesh,
-    pick: NonNullable<import('@babylonjs/core').PointerInfo['pickInfo']>,
-    event: PointerEvent,
+    point: Vector3 | null,
+    screenX: number,
+    screenY: number,
   ): void {
     const snapshot = this.game?.getSnapshot()
     if (snapshot?.selectedEntity.kind !== SelectedEntityKind.Machine) {
@@ -112,7 +119,7 @@ export class TractorInputPresentation {
     if (this.isFieldMesh(mesh)) {
       const fieldId = this.resolveFieldId(mesh)
       if (fieldId) {
-        this.game?.openFieldContextMenu(fieldId, event.clientX, event.clientY)
+        this.game?.openFieldContextMenu(fieldId, screenX, screenY)
       }
       return
     }
@@ -121,7 +128,6 @@ export class TractorInputPresentation {
       return
     }
 
-    const point = pick.pickedPoint
     if (!point) {
       return
     }
@@ -132,6 +138,50 @@ export class TractorInputPresentation {
     }
 
     this.game?.issueMachineCommand(DEFAULT_MACHINE_ID, command)
+  }
+
+  private resolvePick(
+    pointerInfo: { pickInfo?: PickingInfo | null },
+    event: PointerEvent,
+  ): { mesh: AbstractMesh | null; point: Vector3 | null } {
+    const pickInfo = pointerInfo.pickInfo
+    if (pickInfo?.hit && pickInfo.pickedMesh) {
+      return {
+        mesh: pickInfo.pickedMesh,
+        point: pickInfo.pickedPoint ?? null,
+      }
+    }
+
+    return this.pickFromClient(event.clientX, event.clientY)
+  }
+
+  private pickFromClient(
+    clientX: number,
+    clientY: number,
+  ): { mesh: AbstractMesh | null; point: Vector3 | null } {
+    const scene = this.scene
+    if (!scene) {
+      return { mesh: null, point: null }
+    }
+
+    const canvas = scene.getEngine().getRenderingCanvas()
+    if (!canvas) {
+      return { mesh: null, point: null }
+    }
+
+    const rect = canvas.getBoundingClientRect()
+    const x = ((clientX - rect.left) / rect.width) * canvas.width
+    const y = ((clientY - rect.top) / rect.height) * canvas.height
+    const pick = scene.pick(x, y)
+
+    if (!pick?.hit || !pick.pickedMesh) {
+      return { mesh: null, point: null }
+    }
+
+    return {
+      mesh: pick.pickedMesh,
+      point: pick.pickedPoint ?? null,
+    }
   }
 
   private isTractorMesh(mesh: AbstractMesh): boolean {

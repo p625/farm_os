@@ -8,6 +8,7 @@ import { RadialContextMenu } from './RadialContextMenu.tsx'
 import './GameShell.css'
 
 export function GameShell() {
+  const shellRef = useRef<HTMLDivElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [game, setGame] = useState<Game | null>(null)
   const [pendingSeedFieldId, setPendingSeedFieldId] = useState<string | null>(
@@ -15,15 +16,29 @@ export function GameShell() {
   )
 
   useEffect(() => {
+    const shell = shellRef.current
+    if (!shell) {
+      return
+    }
+
+    const preventContextMenu = (event: Event) => {
+      event.preventDefault()
+    }
+
+    shell.addEventListener('contextmenu', preventContextMenu, { capture: true })
+
+    return () => {
+      shell.removeEventListener('contextmenu', preventContextMenu, {
+        capture: true,
+      })
+    }
+  }, [])
+
+  useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) {
       return
     }
-
-    const preventContextMenu = (event: MouseEvent) => {
-      event.preventDefault()
-    }
-    canvas.addEventListener('contextmenu', preventContextMenu)
 
     let active = true
     const gameInstance = new Game(canvas)
@@ -38,7 +53,6 @@ export function GameShell() {
 
     return () => {
       active = false
-      canvas.removeEventListener('contextmenu', preventContextMenu)
       gameInstance.dispose()
       setGame(null)
     }
@@ -56,8 +70,20 @@ export function GameShell() {
   )
 
   return (
-    <div className="game-shell">
-      <canvas ref={canvasRef} className="game-shell__canvas" />
+    <div
+      ref={shellRef}
+      className="game-shell"
+      onContextMenu={(event) => {
+        event.preventDefault()
+      }}
+    >
+      <canvas
+        ref={canvasRef}
+        className="game-shell__canvas"
+        onContextMenu={(event) => {
+          event.preventDefault()
+        }}
+      />
       {game ? <GameHUD game={game} snapshot={snapshot} /> : null}
       {game && snapshot.fieldContextMenu ? (
         <RadialContextMenu
