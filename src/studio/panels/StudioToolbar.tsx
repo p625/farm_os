@@ -3,6 +3,8 @@ import type { StudioStore } from '@/studio/core/StudioStore.ts'
 import { MapFileService } from '@/studio/io/MapFileService.ts'
 import { createLegacyPrototypeMap } from '@/studio/io/createLegacyPrototypeMap.ts'
 
+import { ModuleSwitcher } from '@/studio/panels/ModuleSwitcher.tsx'
+
 interface StudioToolbarProps {
   store: StudioStore
   onPlayGame: () => void
@@ -20,8 +22,10 @@ export function StudioToolbar({
     <header className="studio-toolbar">
       <div className="studio-toolbar__brand">
         <span className="studio-toolbar__logo">FarmOS Studio</span>
-        <span className="studio-toolbar__badge">v0.1</span>
+        <span className="studio-toolbar__badge">v0.3</span>
       </div>
+
+      <ModuleSwitcher store={store} />
 
       <div className="studio-toolbar__actions">
         <button

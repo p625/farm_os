@@ -1,4 +1,4 @@
-import type { AbstractMesh, Scene } from '@babylonjs/core'
+import type { AbstractMesh, Mesh, Scene } from '@babylonjs/core'
 import {
   Color3,
   MeshBuilder,
@@ -7,6 +7,13 @@ import {
   Vector3,
 } from '@babylonjs/core'
 import { FarmEnvironment } from '@rendering/FarmEnvironment.ts'
+import {
+  createTerrainGroundMesh,
+  syncTerrainMesh,
+  tintTerrainMaterial,
+} from '@/studio/terrain/TerrainMeshSync.ts'
+import { ensureTerrainHeightfield } from '@/studio/terrain/TerrainHeightmap.ts'
+import { getTerrainSurfaceColor } from '@/studio/terrain/TerrainSurfacePalette.ts'
 import type { MapObject, StudioLayerId, WorldMapDocument } from '@/types/world-map.ts'
 
 export const STUDIO_METADATA_KEY = 'farmosStudio'
@@ -32,16 +39,18 @@ const LAYER_COLORS: Record<StudioLayerId, Color3> = {
 export class MapSceneBuilder {
   private readonly environment = new FarmEnvironment()
   private rootNode: TransformNode | null = null
+  private lastMap: WorldMapDocument | null = null
 
   build(scene: Scene, map: WorldMapDocument): TransformNode {
     this.dispose(scene)
+    this.lastMap = map
     this.environment.apply(scene)
 
     const root = new TransformNode('studio_map_root', scene)
     this.rootNode = root
 
     for (const object of map.objects) {
-      this.createObjectMesh(scene, root, object)
+      this.createObjectMesh(scene, root, object, map)
     }
 
     return root
@@ -60,6 +69,7 @@ export class MapSceneBuilder {
     scene: Scene,
     root: TransformNode,
     object: MapObject,
+    map: WorldMapDocument,
   ): void {
     const shape = object.shape ?? {
       type: 'box' as const,
@@ -73,21 +83,29 @@ export class MapSceneBuilder {
     }
 
     const mesh =
-      object.layer === 'terrain'
-        ? MeshBuilder.CreateGround(
-            `studio_${object.id}`,
-            { width: shape.width, height: shape.depth },
+      object.layer === 'terrain' && object.kind === 'ground'
+        ? createTerrainGroundMesh(
             scene,
-          )
-        : MeshBuilder.CreateBox(
             `studio_${object.id}`,
-            {
-              width: shape.width,
-              height: shape.height,
-              depth: shape.depth,
-            },
-            scene,
+            shape.width,
+            shape.depth,
+            ensureTerrainHeightfield(map.terrain).resolution,
           )
+        : object.layer === 'terrain'
+          ? MeshBuilder.CreateGround(
+              `studio_${object.id}`,
+              { width: shape.width, height: shape.depth },
+              scene,
+            )
+          : MeshBuilder.CreateBox(
+              `studio_${object.id}`,
+              {
+                width: shape.width,
+                height: shape.height,
+                depth: shape.depth,
+              },
+              scene,
+            )
 
     mesh.parent = root
     mesh.position = new Vector3(
@@ -107,14 +125,30 @@ export class MapSceneBuilder {
     }
 
     const material = new StandardMaterial(`mat_${object.id}`, scene)
-    const base = LAYER_COLORS[object.layer].clone()
+    let base = LAYER_COLORS[object.layer].clone()
+    if (object.layer === 'fields' && object.kind === 'field') {
+      const surfaceId =
+        typeof object.properties?.surfaceId === 'number'
+          ? object.properties.surfaceId
+          : 1
+      const [r, g, b] = getTerrainSurfaceColor(surfaceId)
+      base = new Color3(r, g, b)
+    }
     material.diffuseColor = base
     material.specularColor = base.scale(0.15)
     if (object.layer === 'poi' || object.layer === 'debug') {
       material.emissiveColor = base.scale(0.25)
     }
+    if (object.layer === 'terrain' && object.kind === 'ground') {
+      material.emissiveColor = new Color3(0.02, 0.03, 0.01)
+    }
     mesh.material = material
     mesh.receiveShadows = object.layer === 'terrain' || object.layer === 'fields'
+
+    if (object.layer === 'terrain' && object.kind === 'ground') {
+      tintTerrainMaterial(mesh as Mesh)
+      syncTerrainMesh(mesh as Mesh, map.terrain, object.transform.position.y)
+    }
 
     const metadata: StudioMeshMetadata = {
       objectId: object.id,
@@ -124,6 +158,73 @@ export class MapSceneBuilder {
     }
     mesh.metadata = { [STUDIO_METADATA_KEY]: metadata }
   }
+
+  upsertObjectMesh(scene: Scene, object: MapObject): void {
+    const root =
+      this.rootNode ??
+      (scene.getTransformNodeByName('studio_map_root') as TransformNode | null)
+    if (!root) {
+      return
+    }
+
+    const existing = findStudioMeshByObjectId(scene, object.id)
+    existing?.dispose(false, true)
+    if (!this.lastMap) {
+      return
+    }
+    this.createObjectMesh(scene, root, object, this.lastMap)
+  }
+
+  refreshTerrainMesh(scene: Scene, map: WorldMapDocument): void {
+    this.lastMap = map
+    const mesh = findStudioMeshByObjectId(scene, 'terrain_ground')
+    const ground = map.objects.find((entry) => entry.id === 'terrain_ground')
+    if (!mesh || !ground) {
+      return
+    }
+    syncTerrainMesh(mesh as Mesh, map.terrain, ground.transform.position.y)
+  }
+
+  refreshFieldMeshes(scene: Scene, map: WorldMapDocument): void {
+    this.lastMap = map
+    for (const object of map.objects) {
+      if (object.layer !== 'fields' || object.kind !== 'field') {
+        continue
+      }
+
+      const mesh = findStudioMeshByObjectId(scene, object.id)
+      if (!mesh) {
+        continue
+      }
+
+      mesh.position.y = object.transform.position.y
+
+      const surfaceId =
+        typeof object.properties?.surfaceId === 'number'
+          ? object.properties.surfaceId
+          : 1
+      const [r, g, b] = getTerrainSurfaceColor(surfaceId)
+      const color = new Color3(r, g, b)
+      const material = mesh.material
+      if (material instanceof StandardMaterial) {
+        material.diffuseColor = color
+        material.specularColor = color.scale(0.15)
+      }
+    }
+  }
+}
+
+export function findStudioMeshByObjectId(
+  scene: Scene,
+  objectId: string,
+): AbstractMesh | null {
+  for (const mesh of scene.meshes) {
+    const metadata = getStudioMetadata(mesh)
+    if (metadata?.objectId === objectId) {
+      return mesh
+    }
+  }
+  return null
 }
 
 export function getStudioMetadata(mesh: AbstractMesh): StudioMeshMetadata | null {

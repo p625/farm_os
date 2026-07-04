@@ -4,6 +4,11 @@ import { getCropDefinition } from '@/config/crop-catalog.ts'
 import type { CropSystem } from '@systems/CropSystem.ts'
 import type { FieldSystem } from '@systems/FieldSystem.ts'
 import { FieldLifecycleState as States } from '@/types/field.ts'
+import {
+  CropCareAction,
+  hasCropCareAction,
+  type FieldCropCare,
+} from '@/types/crop-care.ts'
 import type { CropColorPalette } from '@/types/crop.ts'
 
 export class CropPresentation {
@@ -51,7 +56,10 @@ export class CropPresentation {
       const material = mesh.material as StandardMaterial
       material.diffuseColor = style.diffuse.clone()
       material.specularColor = style.specular.clone()
-      material.emissiveColor = style.emissive.clone()
+      material.emissiveColor = applyCropCareEmissive(
+        style.emissive.clone(),
+        field.cropCare,
+      )
     }
   }
 
@@ -119,4 +127,15 @@ export function getCropVisualStyle(
     specular: new Color3(0.1, 0.14, 0.06),
     emissive: new Color3(0.03, 0.05, 0.015),
   }
+}
+
+function applyCropCareEmissive(base: Color3, care: FieldCropCare): Color3 {
+  const result = base.clone()
+  if (hasCropCareAction(care, CropCareAction.Fertilize)) {
+    result.g += 0.05
+  }
+  if (hasCropCareAction(care, CropCareAction.Spray)) {
+    result.b += 0.04
+  }
+  return result
 }

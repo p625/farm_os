@@ -1,5 +1,10 @@
 import { FieldLifecycleState as States } from '@/types/field.ts'
 import type { FieldData, FieldLifecycleState } from '@/types/field.ts'
+import {
+  emptyFieldCropCare,
+  normalizeFieldCropCare,
+  type FieldCropCare,
+} from '@/types/crop-care.ts'
 
 export class Field implements FieldData {
   readonly id: string
@@ -8,6 +13,7 @@ export class Field implements FieldData {
   growthPercent: number
   cropId: string | null
   daysGrown: number
+  cropCare: FieldCropCare
 
   constructor(id: string, name: string) {
     this.id = id
@@ -16,6 +22,7 @@ export class Field implements FieldData {
     this.growthPercent = 0
     this.cropId = null
     this.daysGrown = 0
+    this.cropCare = emptyFieldCropCare()
   }
 
   toSnapshot(): FieldData {
@@ -26,6 +33,15 @@ export class Field implements FieldData {
       growthPercent: this.growthPercent,
       cropId: this.cropId,
       daysGrown: this.daysGrown,
+      cropCare: { applied: [...this.cropCare.applied] },
     }
+  }
+
+  setCropCare(care: unknown): void {
+    this.cropCare = normalizeFieldCropCare(care)
+  }
+
+  resetCropCare(): void {
+    this.cropCare = emptyFieldCropCare()
   }
 }

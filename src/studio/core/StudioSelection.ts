@@ -2,10 +2,10 @@ import type { AbstractMesh, Scene } from '@babylonjs/core'
 import { Color3, StandardMaterial } from '@babylonjs/core'
 import type { MapObject } from '@/types/world-map.ts'
 import {
+  findStudioMeshByObjectId,
   getStudioMetadata,
   type StudioMeshMetadata,
 } from '@/studio/io/MapSceneBuilder.ts'
-
 const HIGHLIGHT_EMISSIVE = new Color3(0.35, 0.55, 0.25)
 export class StudioSelection {
   private selectedMesh: AbstractMesh | null = null
@@ -31,9 +31,17 @@ export class StudioSelection {
     return metadata.mapObject
   }
 
-  clear(): MapObject | null {
+  clear(): void {
     this.clearHighlight()
-    return null
+  }
+
+  highlightByObjectId(scene: Scene, objectId: string): void {
+    const mesh = findStudioMeshByObjectId(scene, objectId)
+    if (!mesh) {
+      this.clearHighlight()
+      return
+    }
+    this.applyHighlight(mesh)
   }
 
   private applyHighlight(mesh: AbstractMesh): void {

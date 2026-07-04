@@ -10,6 +10,7 @@ import {
   type ProductDefinition,
 } from '@/types/product.ts'
 import { MachineTemplateId } from '@/types/machine-template.ts'
+import { AttachmentCatalogId, AttachmentId } from '@/types/attachment.ts'
 
 export const PRODUCT_CATALOG: readonly ProductDefinition[] = [
   {
@@ -30,6 +31,48 @@ export const PRODUCT_CATALOG: readonly ProductDefinition[] = [
       machineTemplateId: MachineTemplateId.SmallTractor,
     },
     maxOwned: 2,
+    deliveryDelayDays: 0,
+  },
+  {
+    id: ProductId.FertilizerSpreader,
+    storeType: FarmStoreType.Dealer,
+    category: ProductCategory.Attachments,
+    name: 'Rozmetadlo hnojiva',
+    description: 'Zadní rozmetadlo pro hnojení porostu během růstu.',
+    price: 0,
+    imageKey: 'fertilizer_spreader',
+    specifications: [
+      'Hnojení během růstu plodiny',
+      'Zvyšuje výnos až o 12 %',
+      'Vyžaduje traktor se zadním závěsem',
+    ],
+    fulfillment: {
+      kind: ProductFulfillmentKind.Attachment,
+      attachmentCatalogId: AttachmentCatalogId.FertilizerSpreader,
+      attachmentInstanceId: AttachmentId.FertilizerSpreader1,
+    },
+    maxOwned: 1,
+    deliveryDelayDays: 0,
+  },
+  {
+    id: ProductId.Sprayer,
+    storeType: FarmStoreType.Dealer,
+    category: ProductCategory.Attachments,
+    name: 'Postřikovač',
+    description: 'Zadní postřikovač pro ochranu a podporu porostu.',
+    price: 0,
+    imageKey: 'sprayer',
+    specifications: [
+      'Postřik během růstu plodiny',
+      'Zvyšuje výnos až o 8 %',
+      'Kombinuje se s hnojením pro vyšší bonus',
+    ],
+    fulfillment: {
+      kind: ProductFulfillmentKind.Attachment,
+      attachmentCatalogId: AttachmentCatalogId.Sprayer,
+      attachmentInstanceId: AttachmentId.Sprayer1,
+    },
+    maxOwned: 1,
     deliveryDelayDays: 0,
   },
 ] as const

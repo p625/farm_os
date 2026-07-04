@@ -10,6 +10,8 @@ export const JobType = {
   Plow: 'plow',
   Seed: 'seed',
   Harvest: 'harvest',
+  Fertilize: 'fertilize',
+  Spray: 'spray',
 } as const
 
 export type JobType = (typeof JobType)[keyof typeof JobType]

@@ -72,6 +72,24 @@ export const ATTACHMENT_CATALOG: readonly AttachmentCatalogEntry[] = [
     providesCapabilities: [MachineCapability.Harvest],
     supportedCropIds: ['corn'],
   },
+  {
+    id: AttachmentCatalogId.FertilizerSpreader,
+    name: 'Fertilizer Spreader',
+    attachmentType: AttachmentType.Implement,
+    category: AttachmentCategory.Fertilizing,
+    behavior: AttachmentBehavior.Active,
+    workingWidth: 4,
+    providesCapabilities: [MachineCapability.Fertilize],
+  },
+  {
+    id: AttachmentCatalogId.Sprayer,
+    name: 'Sprayer',
+    attachmentType: AttachmentType.Implement,
+    category: AttachmentCategory.Spraying,
+    behavior: AttachmentBehavior.Active,
+    workingWidth: 4,
+    providesCapabilities: [MachineCapability.Spray],
+  },
 ] as const
 
 export interface DefaultAttachmentSpawn {

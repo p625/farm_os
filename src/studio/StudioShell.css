@@ -83,6 +83,127 @@
   border-color: #5a7044;
 }
 
+.studio-btn--accent:hover {
+  background: #465a38;
+}
+
+.studio-btn--danger {
+  background: #4a2a2a;
+  border-color: #6a3a3a;
+}
+
+.studio-btn--danger:hover:not(:disabled) {
+  background: #5c3434;
+}
+
+.studio-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.studio-inspector__actions {
+  margin-bottom: 0.65rem;
+}
+
+.studio-input {
+  width: 100%;
+  font: inherit;
+  font-size: 0.8rem;
+  padding: 0.25rem 0.4rem;
+  border: 1px solid #3a4652;
+  border-radius: 4px;
+  background: #0f1418;
+  color: #e8ecef;
+}
+
+.studio-input:focus {
+  outline: none;
+  border-color: #5a8a64;
+}
+
+.studio-field-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.35rem;
+}
+
+.studio-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.studio-field--wide {
+  grid-column: 1 / -1;
+}
+
+.studio-field__label {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #6a7d8a;
+}
+
+.studio-module-switcher {
+  display: flex;
+  gap: 0.25rem;
+  margin-right: auto;
+}
+
+.studio-module-switcher__btn {
+  font-size: 0.75rem;
+  padding: 0.3rem 0.55rem;
+}
+
+.studio-module-switcher__btn--active {
+  background: #2d4a32;
+  border-color: #4a8a54;
+  color: #d0f0c8;
+}
+
+.studio-tool-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.3rem;
+  margin-bottom: 0.5rem;
+}
+
+.studio-tool-grid__btn--active {
+  background: #2d4a32;
+  border-color: #4a8a54;
+}
+
+.studio-surface-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.35rem;
+}
+
+.studio-surface-swatch {
+  position: relative;
+  height: 2.2rem;
+  border: 2px solid transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  padding: 0;
+}
+
+.studio-surface-swatch--active {
+  border-color: #e8ecef;
+  box-shadow: 0 0 0 1px #4a8a54;
+}
+
+.studio-surface-swatch__label {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 2px;
+  font-size: 0.62rem;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.9);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+}
+
 .studio-workspace {
   display: grid;
   grid-template-columns: 220px 1fr 240px;
@@ -122,6 +243,14 @@
   height: 100%;
   touch-action: none;
   outline: none;
+}
+
+.studio-shell__canvas--manipulating {
+  cursor: grabbing;
+}
+
+.studio-shell__canvas:not(.studio-shell__canvas--manipulating) {
+  cursor: default;
 }
 
 .studio-viewport-hint {
@@ -231,6 +360,10 @@
   justify-content: space-between;
   padding: 0.2rem 0;
   color: #8a9aa8;
+}
+
+.studio-module-list__item--active .studio-module-list__name {
+  color: #b8e0a8;
 }
 
 .studio-module-list__ver {

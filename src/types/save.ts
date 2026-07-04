@@ -2,6 +2,7 @@ import type { GameLogEntry } from '@/types/events.ts'
 import type { FarmStoreSaveData } from '@/types/farm-store.ts'
 import type { GrainBinSaveData } from '@/types/grain-bin.ts'
 import type { FieldLifecycleState } from '@/types/field.ts'
+import type { FieldCropCare } from '@/types/crop-care.ts'
 import type { FieldOwnership } from '@/types/ownership.ts'
 
 export interface FieldSaveData {
@@ -10,6 +11,7 @@ export interface FieldSaveData {
   growthPercent: number
   cropId: string | null
   daysGrown?: number
+  cropCare?: FieldCropCare
 }
 
 export interface FieldOwnershipSaveData {

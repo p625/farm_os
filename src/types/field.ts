@@ -11,6 +11,7 @@ export type FieldLifecycleState =
   (typeof FieldLifecycleState)[keyof typeof FieldLifecycleState]
 
 import type { FieldOwnership } from '@/types/ownership.ts'
+import type { FieldCropCare } from '@/types/crop-care.ts'
 
 export interface FieldData {
   id: string
@@ -19,6 +20,7 @@ export interface FieldData {
   growthPercent: number
   cropId: string | null
   daysGrown: number
+  cropCare: FieldCropCare
 }
 
 export interface FieldSnapshot {
@@ -35,4 +37,5 @@ export interface FieldSnapshot {
   area: number
   fertility: number
   usable: boolean
+  cropCare: FieldCropCare
 }

@@ -1,4 +1,11 @@
-import { FIELD_CATALOG } from '@/config/field-catalog.ts'
+import { FIELD_CATALOG, getFieldCatalogEntry } from '@/config/field-catalog.ts'
+import {
+  applyCropCareAction,
+  CropCareAction,
+  hasCropCareAction,
+  isCropCareWindow,
+  type CropCareAction as CropCareActionValue,
+} from '@/types/crop-care.ts'
 import { Field } from '@entities/Field.ts'
 import type { GameEventLog } from '@game/GameEventLog.ts'
 import type { World } from '@game/World.ts'
@@ -71,6 +78,7 @@ export class FieldSystem extends GameSystem {
       growthPercent: number
       cropId: string | null
       daysGrown?: number
+      cropCare?: Field['cropCare']
     }[],
     selectedFieldId: string | null,
   ): void {
@@ -99,6 +107,8 @@ export class FieldSystem extends GameSystem {
       } else {
         field.daysGrown = 0
       }
+
+      field.setCropCare(savedField.cropCare)
     }
 
     if (selectedFieldId && this.fields.has(selectedFieldId)) {
@@ -198,6 +208,61 @@ export class FieldSystem extends GameSystem {
     return field?.state === States.Harvestable
   }
 
+  canApplyCropCare(fieldId: string, action: CropCareActionValue): boolean {
+    if (!this.isFieldUsable(fieldId)) {
+      return false
+    }
+    const field = this.fields.get(fieldId)
+    if (!field || !isCropCareWindow(field.state)) {
+      return false
+    }
+    if (!field.cropId && field.state !== States.Seeded) {
+      return false
+    }
+    return !hasCropCareAction(field.cropCare, action)
+  }
+
+  applyCropCare(fieldId: string, action: CropCareActionValue): boolean {
+    if (!this.canApplyCropCare(fieldId, action)) {
+      return false
+    }
+    const field = this.fields.get(fieldId)
+    if (!field) {
+      return false
+    }
+    field.cropCare = applyCropCareAction(field.cropCare, action)
+    this.notifyChange()
+    return true
+  }
+
+  canFertilize(fieldId: string): boolean {
+    return this.canApplyCropCare(fieldId, CropCareAction.Fertilize)
+  }
+
+  canSpray(fieldId: string): boolean {
+    return this.canApplyCropCare(fieldId, CropCareAction.Spray)
+  }
+
+  fertilizeField(fieldId: string): boolean {
+    return this.applyCropCare(fieldId, CropCareAction.Fertilize)
+  }
+
+  sprayField(fieldId: string): boolean {
+    return this.applyCropCare(fieldId, CropCareAction.Spray)
+  }
+
+  getCropCareContext(fieldId: string) {
+    const field = this.fields.get(fieldId)
+    const catalog = getFieldCatalogEntry(fieldId)
+    if (!field) {
+      return null
+    }
+    return {
+      catalogFertility: catalog?.fertility ?? 80,
+      care: field.cropCare,
+    }
+  }
+
   plowField(fieldId: string): boolean {
     if (!this.isFieldUsable(fieldId)) {
       return false
@@ -210,6 +275,7 @@ export class FieldSystem extends GameSystem {
     field.growthPercent = 0
     field.cropId = null
     field.daysGrown = 0
+    field.resetCropCare()
     this.eventLog?.recordFieldPlowed(this.world.currentDay)
     this.notifyChange()
     return true
@@ -237,6 +303,7 @@ export class FieldSystem extends GameSystem {
     field.growthPercent = 0
     field.daysGrown = 0
     field.cropId = crop.id
+    field.resetCropCare()
     this.eventLog?.recordCropPlanted(crop.name, this.world.currentDay)
     this.notifyChange()
     return true
@@ -275,12 +342,14 @@ export class FieldSystem extends GameSystem {
       return null
     }
 
-    const yieldAmount = this.cropSystem.getYield(cropId)
+    const careContext = this.getCropCareContext(fieldId)
+    const yieldAmount = this.cropSystem.getYield(cropId, careContext ?? undefined)
 
     field.state = States.Grass
     field.growthPercent = 0
     field.cropId = null
     field.daysGrown = 0
+    field.resetCropCare()
     this.notifyChange()
 
     return { cropId, yield: yieldAmount }

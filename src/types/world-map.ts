@@ -44,9 +44,17 @@ export interface MapObject {
   properties?: Record<string, unknown>
 }
 
+export const DEFAULT_TERRAIN_RESOLUTION = 32
+
 export interface WorldMapTerrain {
   width: number
   height: number
+  /** Heightfield samples per axis (default 32). */
+  resolution?: number
+  /** Row-major height samples in world Y units. Length = resolution². */
+  heights?: number[]
+  /** Row-major surface type index per cell. Length = resolution². */
+  surfaces?: number[]
 }
 
 export interface WorldMapMeta {

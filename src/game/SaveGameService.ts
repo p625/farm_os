@@ -20,6 +20,7 @@ import { SHOP_CATALOG } from '@/config/shop-catalog.ts'
 import { SAVE_STORAGE_KEY, SAVE_VERSION } from '@/config/save.ts'
 import { FieldOwnership } from '@/types/ownership.ts'
 import { ProductionBuildingId, ProductionBuildingState } from '@/types/production.ts'
+import { emptyFieldCropCare, normalizeFieldCropCare } from '@/types/crop-care.ts'
 import { FieldLifecycleState as States } from '@/types/field.ts'
 import { TractorState } from '@/types/tractor.ts'
 import { isLogisticsSaveCommand } from '@systems/MachineLogisticsSupport.ts'
@@ -107,6 +108,12 @@ export class SaveGameService {
         return null
       }
       return this.repairSave(this.migrateFromV9(data as LegacySaveData))
+    }
+    if (data.version === 10) {
+      if (!this.isValidCoreSave(data)) {
+        return null
+      }
+      return this.repairSave(this.migrateFromV10(data as LegacySaveData))
     }
     if (!this.isValidCoreSave(data)) {
       return null
@@ -423,10 +430,18 @@ export class SaveGameService {
     }
   }
 
-  private migrateFromV9(data: LegacySaveData): LegacySaveData {
+  private migrateFromV10(data: LegacySaveData): LegacySaveData {
     return {
       ...data,
       version: SAVE_VERSION,
+      fields: this.mergeFieldSaveSlices(data.fields),
+    }
+  }
+
+  private migrateFromV9(data: LegacySaveData): LegacySaveData {
+    return {
+      ...data,
+      version: 10,
       fields: this.mergeFieldSaveSlices(data.fields),
       ownership: this.mergeOwnershipSaveSlices(data.ownership),
     }
@@ -442,7 +457,12 @@ export class SaveGameService {
     return FIELD_CATALOG.map((entry) => {
       const saved = byId.get(entry.id)
       if (saved) {
-        return saved
+        return {
+          ...saved,
+          cropCare: normalizeFieldCropCare(
+            (saved as { cropCare?: unknown }).cropCare,
+          ),
+        }
       }
       return {
         id: entry.id,
@@ -450,6 +470,7 @@ export class SaveGameService {
         growthPercent: 0,
         cropId: null,
         daysGrown: 0,
+        cropCare: emptyFieldCropCare(),
       }
     })
   }

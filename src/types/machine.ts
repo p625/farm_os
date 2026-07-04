@@ -14,6 +14,8 @@ export const MachineCapability = {
   Plow: 'plow',
   Seed: 'seed',
   Harvest: 'harvest',
+  Fertilize: 'fertilize',
+  Spray: 'spray',
 } as const
 
 export type MachineCapability =
@@ -31,6 +33,8 @@ export type CommandTask =
   | { kind: 'plow' }
   | { kind: 'seed'; cropId: string }
   | { kind: 'harvest' }
+  | { kind: 'fertilize' }
+  | { kind: 'spray' }
   | { kind: 'load_from_combine'; sourceMachineId: MachineId }
   | { kind: 'unload_to_silo'; interactionPointId: string }
 
@@ -67,6 +71,8 @@ export const FieldRadialActionKind = {
   Plow: 'plow',
   Seed: 'seed',
   Harvest: 'harvest',
+  Fertilize: 'fertilize',
+  Spray: 'spray',
   Cancel: 'cancel',
 } as const
 

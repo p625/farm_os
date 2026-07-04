@@ -322,6 +322,32 @@ export class Game implements IDisposable {
     })
   }
 
+  fertilizeField(fieldId: string): void {
+    const machineId = this.getSelectedMachineId()
+    if (!machineId) {
+      return
+    }
+    this.closeFieldContextMenu()
+    this.syncHudFieldWhileMachineSelected(fieldId)
+    this.issueMachineCommand(machineId, {
+      destination: { kind: 'field', fieldId },
+      task: { kind: 'fertilize' },
+    })
+  }
+
+  sprayField(fieldId: string): void {
+    const machineId = this.getSelectedMachineId()
+    if (!machineId) {
+      return
+    }
+    this.closeFieldContextMenu()
+    this.syncHudFieldWhileMachineSelected(fieldId)
+    this.issueMachineCommand(machineId, {
+      destination: { kind: 'field', fieldId },
+      task: { kind: 'spray' },
+    })
+  }
+
   openFieldContextMenu(
     fieldId: string,
     screenX: number,
@@ -638,15 +664,18 @@ export class Game implements IDisposable {
   }
 
   purchaseProduct(productId: string): void {
+    const occupiedPositions = [
+      ...this.machineRegistry.getAll().map((controller) => {
+        const position = controller.getPosition()
+        return { x: position.x, z: position.z }
+      }),
+      ...this.attachmentSystem.getDetachedOccupiedPositions(),
+    ]
+
     const prepared = this.farmStoreSystem.preparePurchase(productId, {
       money: this.world.money,
       currentDay: this.world.currentDay,
-      machinePositions: this.machineRegistry
-        .getAll()
-        .map((controller) => {
-          const position = controller.getPosition()
-          return { x: position.x, z: position.z }
-        }),
+      occupiedPositions,
     })
 
     if (!prepared) {
@@ -657,30 +686,57 @@ export class Game implements IDisposable {
       return
     }
 
-    const controller = this.worldObjectFactory.createPurchasedTractor({
-      x: prepared.fulfillment.position.x,
-      y: prepared.fulfillment.position.y,
-      z: prepared.fulfillment.position.z,
-      rotationY: prepared.fulfillment.rotationY,
-    })
+    if (prepared.fulfillment.kind === 'machine') {
+      const controller = this.worldObjectFactory.createPurchasedTractor({
+        x: prepared.fulfillment.position.x,
+        y: prepared.fulfillment.position.y,
+        z: prepared.fulfillment.position.z,
+        rotationY: prepared.fulfillment.rotationY,
+      })
 
-    if (!controller) {
+      if (!controller) {
+        this.world.addMoney(prepared.price)
+        return
+      }
+
+      this.wireMachineController(controller)
+      this.machineRegistry.register(controller)
+      this.machinePresentation.spawnTractorInstance(
+        controller.machineId,
+        prepared.fulfillment.position,
+        prepared.fulfillment.rotationY,
+      )
+      this.farmStoreSystem.commitPurchase(
+        prepared,
+        controller.machineId,
+        this.world.currentDay,
+      )
+    } else if (prepared.fulfillment.kind === 'attachment') {
+      const delivered = this.attachmentSystem.deliverAttachment(
+        prepared.fulfillment.attachmentInstanceId,
+        prepared.fulfillment.attachmentCatalogId,
+        prepared.fulfillment.position,
+        prepared.fulfillment.rotationY,
+      )
+
+      if (!delivered) {
+        this.world.addMoney(prepared.price)
+        return
+      }
+
+      this.attachmentPresentation.ensureAttachmentMesh(
+        prepared.fulfillment.attachmentInstanceId,
+      )
+      this.farmStoreSystem.commitPurchase(
+        prepared,
+        prepared.fulfillment.attachmentInstanceId,
+        this.world.currentDay,
+      )
+      this.attachmentPresentation.syncVisuals()
+    } else {
       this.world.addMoney(prepared.price)
       return
     }
-
-    this.wireMachineController(controller)
-    this.machineRegistry.register(controller)
-    this.machinePresentation.spawnTractorInstance(
-      controller.machineId,
-      prepared.fulfillment.position,
-      prepared.fulfillment.rotationY,
-    )
-    this.farmStoreSystem.commitPurchase(
-      prepared,
-      controller.machineId,
-      this.world.currentDay,
-    )
 
     const product = getProductDefinition(productId)
     if (product) {
@@ -834,16 +890,40 @@ export class Game implements IDisposable {
       if (
         cropId &&
         this.capabilityResolver.canHarvestCrop(machineId, cropId) &&
-        this.canHarvestIntoBin(machineId, cropId)
+        this.canHarvestIntoBin(machineId, cropId, fieldId)
       ) {
         actions.push(FieldRadialActionKind.Harvest)
       }
     }
 
+    if (
+      this.capabilityResolver.hasEffectiveCapability(
+        machineId,
+        MachineCapability.Fertilize,
+      ) &&
+      this.fieldSystem.canFertilize(fieldId)
+    ) {
+      actions.push(FieldRadialActionKind.Fertilize)
+    }
+
+    if (
+      this.capabilityResolver.hasEffectiveCapability(
+        machineId,
+        MachineCapability.Spray,
+      ) &&
+      this.fieldSystem.canSpray(fieldId)
+    ) {
+      actions.push(FieldRadialActionKind.Spray)
+    }
+
     return actions
   }
 
-  private canHarvestIntoBin(machineId: MachineId, cropId: string): boolean {
+  private canHarvestIntoBin(
+    machineId: MachineId,
+    cropId: string,
+    fieldId: string,
+  ): boolean {
     const bin = this.machineRegistry.get(machineId)?.getGrainBinSnapshot?.()
     if (!bin) {
       return false
@@ -851,7 +931,11 @@ export class Game implements IDisposable {
     if (bin.isFull) {
       return false
     }
-    const yieldAmount = this.cropSystem.getYield(cropId)
+    const yieldAmount =
+      this.cropSystem.getYield(
+        cropId,
+        this.fieldSystem.getCropCareContext(fieldId) ?? undefined,
+      )
     return bin.quantity + yieldAmount <= bin.capacity
   }
 
@@ -1428,6 +1512,7 @@ export class Game implements IDisposable {
         area: catalog?.area ?? 0,
         fertility: catalog?.fertility ?? 0,
         usable: this.ownershipSystem.canUseField(field.id),
+        cropCare: { applied: [...field.cropCare.applied] },
       }
     })
   }
@@ -1619,7 +1704,7 @@ export class Game implements IDisposable {
       return 'Zásobník plný — naložte na přívěs a pokračujte ve sklizni.'
     }
 
-    if (cropId && bin && !this.canHarvestIntoBin(machineId, cropId)) {
+    if (cropId && bin && fieldId && !this.canHarvestIntoBin(machineId, cropId, fieldId)) {
       const cropName = this.cropSystem.getCropName(cropId)
       return `Zásobník nepojme celou sklizeň: ${cropName}.`
     }

@@ -170,6 +170,12 @@ export function GameShell({ onSwitchToStudio }: GameShellProps) {
               case FieldRadialActionKind.Harvest:
                 game.harvestField(fieldId)
                 break
+              case FieldRadialActionKind.Fertilize:
+                game.fertilizeField(fieldId)
+                break
+              case FieldRadialActionKind.Spray:
+                game.sprayField(fieldId)
+                break
               case FieldRadialActionKind.Cancel:
                 game.closeFieldContextMenu()
                 break

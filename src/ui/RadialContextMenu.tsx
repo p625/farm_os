@@ -14,6 +14,8 @@ const ACTION_LABELS: Record<FieldRadialActionKind, string> = {
   [FieldRadialActionKind.Plow]: 'Orat',
   [FieldRadialActionKind.Seed]: 'Zasít',
   [FieldRadialActionKind.Harvest]: 'Sklidit',
+  [FieldRadialActionKind.Fertilize]: 'Hnojit',
+  [FieldRadialActionKind.Spray]: 'Postřik',
   [FieldRadialActionKind.Cancel]: 'Zrušit',
 }
 

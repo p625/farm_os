@@ -3,7 +3,9 @@ import type { StudioLayerId, WorldMapDocument } from '@/types/world-map.ts'
 import { MapSceneBuilder } from '@/studio/io/MapSceneBuilder.ts'
 import { StudioCameraController } from '@/studio/core/StudioCameraController.ts'
 import { StudioLighting } from '@/studio/core/StudioLighting.ts'
+import { StudioManipulator } from '@/studio/core/StudioManipulator.ts'
 import { StudioSelection } from '@/studio/core/StudioSelection.ts'
+import { StudioTerrainEditor } from '@/studio/core/StudioTerrainEditor.ts'
 import type { StudioStore } from '@/studio/core/StudioStore.ts'
 import { getStudioMetadata } from '@/studio/io/MapSceneBuilder.ts'
 
@@ -17,7 +19,8 @@ export class StudioEngine {
   private readonly cameraController = new StudioCameraController()
   private readonly lighting = new StudioLighting()
   private readonly selection = new StudioSelection()
-  private pointerDown: { x: number; y: number } | null = null
+  private manipulator: StudioManipulator | null = null
+  private terrainEditor: StudioTerrainEditor | null = null
 
   constructor(canvas: HTMLCanvasElement, store: StudioStore) {
     this.canvas = canvas
@@ -40,8 +43,25 @@ export class StudioEngine {
     this.rebuildScene(this.store.getMap())
     this.applyLayerVisibility(this.store.getSnapshot().layerVisibility)
 
-    this.canvas.addEventListener('pointerdown', this.onPointerDown)
-    this.canvas.addEventListener('pointerup', this.onPointerUp)
+    const editorDeps = {
+      store: this.store,
+      cameraController: this.cameraController,
+      mapSceneBuilder: this.mapSceneBuilder,
+      getScene: () => this.scene,
+      onCommit: () => this.syncAfterTerrainEdit(),
+    }
+
+    this.manipulator = new StudioManipulator(this.canvas, {
+      ...editorDeps,
+      selection: this.selection,
+      onCommit: () => this.refreshMap(),
+    })
+    this.terrainEditor = new StudioTerrainEditor(this.canvas, editorDeps)
+
+    this.manipulator.attach()
+    this.terrainEditor.attach()
+    this.syncModules()
+
     window.addEventListener('resize', this.onResize)
 
     this.engine.runRenderLoop(() => {
@@ -59,6 +79,39 @@ export class StudioEngine {
     this.applyLayerVisibility(this.store.getSnapshot().layerVisibility)
     this.selection.clear()
     this.store.selectObject(null)
+    this.syncModules()
+  }
+
+  refreshMap(): void {
+    const selectedId = this.store.getSnapshot().selectedObject?.id ?? null
+    this.rebuildScene(this.store.getMap())
+    this.applyLayerVisibility(this.store.getSnapshot().layerVisibility)
+    if (selectedId && this.scene) {
+      this.selection.highlightByObjectId(this.scene, selectedId)
+    } else {
+      this.selection.clear()
+    }
+    this.syncModules()
+  }
+
+  syncModules(): void {
+    this.manipulator?.syncSelection(this.scene)
+    this.terrainEditor?.syncModuleState(this.scene)
+  }
+
+  deleteSelectedObject(): boolean {
+    if (this.store.getSnapshot().activeModuleId !== 'transform') {
+      return false
+    }
+    const selected = this.store.getSnapshot().selectedObject
+    if (!selected) {
+      return false
+    }
+    if (!this.store.deleteObject(selected.id)) {
+      return false
+    }
+    this.refreshMap()
+    return true
   }
 
   applyLayerVisibility(visibility: Record<StudioLayerId, boolean>): void {
@@ -81,9 +134,11 @@ export class StudioEngine {
     this.disposed = true
 
     this.engine?.stopRenderLoop()
+    this.manipulator?.detach()
+    this.terrainEditor?.detach()
+    this.manipulator = null
+    this.terrainEditor = null
 
-    this.canvas.removeEventListener('pointerdown', this.onPointerDown)
-    this.canvas.removeEventListener('pointerup', this.onPointerUp)
     window.removeEventListener('resize', this.onResize)
 
     this.selection.dispose()
@@ -96,6 +151,16 @@ export class StudioEngine {
     this.engine?.dispose()
     this.scene = null
     this.engine = null
+  }
+
+  private syncAfterTerrainEdit(): void {
+    if (!this.scene) {
+      return
+    }
+    const map = this.store.getMap()
+    this.mapSceneBuilder.refreshTerrainMesh(this.scene, map)
+    this.mapSceneBuilder.refreshFieldMeshes(this.scene, map)
+    this.syncModules()
   }
 
   private rebuildScene(map: WorldMapDocument): void {
@@ -112,27 +177,5 @@ export class StudioEngine {
 
   private readonly onResize = (): void => {
     this.resize()
-  }
-
-  private readonly onPointerDown = (event: PointerEvent): void => {
-    this.pointerDown = { x: event.clientX, y: event.clientY }
-  }
-
-  private readonly onPointerUp = (event: PointerEvent): void => {
-    if (!this.scene || !this.pointerDown) {
-      return
-    }
-    const dx = event.clientX - this.pointerDown.x
-    const dy = event.clientY - this.pointerDown.y
-    this.pointerDown = null
-    if (Math.hypot(dx, dy) > 4) {
-      return
-    }
-
-    const rect = this.canvas.getBoundingClientRect()
-    const x = event.clientX - rect.left
-    const y = event.clientY - rect.top
-    const picked = this.selection.pick(this.scene, x, y)
-    this.store.selectObject(picked)
   }
 }

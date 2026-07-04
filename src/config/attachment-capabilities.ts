@@ -15,6 +15,8 @@ const REAR_HITCH_CATEGORY_CAPABILITIES: Partial<
 > = {
   [AttachmentCategory.Tillage]: [MachineCapability.Plow],
   [AttachmentCategory.Seeding]: [MachineCapability.Seed],
+  [AttachmentCategory.Fertilizing]: [MachineCapability.Fertilize],
+  [AttachmentCategory.Spraying]: [MachineCapability.Spray],
 }
 
 const HEADER_SLOT_CATEGORY_CAPABILITIES: Partial<
@@ -52,6 +54,10 @@ export function formatMachineCapability(
       return 'Seed'
     case MachineCapability.Harvest:
       return 'Harvest'
+    case MachineCapability.Fertilize:
+      return 'Hnojit'
+    case MachineCapability.Spray:
+      return 'Postřik'
     default:
       return capability
   }

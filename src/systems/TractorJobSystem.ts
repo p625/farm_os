@@ -5,6 +5,8 @@ import {
   TRACTOR_HOME_ROTATION_Y,
   TRACTOR_MOVE_SPEED,
 } from '@/config/farm-layout.ts'
+import { getScaledCropCareWorkDuration } from '@/config/crop-care-balance.ts'
+import { CropCareAction } from '@/types/crop-care.ts'
 import type { MachineCapabilityResolver } from './MachineCapabilityResolver.ts'
 import type { LogisticsSystem } from './LogisticsSystem.ts'
 import type { MachineRegistry } from './MachineRegistry.ts'
@@ -353,6 +355,20 @@ export class TractorJobSystem extends GameSystem implements IMachineController {
 
   private getWorkDuration(type: JobTypeValue, fieldId: string): number {
     const multiplier = this.farmShopSystem?.getWorkDurationMultiplier() ?? 1
+    if (type === JobType.Fertilize) {
+      return getScaledCropCareWorkDuration(
+        CropCareAction.Fertilize,
+        fieldId,
+        multiplier,
+      )
+    }
+    if (type === JobType.Spray) {
+      return getScaledCropCareWorkDuration(
+        CropCareAction.Spray,
+        fieldId,
+        multiplier,
+      )
+    }
     return getScaledFieldWorkDuration(type, fieldId, multiplier)
   }
 
@@ -385,6 +401,16 @@ export class TractorJobSystem extends GameSystem implements IMachineController {
         return (
           command.destination.kind === 'field' &&
           this.fieldSystem.canHarvest(command.destination.fieldId)
+        )
+      case 'fertilize':
+        return (
+          command.destination.kind === 'field' &&
+          this.fieldSystem.canFertilize(command.destination.fieldId)
+        )
+      case 'spray':
+        return (
+          command.destination.kind === 'field' &&
+          this.fieldSystem.canSpray(command.destination.fieldId)
         )
       default:
         return false
@@ -419,6 +445,12 @@ export class TractorJobSystem extends GameSystem implements IMachineController {
         break
       case JobType.Harvest:
         this.fieldSystem.harvestField(fieldId)
+        break
+      case JobType.Fertilize:
+        this.fieldSystem.fertilizeField(fieldId)
+        break
+      case JobType.Spray:
+        this.fieldSystem.sprayField(fieldId)
         break
     }
   }
@@ -463,6 +495,12 @@ function parseActiveWork(
   if (work.type === JobType.Harvest) {
     return { type: JobType.Harvest, fieldId: work.fieldId }
   }
+  if (work.type === JobType.Fertilize) {
+    return { type: JobType.Fertilize, fieldId: work.fieldId }
+  }
+  if (work.type === JobType.Spray) {
+    return { type: JobType.Spray, fieldId: work.fieldId }
+  }
 
   return null
 }
@@ -484,6 +522,10 @@ function getRequiredCapability(
       return MachineCapability.Seed
     case 'harvest':
       return MachineCapability.Harvest
+    case 'fertilize':
+      return MachineCapability.Fertilize
+    case 'spray':
+      return MachineCapability.Spray
     default:
       return null
   }
@@ -510,6 +552,16 @@ function buildActiveWork(command: MachineCommand): ActiveWork | null {
         return null
       }
       return { type: JobType.Harvest, fieldId: command.destination.fieldId }
+    case 'fertilize':
+      if (command.destination.kind !== 'field') {
+        return null
+      }
+      return { type: JobType.Fertilize, fieldId: command.destination.fieldId }
+    case 'spray':
+      if (command.destination.kind !== 'field') {
+        return null
+      }
+      return { type: JobType.Spray, fieldId: command.destination.fieldId }
     case 'none':
       return null
     default:
@@ -579,6 +631,10 @@ export function formatJobType(
       return cropName ? `Seed ${cropName}` : 'Seed crop'
     case JobType.Harvest:
       return 'Harvest'
+    case JobType.Fertilize:
+      return 'Fertilize'
+    case JobType.Spray:
+      return 'Spray'
     default:
       return type
   }

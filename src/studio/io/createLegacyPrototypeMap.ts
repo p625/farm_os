@@ -7,6 +7,7 @@ import {
 } from '@/config/map-01-layout.ts'
 import type { WorldMapDocument } from '@/types/world-map.ts'
 import { WORLD_MAP_FORMAT_VERSION } from '@/types/world-map.ts'
+import { ensureTerrainHeightfield } from '@/studio/terrain/TerrainHeightmap.ts'
 
 const now = () => new Date().toISOString()
 
@@ -50,7 +51,7 @@ export function createLegacyPrototypeMap(): WorldMapDocument {
       createdAt: now(),
       updatedAt: now(),
     },
-    terrain: { width, height: depth },
+    terrain: ensureTerrainHeightfield({ width, height: depth }),
     objects: [
       {
         id: 'terrain_ground',

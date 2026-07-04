@@ -12,6 +12,8 @@ import {
   type CropSnapshot,
 } from '@/types/crop.ts'
 import type { FarmShopSystem } from './FarmShopSystem.ts'
+import type { CropCareContext } from '@/types/crop-care.ts'
+import { computeCropCareYieldMultiplier } from '@/types/crop-care.ts'
 import { GameSystem } from './GameSystem.ts'
 
 export class CropSystem extends GameSystem {
@@ -103,10 +105,13 @@ export class CropSystem extends GameSystem {
     return crop.yield * crop.sellingPrice
   }
 
-  getYield(cropId: string): number {
+  getYield(cropId: string, careContext?: CropCareContext | null): number {
     const base = getCropDefinition(cropId)?.yield ?? 0
-    const multiplier = this.farmShopSystem?.getYieldMultiplier() ?? 1
-    return Math.max(1, Math.round(base * multiplier))
+    const shopMultiplier = this.farmShopSystem?.getYieldMultiplier() ?? 1
+    const careMultiplier = careContext
+      ? computeCropCareYieldMultiplier(careContext)
+      : 1
+    return Math.max(1, Math.round(base * shopMultiplier * careMultiplier))
   }
 
   getProfitEstimate(cropId: string): number {

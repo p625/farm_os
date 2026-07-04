@@ -278,6 +278,53 @@ export class AttachmentSystem extends GameSystem {
     return [...this.attachments.values()]
   }
 
+  hasAttachment(id: AttachmentIdValue): boolean {
+    return this.attachments.has(id)
+  }
+
+  getDetachedOccupiedPositions(): { x: number; z: number }[] {
+    return this.getAllAttachments()
+      .filter(
+        (attachment) =>
+          attachment.lifecycleState === AttachmentLifecycleState.Detached,
+      )
+      .map((attachment) => ({
+        x: attachment.position.x,
+        z: attachment.position.z,
+      }))
+  }
+
+  deliverAttachment(
+    instanceId: AttachmentIdValue,
+    catalogId: AttachmentCatalogIdValue,
+    position: Vec3,
+    rotationY: number,
+  ): boolean {
+    if (this.attachments.has(instanceId)) {
+      return false
+    }
+
+    const catalog = getAttachmentCatalogEntry(catalogId)
+    if (!catalog) {
+      return false
+    }
+
+    this.attachments.set(instanceId, {
+      id: instanceId,
+      catalogId,
+      attachmentType: catalog.attachmentType,
+      lifecycleState: AttachmentLifecycleState.Detached,
+      workPosition: AttachmentWorkPosition.Transport,
+      position: { ...position },
+      rotationY,
+      mountedOn: null,
+      cargo: this.createCargoForCatalog(catalog.id, catalog.attachmentType),
+    })
+    this.notifyChange()
+    this.onVisualChange?.()
+    return true
+  }
+
   getSlotAttachmentId(
     machineId: MachineId,
     slotId: MachineSlotIdValue,

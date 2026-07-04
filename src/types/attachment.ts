@@ -15,6 +15,8 @@ export const AttachmentCategory = {
   Seeding: 'seeding',
   Harvesting: 'harvesting',
   Transport: 'transport',
+  Fertilizing: 'fertilizing',
+  Spraying: 'spraying',
 } as const
 
 export type AttachmentCategoryValue =
@@ -53,6 +55,8 @@ export const AttachmentId = {
   Trailer1: 'trailer_1',
   GrainHeader1: 'grain_header_1',
   CornHeader1: 'corn_header_1',
+  FertilizerSpreader1: 'fertilizer_spreader_1',
+  Sprayer1: 'sprayer_1',
 } as const
 
 export type AttachmentIdValue =
@@ -64,6 +68,8 @@ export const AttachmentCatalogId = {
   Wagon: 'wagon',
   GrainHeader: 'grain_header',
   CornHeader: 'corn_header',
+  FertilizerSpreader: 'fertilizer_spreader',
+  Sprayer: 'sprayer',
 } as const
 
 export type AttachmentCatalogIdValue =

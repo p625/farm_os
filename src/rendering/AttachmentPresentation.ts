@@ -22,6 +22,8 @@ const PLOW_COLOR = new Color3(0.45, 0.32, 0.18)
 const SEEDER_COLOR = new Color3(0.2, 0.45, 0.7)
 const TRAILER_COLOR = new Color3(0.55, 0.42, 0.28)
 const HEADER_COLOR = new Color3(0.7, 0.55, 0.15)
+const SPREADER_COLOR = new Color3(0.55, 0.48, 0.22)
+const SPRAYER_COLOR = new Color3(0.25, 0.5, 0.35)
 
 export class AttachmentPresentation {
   private scene: Scene | null = null
@@ -133,6 +135,36 @@ export class AttachmentPresentation {
     this.attachmentSystem = null
   }
 
+  ensureAttachmentMesh(attachmentId: string): void {
+    const scene = this.scene
+    const attachmentSystem = this.attachmentSystem
+    if (!scene || !attachmentSystem || this.nodes.has(attachmentId)) {
+      return
+    }
+
+    const attachment = attachmentSystem.getAttachment(
+      attachmentId as (typeof AttachmentId)[keyof typeof AttachmentId],
+    )
+    if (!attachment) {
+      return
+    }
+
+    const nodeName = `${ATTACHMENT_NODE_PREFIX}${attachment.id}`
+    const root = new TransformNode(nodeName, scene)
+    root.metadata = { attachmentId: attachment.id }
+
+    const body = this.createBodyMesh(
+      scene,
+      attachment.catalogId,
+      `${nodeName}_body`,
+      attachment.id,
+    )
+    body.parent = root
+    body.isPickable = true
+
+    this.nodes.set(attachment.id, root)
+  }
+
   private createMeshes(scene: Scene): void {
     if (!this.attachmentSystem) {
       return
@@ -171,6 +203,10 @@ export class AttachmentPresentation {
         return this.createPlowMesh(scene, meshName)
       case AttachmentCatalogId.Seeder:
         return this.createSeederMesh(scene, meshName)
+      case AttachmentCatalogId.FertilizerSpreader:
+        return this.createSpreaderMesh(scene, meshName)
+      case AttachmentCatalogId.Sprayer:
+        return this.createSprayerMesh(scene, meshName)
       case AttachmentCatalogId.Wagon:
         return this.createTrailerMesh(scene, meshName, attachmentId)
       default:
@@ -222,6 +258,52 @@ export class AttachmentPresentation {
     hopper.material = material
     frame.material = material
     return hopper
+  }
+
+  private createSpreaderMesh(scene: Scene, meshName: string): Mesh {
+    const hopper = MeshBuilder.CreateBox(
+      meshName,
+      { width: 2.4, height: 0.85, depth: 1.5 },
+      scene,
+    )
+    hopper.position.y = 0.42
+
+    const spreader = MeshBuilder.CreateBox(
+      `${meshName}_bars`,
+      { width: 2.8, height: 0.15, depth: 0.5 },
+      scene,
+    )
+    spreader.position = new Vector3(0, 0.05, -0.75)
+    spreader.parent = hopper
+
+    const material = new StandardMaterial(`${meshName}_mat`, scene)
+    material.diffuseColor = SPREADER_COLOR
+    hopper.material = material
+    spreader.material = material
+    return hopper
+  }
+
+  private createSprayerMesh(scene: Scene, meshName: string): Mesh {
+    const tank = MeshBuilder.CreateCylinder(
+      meshName,
+      { height: 1.1, diameter: 1.2 },
+      scene,
+    )
+    tank.position.y = 0.55
+
+    const boom = MeshBuilder.CreateBox(
+      `${meshName}_boom`,
+      { width: 3.2, height: 0.12, depth: 0.2 },
+      scene,
+    )
+    boom.position = new Vector3(0, 0.35, -0.9)
+    boom.parent = tank
+
+    const material = new StandardMaterial(`${meshName}_mat`, scene)
+    material.diffuseColor = SPRAYER_COLOR
+    tank.material = material
+    boom.material = material
+    return tank
   }
 
   private createTrailerMesh(

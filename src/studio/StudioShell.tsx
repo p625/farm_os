@@ -7,6 +7,7 @@ import { useStudioStore } from '@/studio/hooks/useStudioStore.ts'
 import { StudioToolbar } from '@/studio/panels/StudioToolbar.tsx'
 import { ProjectPanel } from '@/studio/panels/ProjectPanel.tsx'
 import { LayersPanel } from '@/studio/panels/LayersPanel.tsx'
+import { TerrainToolsPanel } from '@/studio/panels/TerrainToolsPanel.tsx'
 import { InspectorPanel } from '@/studio/panels/InspectorPanel.tsx'
 import { LogPanel } from '@/studio/panels/LogPanel.tsx'
 import './StudioShell.css'
@@ -96,15 +97,46 @@ export function StudioShell({ onSwitchToGame }: StudioShellProps) {
   }, [snapshot.layerVisibility])
 
   useEffect(() => {
+    engineRef.current?.syncModules()
+  }, [snapshot.activeModuleId])
+
+  useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'F10') {
         event.preventDefault()
         onSwitchToGame()
+        return
       }
+
+      if (event.key !== 'Delete' && event.key !== 'Backspace') {
+        return
+      }
+      if (snapshot.activeModuleId !== 'transform') {
+        return
+      }
+
+      const target = event.target
+      if (
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLTextAreaElement
+      ) {
+        return
+      }
+
+      event.preventDefault()
+      engineRef.current?.deleteSelectedObject()
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [onSwitchToGame])
+  }, [onSwitchToGame, snapshot.activeModuleId])
+
+  const refreshScene = () => {
+    engineRef.current?.refreshMap()
+  }
+
+  const deleteSelected = () => {
+    engineRef.current?.deleteSelectedObject()
+  }
 
   return (
     <div ref={shellRef} className="studio-shell">
@@ -129,6 +161,7 @@ export function StudioShell({ onSwitchToGame }: StudioShellProps) {
             <>
               <ProjectPanel store={store} />
               <LayersPanel store={store} />
+              <TerrainToolsPanel store={store} />
             </>
           ) : null}
         </aside>
@@ -136,12 +169,18 @@ export function StudioShell({ onSwitchToGame }: StudioShellProps) {
         <main ref={viewportRef} className="studio-workspace__viewport">
           <canvas ref={canvasRef} className="studio-shell__canvas" />
           <div className="studio-viewport-hint">
-            Select objects · Scroll zoom · Drag pan · F10 Game
+            Transform: drag objects · Terrain: paint ground · F10 Game
           </div>
         </main>
 
         <aside className="studio-workspace__right">
-          {store ? <InspectorPanel store={store} /> : null}
+          {store ? (
+            <InspectorPanel
+              store={store}
+              onSceneRefresh={refreshScene}
+              onDeleteSelected={deleteSelected}
+            />
+          ) : null}
         </aside>
       </div>
 

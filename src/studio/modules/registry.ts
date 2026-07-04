@@ -1,24 +1,32 @@
 /** Contract for future FarmOS Studio editor modules. */
 
 import type { StudioLayerId } from '@/types/world-map.ts'
+import { STUDIO_LAYER_IDS } from '@/types/world-map.ts'
 
 export interface StudioModuleDefinition {
   id: string
   name: string
   version: string
   layers: readonly StudioLayerId[]
-  /** v0.1: metadata only; activate() wired in v0.2+. */
   status: 'planned' | 'active'
   description: string
 }
 
 export const STUDIO_MODULES: readonly StudioModuleDefinition[] = [
   {
+    id: 'transform',
+    name: 'Transform',
+    version: '0.2',
+    layers: STUDIO_LAYER_IDS,
+    status: 'active',
+    description: 'Position, rotation, scale, delete',
+  },
+  {
     id: 'terrain',
     name: 'Terrain Editor',
     version: '0.3',
     layers: ['terrain'],
-    status: 'planned',
+    status: 'active',
     description: 'Height paint, smooth, surface materials',
   },
   {

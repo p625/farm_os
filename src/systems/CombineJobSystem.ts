@@ -398,7 +398,11 @@ export class CombineJobSystem extends GameSystem implements IMachineController {
         if (!cropId || !this.capabilityResolver?.canHarvestCrop(this.machineId, cropId)) {
           return false
         }
-        const yieldAmount = this.cropSystem?.getYield(cropId) ?? 0
+        const yieldAmount =
+          this.cropSystem?.getYield(
+            cropId,
+            this.fieldSystem.getCropCareContext(fieldId) ?? undefined,
+          ) ?? 0
         return this.grainBin.canAccept(cropId, yieldAmount)
       }
       default:

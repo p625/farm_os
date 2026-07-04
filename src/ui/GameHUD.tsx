@@ -8,6 +8,12 @@ import {
 import type { Game } from '@core/Game.ts'
 import type { GameSnapshot } from '@core/GameSnapshot.ts'
 import { FieldLifecycleState as States } from '@/types/field.ts'
+import {
+  computeCropCondition,
+  CropCareAction,
+  hasCropCareAction,
+  isCropCareWindow,
+} from '@/types/crop-care.ts'
 import { FieldOwnership } from '@/types/ownership.ts'
 import { TractorState } from '@/types/tractor.ts'
 import {
@@ -70,6 +76,15 @@ export function GameHUD({ game, snapshot }: GameHUDProps) {
   const machineBusy =
     machineSelected && snapshot.selectedMachine.state !== TractorState.Idle
   const fieldUsable = selectedField?.usable ?? false
+  const cropCareActive =
+    selectedField !== undefined && isCropCareWindow(selectedField.state)
+  const cropCondition =
+    selectedField && cropCareActive
+      ? computeCropCondition({
+          catalogFertility: selectedField.fertility,
+          care: selectedField.cropCare,
+        })
+      : null
   const isAvailableField =
     selectedField?.ownership === FieldOwnership.Available
 
@@ -355,6 +370,32 @@ export function GameHUD({ game, snapshot }: GameHUDProps) {
                   <dt>Growth</dt>
                   <dd>{Math.round(selectedField.growthPercent)}%</dd>
                 </div>
+                {cropCareActive ? (
+                  <>
+                    <div className="game-hud__stat">
+                      <dt>Condition</dt>
+                      <dd>{cropCondition}%</dd>
+                    </div>
+                    <div className="game-hud__stat">
+                      <dt>Care</dt>
+                      <dd>
+                        {hasCropCareAction(
+                          selectedField.cropCare,
+                          CropCareAction.Fertilize,
+                        )
+                          ? 'Hnojení ✓'
+                          : 'Hnojení —'}
+                        {' · '}
+                        {hasCropCareAction(
+                          selectedField.cropCare,
+                          CropCareAction.Spray,
+                        )
+                          ? 'Postřik ✓'
+                          : 'Postřik —'}
+                      </dd>
+                    </div>
+                  </>
+                ) : null}
               </>
             )}
           </dl>

@@ -23,6 +23,7 @@
 | [008_Phase13_FarmStore.md](./008_Phase13_FarmStore.md) | Specification | Phase 13 Farm Store (Dealer MVP) |
 | [009_Phase14_WorldExpansion.md](./009_Phase14_WorldExpansion.md) | Specification | Phase 14 world expansion |
 | [010_Phase16_Automation.md](./010_Phase16_Automation.md) | Specification | Phase 16 automation (approved, deferred) |
+| [011_Phase15_CropCare.md](./011_Phase15_CropCare.md) | Specification | Phase 15 crop care |
 
 ## Change Policy
 

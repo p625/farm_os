@@ -29,9 +29,15 @@ export function ProjectPanel({ store }: ProjectPanelProps) {
       <h3 className="studio-panel__subtitle">Modules</h3>
       <ul className="studio-module-list">
         {STUDIO_MODULES.map((mod) => (
-          <li key={mod.id} className="studio-module-list__item">
+          <li
+            key={mod.id}
+            className={`studio-module-list__item${mod.status === 'active' ? ' studio-module-list__item--active' : ''}`}
+          >
             <span className="studio-module-list__name">{mod.name}</span>
-            <span className="studio-module-list__ver">v{mod.version}</span>
+            <span className="studio-module-list__ver">
+              v{mod.version}
+              {mod.status === 'active' ? ' · on' : ''}
+            </span>
           </li>
         ))}
       </ul>

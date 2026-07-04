@@ -12,8 +12,10 @@ import {
 } from '@/config/delivery-zone-catalog.ts'
 import {
   DeliveryStatus,
+  type AttachmentDeliveryFulfillment,
   type DeliveryQueueEntry,
   type MachineDeliveryFulfillment,
+  type PurchaseDeliveryFulfillment,
 } from '@/types/delivery.ts'
 import {
   type FarmStoreId,
@@ -34,13 +36,13 @@ import { getPurchasedTractorInstanceIds } from './MachineInstanceRegistry.ts'
 export interface PurchaseContext {
   money: number
   currentDay: number
-  machinePositions: readonly { x: number; z: number }[]
+  occupiedPositions: readonly { x: number; z: number }[]
 }
 
 export interface PurchaseResult {
   productId: ProductIdValue
   price: number
-  fulfillment: MachineDeliveryFulfillment
+  fulfillment: PurchaseDeliveryFulfillment
 }
 
 export class FarmStoreSystem {
@@ -164,6 +166,22 @@ export class FarmStoreSystem {
       return null
     }
 
+    if (product.fulfillment.kind === ProductFulfillmentKind.Machine) {
+      return this.prepareMachinePurchase(product, store.deliveryZoneId, context)
+    }
+
+    if (product.fulfillment.kind === ProductFulfillmentKind.Attachment) {
+      return this.prepareAttachmentPurchase(product, store.deliveryZoneId, context)
+    }
+
+    return null
+  }
+
+  private prepareMachinePurchase(
+    product: (typeof PRODUCT_CATALOG)[number],
+    deliveryZoneId: import('@/types/delivery.ts').DeliveryZoneId,
+    context: PurchaseContext,
+  ): PurchaseResult | null {
     if (product.fulfillment.kind !== ProductFulfillmentKind.Machine) {
       return null
     }
@@ -172,10 +190,7 @@ export class FarmStoreSystem {
       return null
     }
 
-    const slot = findOpenDeliverySlot(
-      store.deliveryZoneId,
-      context.machinePositions,
-    )
+    const slot = findOpenDeliverySlot(deliveryZoneId, context.occupiedPositions)
     if (!slot) {
       return null
     }
@@ -184,6 +199,35 @@ export class FarmStoreSystem {
       kind: 'machine',
       machineTemplateId: product.fulfillment.machineTemplateId,
       machineInstanceId: '',
+      position: { x: slot.x, y: slot.y, z: slot.z },
+      rotationY: slot.rotationY,
+    }
+
+    return {
+      productId: product.id,
+      price: product.price,
+      fulfillment,
+    }
+  }
+
+  private prepareAttachmentPurchase(
+    product: (typeof PRODUCT_CATALOG)[number],
+    deliveryZoneId: import('@/types/delivery.ts').DeliveryZoneId,
+    context: PurchaseContext,
+  ): PurchaseResult | null {
+    if (product.fulfillment.kind !== ProductFulfillmentKind.Attachment) {
+      return null
+    }
+
+    const slot = findOpenDeliverySlot(deliveryZoneId, context.occupiedPositions)
+    if (!slot) {
+      return null
+    }
+
+    const fulfillment: AttachmentDeliveryFulfillment = {
+      kind: 'attachment',
+      attachmentCatalogId: product.fulfillment.attachmentCatalogId,
+      attachmentInstanceId: product.fulfillment.attachmentInstanceId,
       position: { x: slot.x, y: slot.y, z: slot.z },
       rotationY: slot.rotationY,
     }
@@ -208,16 +252,18 @@ export class FarmStoreSystem {
     this.ownedProducts[result.productId] =
       (this.ownedProducts[result.productId] ?? 0) + 1
 
+    const fulfillment: PurchaseDeliveryFulfillment =
+      result.fulfillment.kind === 'machine'
+        ? { ...result.fulfillment, machineInstanceId: instanceId }
+        : { ...result.fulfillment }
+
     const entry: DeliveryQueueEntry = {
       id: String(this.nextDeliveryId++),
       productId: result.productId,
       orderedDay: currentDay,
       deliverOnDay: currentDay + (product.deliveryDelayDays ?? 0),
       status: DeliveryStatus.Pending,
-      fulfillment: {
-        ...result.fulfillment,
-        machineInstanceId: instanceId,
-      },
+      fulfillment,
     }
 
     this.deliveryQueue.push(entry)
@@ -245,13 +291,13 @@ export class FarmStoreSystem {
 
   hasDeliveryZoneSpace(
     storeId: FarmStoreId,
-    machinePositions: readonly { x: number; z: number }[],
+    occupiedPositions: readonly { x: number; z: number }[],
   ): boolean {
     const store = getFarmStoreDefinition(storeId)
     if (!store) {
       return false
     }
-    return findOpenDeliverySlot(store.deliveryZoneId, machinePositions) !== null
+    return findOpenDeliverySlot(store.deliveryZoneId, occupiedPositions) !== null
   }
 
   private toProductCard(
@@ -292,7 +338,10 @@ export class FarmStoreSystem {
       return ProductAvailability.ComingSoon
     }
 
-    if (product.fulfillment.kind !== ProductFulfillmentKind.Machine) {
+    if (
+      product.fulfillment.kind !== ProductFulfillmentKind.Machine &&
+      product.fulfillment.kind !== ProductFulfillmentKind.Attachment
+    ) {
       return ProductAvailability.ComingSoon
     }
 
