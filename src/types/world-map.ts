@@ -4,11 +4,11 @@ export const WORLD_MAP_FORMAT_VERSION = 1
 
 export const STUDIO_LAYER_IDS = [
   'terrain',
+  'water',
   'roads',
   'fields',
   'vegetation',
   'buildings',
-  'water',
   'vehicles',
   'poi',
   'debug',
@@ -29,6 +29,29 @@ export interface MapBoxShape {
   depth: number
 }
 
+export interface MapPolygonPoint {
+  x: number
+  z: number
+}
+
+export interface MapPolygonShape {
+  type: 'polygon'
+  points: MapPolygonPoint[]
+  height: number
+}
+
+export type MapShape = MapBoxShape | MapPolygonShape
+
+export function isMapBoxShape(shape: MapShape | undefined): shape is MapBoxShape {
+  return shape?.type === 'box'
+}
+
+export function isMapPolygonShape(
+  shape: MapShape | undefined,
+): shape is MapPolygonShape {
+  return shape?.type === 'polygon'
+}
+
 export interface MapObjectTransform {
   position: MapVec3
   rotationY?: number
@@ -41,7 +64,7 @@ export interface MapObject {
   kind: string
   name?: string
   transform: MapObjectTransform
-  shape?: MapBoxShape
+  shape?: MapShape
   properties?: Record<string, unknown>
 }
 

@@ -7,6 +7,7 @@ import { StudioCameraController } from '@/studio/core/StudioCameraController.ts'
 import { StudioManipulator } from '@/studio/core/StudioManipulator.ts'
 import { StudioSelection } from '@/studio/core/StudioSelection.ts'
 import { StudioTerrainEditor } from '@/studio/core/StudioTerrainEditor.ts'
+import { StudioTerrainPolygonEditor } from '@/studio/core/StudioTerrainPolygonEditor.ts'
 import { StudioRoadEditor } from '@/studio/core/StudioRoadEditor.ts'
 import { StudioParcelEditor } from '@/studio/core/StudioParcelEditor.ts'
 import { StudioVegetationEditor } from '@/studio/core/StudioVegetationEditor.ts'
@@ -34,6 +35,7 @@ export class StudioEngine {
   private readonly selection = new StudioSelection()
   private manipulator: StudioManipulator | null = null
   private terrainEditor: StudioTerrainEditor | null = null
+  private terrainPolygonEditor: StudioTerrainPolygonEditor | null = null
   private roadEditor: StudioRoadEditor | null = null
   private parcelEditor: StudioParcelEditor | null = null
   private vegetationEditor: StudioVegetationEditor | null = null
@@ -89,6 +91,10 @@ export class StudioEngine {
       onCommit: () => this.refreshMap(),
     })
     this.terrainEditor = new StudioTerrainEditor(this.canvas, editorDeps)
+    this.terrainPolygonEditor = new StudioTerrainPolygonEditor(this.canvas, {
+      ...editorDeps,
+      onRefresh: () => this.refreshMap(),
+    })
     this.roadEditor = new StudioRoadEditor(this.canvas, {
       ...editorDeps,
       onRefresh: () => this.refreshMap(),
@@ -133,6 +139,7 @@ export class StudioEngine {
 
     this.manipulator.attach()
     this.terrainEditor.attach()
+    this.terrainPolygonEditor.attach()
     this.roadEditor.attach()
     this.parcelEditor.attach()
     this.vegetationEditor.attach()
@@ -179,6 +186,7 @@ export class StudioEngine {
     this.manipulator?.syncSelection(this.scene)
     this.interactiveEditor?.syncSelection(this.scene)
     this.terrainEditor?.syncModuleState(this.scene)
+    this.terrainPolygonEditor?.syncModuleState(this.scene)
     this.roadEditor?.syncModuleState(this.scene)
     this.parcelEditor?.syncModuleState(this.scene)
     this.vegetationEditor?.syncModuleState(this.scene)
@@ -243,6 +251,63 @@ export class StudioEngine {
     }
     this.refreshMap()
     return true
+  }
+
+  isPolygonDrawingActive(): boolean {
+    return this.getActivePolygonEditor()?.isDrawing() ?? false
+  }
+
+  cancelActivePolygonDrawing(): void {
+    this.getActivePolygonEditor()?.cancelDrawing()
+    this.scene?.render()
+  }
+
+  finishActivePolygonDrawing(): boolean {
+    if (!this.getActivePolygonEditor()?.finishDrawing()) {
+      return false
+    }
+    this.refreshMap()
+    return true
+  }
+
+  removeLastPolygonPoint(): boolean {
+    if (!this.getActivePolygonEditor()?.removeLastPoint()) {
+      return false
+    }
+    this.scene?.render()
+    return true
+  }
+
+  deleteSelectedTerrainPolygon(): boolean {
+    if (this.store.getSnapshot().activeModuleId !== 'terrain') {
+      return false
+    }
+    const selected = this.store.getSnapshot().selectedObject
+    if (!selected || selected.kind !== 'terrain_polygon') {
+      return false
+    }
+    if (!this.store.deleteTerrainPolygon(selected.id)) {
+      return false
+    }
+    this.refreshMap()
+    return true
+  }
+
+  private getActivePolygonEditor():
+    | StudioParcelEditor
+    | StudioTerrainPolygonEditor
+    | null {
+    const snapshot = this.store.getSnapshot()
+    if (snapshot.activeModuleId === 'parcels') {
+      return this.parcelEditor
+    }
+    if (
+      snapshot.activeModuleId === 'terrain' &&
+      snapshot.terrainToolMode === 'polygon'
+    ) {
+      return this.terrainPolygonEditor
+    }
+    return null
   }
 
   deleteSelectedVegetation(): boolean {
@@ -383,6 +448,7 @@ export class StudioEngine {
     this.engine?.stopRenderLoop()
     this.manipulator?.detach()
     this.terrainEditor?.detach()
+    this.terrainPolygonEditor?.detach()
     this.roadEditor?.detach()
     this.parcelEditor?.detach()
     this.vegetationEditor?.detach()
@@ -393,6 +459,7 @@ export class StudioEngine {
     this.waterEditor?.detach()
     this.manipulator = null
     this.terrainEditor = null
+    this.terrainPolygonEditor = null
     this.roadEditor = null
     this.parcelEditor = null
     this.vegetationEditor = null

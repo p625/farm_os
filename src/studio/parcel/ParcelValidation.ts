@@ -1,10 +1,18 @@
 import type { WorldMapDocument } from '@/types/world-map.ts'
+import type { MapPolygonPoint } from '@/types/world-map.ts'
 import type { ParcelFootprint } from '@/types/parcel.ts'
 import { getFieldParcelFootprint } from '@/types/parcel.ts'
 import {
   footprintsOverlap,
   MIN_PARCEL_FOOTPRINT,
 } from '@/studio/parcel/ParcelMath.ts'
+import {
+  MIN_PARCEL_POLYGON_AREA,
+  MIN_PARCEL_POLYGON_POINTS,
+  polygonArea,
+  polygonBoundingFootprint,
+  polygonSelfIntersects,
+} from '@/studio/parcel/ParcelPolygon.ts'
 
 export interface ParcelValidationResult {
   ok: boolean
@@ -57,4 +65,37 @@ export function validateParcelFootprint(
   }
 
   return { ok: true }
+}
+
+export function validateParcelPolygon(
+  map: WorldMapDocument,
+  points: readonly MapPolygonPoint[],
+  excludeFieldId?: string,
+): ParcelValidationResult {
+  if (points.length < MIN_PARCEL_POLYGON_POINTS) {
+    return {
+      ok: false,
+      message: `Polygon needs at least ${MIN_PARCEL_POLYGON_POINTS} points.`,
+    }
+  }
+
+  if (polygonArea(points) < MIN_PARCEL_POLYGON_AREA) {
+    return {
+      ok: false,
+      message: `Polygon area must be at least ${MIN_PARCEL_POLYGON_AREA} m².`,
+    }
+  }
+
+  if (polygonSelfIntersects(points)) {
+    return {
+      ok: false,
+      message: 'Polygon must not self-intersect.',
+    }
+  }
+
+  return validateParcelFootprint(
+    map,
+    polygonBoundingFootprint(points),
+    excludeFieldId,
+  )
 }

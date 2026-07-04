@@ -1,13 +1,14 @@
 import path from 'node:path'
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import { benchmarkScreenshotMiddlewarePlugin } from './src/devtools/benchmark-screenshot-middleware.ts'
 
 const projectRoot = __dirname
 
 export default defineConfig({
   root: projectRoot,
   publicDir: path.resolve(projectRoot, 'public'),
-  plugins: [react()],
+  plugins: [react(), benchmarkScreenshotMiddlewarePlugin(projectRoot)],
   server: {
     host: '127.0.0.1',
     port: 5174,

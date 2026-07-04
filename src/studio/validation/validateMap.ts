@@ -22,6 +22,7 @@ import {
 import { getBoxObjectFootprint } from '@/studio/validation/ObjectFootprint.ts'
 import { validateSceneAnchors } from '@/studio/validation/validateAnchors.ts'
 import { validateFieldTestStates } from '@/studio/validation/validateFieldTestState.ts'
+import { validateParcelSemantics } from '@/studio/validation/validateParcels.ts'
 import { validateMachinePlacements } from '@/studio/validation/validateMachines.ts'
 import { validateGameplayAssets } from '@/studio/validation/validateGameplayAssets.ts'
 
@@ -212,7 +213,7 @@ function validateFields(
       pushIssue(issues, {
         ruleId: 'fields-shape',
         severity: 'error',
-        message: `Field "${field.name ?? field.id}" must use a box footprint.`,
+        message: `Field "${field.name ?? field.id}" must use a box or polygon footprint.`,
         objectId: field.id,
         layer: 'fields',
         position: field.transform.position,
@@ -251,6 +252,7 @@ function validateFields(
   }
 
   validateFieldTestStates(map, (issue) => pushIssue(issues, issue))
+  validateParcelSemantics(map, bounds, (issue) => pushIssue(issues, issue))
 }
 
 function validateRoads(

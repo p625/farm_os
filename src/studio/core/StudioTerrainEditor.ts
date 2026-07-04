@@ -68,7 +68,9 @@ export class StudioTerrainEditor {
 
   syncModuleState(scene: Scene | null): void {
     const mesh = scene ? findStudioMeshByObjectId(scene, 'terrain_ground') : null
-    const active = this.deps.store.getSnapshot().activeModuleId === 'terrain'
+    const active =
+      this.deps.store.getSnapshot().activeModuleId === 'terrain' &&
+      this.deps.store.getSnapshot().terrainToolMode === 'paint'
     if (mesh) {
       terrainPreviewTint(mesh as Mesh, active)
     }
@@ -82,6 +84,9 @@ export class StudioTerrainEditor {
       return
     }
     if (this.deps.store.getSnapshot().activeModuleId !== 'terrain') {
+      return
+    }
+    if (this.deps.store.getSnapshot().terrainToolMode !== 'paint') {
       return
     }
 
@@ -128,6 +133,10 @@ export class StudioTerrainEditor {
   private readonly onPointerMove = (event: PointerEvent): void => {
     const scene = this.deps.getScene()
     if (!scene || this.deps.store.getSnapshot().activeModuleId !== 'terrain') {
+      this.brushPreview.setVisible(scene, false)
+      return
+    }
+    if (this.deps.store.getSnapshot().terrainToolMode !== 'paint') {
       this.brushPreview.setVisible(scene, false)
       return
     }

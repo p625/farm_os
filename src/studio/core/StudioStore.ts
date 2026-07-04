@@ -1,8 +1,8 @@
-import { patchFieldParcelProperties } from '@/types/parcel.ts'
-import type { FieldBlockId } from '@/config/map-01-layout.ts'
+import { patchFieldParcelProperties, parseFieldParcelProperties, type ParcelBlockId, type ParcelType } from '@/types/parcel.ts'
 import type {
   MapBoxShape,
   MapObject,
+  MapPolygonPoint,
   MapVec3,
   StudioLayerId,
   StudioLogEntry,
@@ -23,14 +23,16 @@ import { createRoadObject, getRoadKind } from '@/studio/road/roadObject.ts'
 import { applyJunctionsToAnchorRoads } from '@/studio/road/RoadJunction.ts'
 import { tryMergeDraftExtensionIntoAnchor } from '@/studio/road/RoadExtension.ts'
 import {
-  createFieldParcelFromCorners,
+  createFieldParcelFromPolygon,
   syncFieldParcelIdCounterFromMap,
 } from '@/studio/parcel/parcelObject.ts'
 import {
-  footprintFromRect,
-  parcelRectFromCorners,
-} from '@/studio/parcel/ParcelMath.ts'
-import { validateParcelFootprint } from '@/studio/parcel/ParcelValidation.ts'
+  createPolygonShape,
+  getFieldPolygonPoints,
+  polygonCentroid,
+  translatePolygonPoints,
+} from '@/studio/parcel/ParcelPolygon.ts'
+import { validateParcelPolygon } from '@/studio/parcel/ParcelValidation.ts'
 import { sampleFieldSurfaceY } from '@/studio/parcel/parcelSurface.ts'
 import {
   createVegetationObject,
@@ -112,6 +114,17 @@ import {
   rotateObjectsWithAnchors,
   translateObjectsWithAnchors,
 } from '@/studio/anchor/studioAnchorSync.ts'
+import { validatePolygonGeometry } from '@/studio/polygon/PolygonValidation.ts'
+import {
+  TERRAIN_POLYGON_KIND,
+  computeTerrainBounds,
+  patchTerrainPolygonProperties,
+  type TerrainBaseMaterial,
+} from '@/types/terrain-polygon.ts'
+import {
+  createTerrainPolygonObject,
+  syncTerrainPolygonIdCounterFromMap,
+} from '@/studio/terrain/terrainPolygonObject.ts'
 
 export type StudioModuleId =
   | 'transform'
@@ -125,7 +138,9 @@ export type StudioModuleId =
   | 'validation'
   | 'export'
 export type RoadToolMode = 'draw' | 'select'
-export type ParcelToolMode = 'draw' | 'select'
+export type ParcelToolMode = 'draw' | 'select' | 'edit'
+export type TerrainToolMode = 'paint' | 'polygon'
+export type TerrainPolygonToolMode = 'draw' | 'select' | 'edit'
 export type VegetationToolMode = 'place' | 'paint' | 'select'
 export type BuildingToolMode = 'place' | 'select' | 'anchors'
 export type VehicleToolMode = 'place' | 'select' | 'anchors'
@@ -148,12 +163,13 @@ export interface RoadPointSelection {
 export const DEFAULT_ROAD_KIND: RoadKind = 'asphalt_narrow'
 
 export interface ParcelDraft {
-  cornerA: { x: number; z: number }
-  cornerB: { x: number; z: number } | null
+  points: MapPolygonPoint[]
+  cursor: MapPolygonPoint | null
 }
 
-export const DEFAULT_PARCEL_BLOCK: FieldBlockId = 'A'
+export const DEFAULT_PARCEL_BLOCK: ParcelBlockId = 'A'
 export const DEFAULT_PARCEL_FERTILITY = 75
+export const DEFAULT_PARCEL_TYPE: ParcelType = 'arable'
 
 export interface StudioSnapshot {
   map: WorldMapDocument
@@ -168,9 +184,15 @@ export interface StudioSnapshot {
   roadDraft: RoadDraft | null
   roadSelection: RoadPointSelection | null
   parcelTool: ParcelToolMode
-  parcelBlock: FieldBlockId
+  parcelBlock: ParcelBlockId
+  parcelType: ParcelType
   parcelFertility: number
   parcelDraft: ParcelDraft | null
+  polygonDrawPointCount: number
+  terrainToolMode: TerrainToolMode
+  terrainPolygonTool: TerrainPolygonToolMode
+  terrainBaseHeight: number
+  terrainBaseMaterial: TerrainBaseMaterial
   vegetationTool: VegetationToolMode
   vegetationType: VegetationTypeId
   vegetationRandomRotation: boolean
@@ -220,9 +242,15 @@ export class StudioStore {
   private roadDraft: RoadDraft | null = null
   private roadSelection: RoadPointSelection | null = null
   private parcelTool: ParcelToolMode = 'draw'
-  private parcelBlock: FieldBlockId = DEFAULT_PARCEL_BLOCK
+  private parcelBlock: ParcelBlockId = DEFAULT_PARCEL_BLOCK
+  private parcelType: ParcelType = DEFAULT_PARCEL_TYPE
   private parcelFertility = DEFAULT_PARCEL_FERTILITY
   private parcelDraft: ParcelDraft | null = null
+  private polygonDrawPointCount = 0
+  private terrainToolMode: TerrainToolMode = 'paint'
+  private terrainPolygonTool: TerrainPolygonToolMode = 'draw'
+  private terrainBaseHeight = 0
+  private terrainBaseMaterial: TerrainBaseMaterial = 'grass'
   private vegetationTool: VegetationToolMode = 'place'
   private vegetationType: VegetationTypeId = DEFAULT_VEGETATION_TYPE
   private vegetationRandomRotation = true
@@ -257,6 +285,7 @@ export class StudioStore {
     }
     this.layerVisibility = createDefaultLayerVisibility()
     syncFieldParcelIdCounterFromMap(this.map)
+    syncTerrainPolygonIdCounterFromMap(this.map)
     syncVegetationIdCounterFromMap(this.map)
     syncBuildingIdCounterFromMap(this.map)
     syncWaterIdCounterFromMap(this.map)
@@ -382,6 +411,7 @@ export class StudioStore {
       terrain: ensureTerrainHeightfield(migrated.terrain),
     }
     syncFieldParcelIdCounterFromMap(this.map)
+    syncTerrainPolygonIdCounterFromMap(this.map)
     syncVegetationIdCounterFromMap(this.map)
     syncBuildingIdCounterFromMap(this.map)
     syncWaterIdCounterFromMap(this.map)
@@ -886,8 +916,16 @@ export class StudioStore {
     this.emit()
   }
 
-  setParcelBlock(block: FieldBlockId): void {
+  setParcelBlock(block: ParcelBlockId): void {
     this.parcelBlock = block
+    if (block === 'M') {
+      this.parcelType = 'meadow'
+    }
+    this.emit()
+  }
+
+  setParcelType(parcelType: ParcelType): void {
+    this.parcelType = parcelType
     this.emit()
   }
 
@@ -896,21 +934,22 @@ export class StudioStore {
     this.emit()
   }
 
-  startParcelDraft(x: number, z: number): void {
+  addParcelDraftPoint(x: number, z: number): void {
+    const points = [...(this.parcelDraft?.points ?? []), { x, z }]
     this.parcelDraft = {
-      cornerA: { x, z },
-      cornerB: null,
+      points,
+      cursor: { x, z },
     }
     this.emit()
   }
 
-  updateParcelDraftCornerB(x: number, z: number): void {
+  updateParcelDraftCursor(x: number, z: number): void {
     if (!this.parcelDraft) {
       return
     }
     this.parcelDraft = {
       ...this.parcelDraft,
-      cornerB: { x, z },
+      cursor: { x, z },
     }
     this.emit()
   }
@@ -921,44 +960,265 @@ export class StudioStore {
   }
 
   commitParcelDraft(): boolean {
-    if (!this.parcelDraft?.cornerB) {
+    if (!this.parcelDraft || this.parcelDraft.points.length < 3) {
       return false
     }
 
-    const { cornerA, cornerB } = this.parcelDraft
-    const rect = parcelRectFromCorners(
-      cornerA.x,
-      cornerA.z,
-      cornerB.x,
-      cornerB.z,
-    )
-    const footprint = footprintFromRect(rect)
-    const validation = validateParcelFootprint(this.map, footprint)
+    const validation = validateParcelPolygon(this.map, this.parcelDraft.points)
     if (!validation.ok) {
       this.log('warn', validation.message ?? 'Invalid parcel.')
       return false
     }
 
-    const surfaceY = sampleFieldSurfaceY(this.map, rect.centerX, rect.centerZ)
-    const field = createFieldParcelFromCorners(
-      cornerA.x,
-      cornerA.z,
-      cornerB.x,
-      cornerB.z,
-      surfaceY,
+    const centroid = polygonCentroid(this.parcelDraft.points)
+    const surfaceY = sampleFieldSurfaceY(this.map, centroid.x, centroid.z)
+    this.checkpointHistory('place')
+    const field = createFieldParcelFromPolygon(
+      this.parcelDraft.points,
+      this.map,
       {
         parcelBlock: this.parcelBlock,
+        parcelType: this.parcelType,
         fertility: this.parcelFertility,
+        surfaceY,
       },
     )
 
+    this.parcelDraft = null
+    this.appendFieldParcel(field)
+    return true
+  }
+
+  appendFieldParcel(field: MapObject): void {
     this.map = {
       ...this.map,
       objects: [...this.map.objects, field],
     }
-    this.parcelDraft = null
     this.dirty = true
-    this.log('success', `Created ${field.name} (${field.id})`)
+    this.selectedObject = field
+    this.log(
+      'success',
+      `Created ${field.name} (${field.properties?.parcelId ?? field.id})`,
+    )
+    this.emit()
+  }
+
+  setPolygonDrawPointCount(count: number): void {
+    if (this.polygonDrawPointCount === count) {
+      return
+    }
+    this.polygonDrawPointCount = count
+    this.emit()
+  }
+
+  setTerrainToolMode(mode: TerrainToolMode): void {
+    this.terrainToolMode = mode
+    this.emit()
+  }
+
+  setTerrainPolygonTool(tool: TerrainPolygonToolMode): void {
+    this.terrainPolygonTool = tool
+    this.emit()
+  }
+
+  setTerrainBaseHeight(baseHeight: number): void {
+    this.terrainBaseHeight = baseHeight
+    this.emit()
+  }
+
+  setTerrainBaseMaterial(baseMaterial: TerrainBaseMaterial): void {
+    this.terrainBaseMaterial = baseMaterial
+    this.emit()
+  }
+
+  createTerrainPolygon(points: readonly MapPolygonPoint[]): MapObject | null {
+    const validation = validatePolygonGeometry(this.map, points)
+    if (!validation.ok) {
+      this.log('warn', validation.message ?? 'Invalid terrain polygon.')
+      return null
+    }
+
+    const centroid = polygonCentroid(points)
+    const surfaceY = sampleFieldSurfaceY(this.map, centroid.x, centroid.z)
+    const terrain = createTerrainPolygonObject(points, this.map, {
+      surfaceY,
+      baseHeight: this.terrainBaseHeight,
+      baseMaterial: this.terrainBaseMaterial,
+    })
+
+    this.checkpointHistory('place')
+    this.map = {
+      ...this.map,
+      objects: [...this.map.objects, terrain],
+    }
+    this.dirty = true
+    this.selectedObject = terrain
+    this.log('success', `Created ${terrain.name}`)
+    this.emit()
+    return terrain
+  }
+
+  updateTerrainPolygon(
+    objectId: string,
+    points: readonly MapPolygonPoint[],
+    options?: { checkpoint?: boolean },
+  ): boolean {
+    const index = this.map.objects.findIndex((object) => object.id === objectId)
+    if (index < 0) {
+      return false
+    }
+    const current = this.map.objects[index]
+    if (current.kind !== TERRAIN_POLYGON_KIND) {
+      return false
+    }
+
+    const validation = validatePolygonGeometry(this.map, points, objectId)
+    if (!validation.ok) {
+      this.log('warn', validation.message ?? 'Invalid terrain polygon.')
+      return false
+    }
+
+    if (options?.checkpoint !== false) {
+      this.checkpointHistory('edit')
+    }
+
+    const centroid = polygonCentroid(points)
+    const surfaceY = sampleFieldSurfaceY(this.map, centroid.x, centroid.z)
+    const height =
+      current.shape?.type === 'polygon' ? current.shape.height : 0.12
+    const props = patchTerrainPolygonProperties(
+      { ...current.properties },
+      { bounds: computeTerrainBounds(points) },
+    )
+
+    const nextObject: MapObject = {
+      ...current,
+      transform: {
+        ...current.transform,
+        position: {
+          x: centroid.x,
+          y: surfaceY,
+          z: centroid.z,
+        },
+      },
+      shape: createPolygonShape(points, height),
+      properties: props,
+    }
+
+    const objects = [...this.map.objects]
+    objects[index] = nextObject
+    this.map = { ...this.map, objects }
+    this.dirty = true
+    if (this.selectedObject?.id === objectId) {
+      this.selectedObject = nextObject
+    }
+    this.emit()
+    return true
+  }
+
+  updateTerrainPolygonMetadata(
+    objectId: string,
+    patch: {
+      name?: string
+      baseHeight?: number
+      baseMaterial?: TerrainBaseMaterial
+    },
+  ): boolean {
+    const index = this.map.objects.findIndex((object) => object.id === objectId)
+    if (index < 0) {
+      return false
+    }
+    const current = this.map.objects[index]
+    if (current.kind !== TERRAIN_POLYGON_KIND) {
+      return false
+    }
+
+    const nextObject: MapObject = {
+      ...current,
+      ...(patch.name !== undefined ? { name: patch.name } : {}),
+      properties: patchTerrainPolygonProperties(
+        { ...current.properties },
+        {
+          ...(patch.baseHeight !== undefined
+            ? { baseHeight: patch.baseHeight }
+            : {}),
+          ...(patch.baseMaterial !== undefined
+            ? { baseMaterial: patch.baseMaterial }
+            : {}),
+        },
+      ),
+    }
+
+    const objects = [...this.map.objects]
+    objects[index] = nextObject
+    this.map = { ...this.map, objects }
+    this.dirty = true
+    if (this.selectedObject?.id === objectId) {
+      this.selectedObject = nextObject
+    }
+    this.emit()
+    return true
+  }
+
+  duplicateTerrainPolygon(objectId: string): MapObject | null {
+    const source = this.findObject(objectId)
+    if (!source || source.kind !== TERRAIN_POLYGON_KIND) {
+      return null
+    }
+    const points = getFieldPolygonPoints(source)
+    if (!points) {
+      return null
+    }
+
+    this.checkpointHistory('duplicate')
+    const duplicatePoints = translatePolygonPoints(points, 25, 25)
+    const validation = validatePolygonGeometry(this.map, duplicatePoints)
+    if (!validation.ok) {
+      this.log('warn', validation.message ?? 'Cannot duplicate terrain polygon here.')
+      return null
+    }
+
+    const props = patchTerrainPolygonProperties({ ...source.properties }, {})
+    const centroid = polygonCentroid(duplicatePoints)
+    const surfaceY = sampleFieldSurfaceY(this.map, centroid.x, centroid.z)
+    const duplicate = createTerrainPolygonObject(duplicatePoints, this.map, {
+      surfaceY,
+      baseHeight:
+        typeof props.baseHeight === 'number' ? props.baseHeight : this.terrainBaseHeight,
+      baseMaterial:
+        typeof props.baseMaterial === 'string'
+          ? (props.baseMaterial as TerrainBaseMaterial)
+          : this.terrainBaseMaterial,
+      name: source.name ? `${source.name} Copy` : undefined,
+    })
+
+    this.map = {
+      ...this.map,
+      objects: [...this.map.objects, duplicate],
+    }
+    this.dirty = true
+    this.selectedObject = duplicate
+    this.log('success', `Duplicated ${source.name ?? source.id}`)
+    this.emit()
+    return duplicate
+  }
+
+  deleteTerrainPolygon(objectId: string): boolean {
+    const terrain = this.findObject(objectId)
+    if (!terrain || terrain.kind !== TERRAIN_POLYGON_KIND) {
+      return false
+    }
+
+    this.checkpointHistory('delete')
+    this.map = {
+      ...this.map,
+      objects: this.map.objects.filter((object) => object.id !== objectId),
+    }
+    this.dirty = true
+    if (this.selectedObject?.id === objectId) {
+      this.selectedObject = null
+    }
+    this.log('info', `Deleted ${terrain.name ?? objectId}`)
     this.emit()
     return true
   }
@@ -967,7 +1227,10 @@ export class StudioStore {
     fieldId: string,
     patch: {
       name?: string
-      parcelBlock?: FieldBlockId
+      parcelBlock?: ParcelBlockId
+      parcelId?: string
+      parcelType?: ParcelType
+      ownershipStage?: import('@/types/parcel.ts').OwnershipStage
       fertility?: number
       fieldTestState?: import('@/types/field-test-state.ts').FieldTestState
     },
@@ -986,6 +1249,11 @@ export class StudioStore {
       {
         ...(patch.parcelBlock !== undefined
           ? { parcelBlock: patch.parcelBlock }
+          : {}),
+        ...(patch.parcelId !== undefined ? { parcelId: patch.parcelId } : {}),
+        ...(patch.parcelType !== undefined ? { parcelType: patch.parcelType } : {}),
+        ...(patch.ownershipStage !== undefined
+          ? { ownershipStage: patch.ownershipStage }
           : {}),
         ...(patch.fertility !== undefined ? { fertility: patch.fertility } : {}),
         ...(patch.fieldTestState !== undefined
@@ -1013,11 +1281,140 @@ export class StudioStore {
     return true
   }
 
+  updateFieldParcelPolygon(
+    fieldId: string,
+    points: readonly MapPolygonPoint[],
+    options?: { checkpoint?: boolean },
+  ): boolean {
+    const index = this.map.objects.findIndex((object) => object.id === fieldId)
+    if (index < 0) {
+      return false
+    }
+    const current = this.map.objects[index]
+    if (current.layer !== 'fields' || current.kind !== 'field') {
+      return false
+    }
+
+    const validation = validateParcelPolygon(this.map, points, fieldId)
+    if (!validation.ok) {
+      this.log('warn', validation.message ?? 'Invalid parcel polygon.')
+      return false
+    }
+
+    if (options?.checkpoint !== false) {
+      this.checkpointHistory('edit')
+    }
+
+    const centroid = polygonCentroid(points)
+    const surfaceY = sampleFieldSurfaceY(this.map, centroid.x, centroid.z)
+    const height =
+      current.shape?.type === 'polygon'
+        ? current.shape.height
+        : current.shape?.type === 'box'
+          ? current.shape.height
+          : 0.08
+
+    const nextObject: MapObject = {
+      ...current,
+      transform: {
+        ...current.transform,
+        position: {
+          x: centroid.x,
+          y: surfaceY,
+          z: centroid.z,
+        },
+      },
+      shape: createPolygonShape(points, height),
+    }
+
+    const objects = [...this.map.objects]
+    objects[index] = nextObject
+    this.map = { ...this.map, objects }
+    this.dirty = true
+    if (this.selectedObject?.id === fieldId) {
+      this.selectedObject = nextObject
+    }
+    this.emit()
+    return true
+  }
+
+  moveFieldParcel(fieldId: string, deltaX: number, deltaZ: number): boolean {
+    const current = this.findObject(fieldId)
+    if (!current || current.layer !== 'fields' || current.kind !== 'field') {
+      return false
+    }
+    const points = getFieldPolygonPoints(current)
+    if (!points) {
+      return false
+    }
+    return this.updateFieldParcelPolygon(
+      fieldId,
+      translatePolygonPoints(points, deltaX, deltaZ),
+      { checkpoint: false },
+    )
+  }
+
+  duplicateField(fieldId: string): MapObject | null {
+    const source = this.findObject(fieldId)
+    if (!source || source.layer !== 'fields' || source.kind !== 'field') {
+      return null
+    }
+    const points = getFieldPolygonPoints(source)
+    if (!points) {
+      return null
+    }
+
+    this.checkpointHistory('duplicate')
+    const props = parseFieldParcelProperties(source.properties)
+    if (!props) {
+      return null
+    }
+
+    const duplicatePoints = translatePolygonPoints(points, 25, 25)
+    const validation = validateParcelPolygon(this.map, duplicatePoints)
+    if (!validation.ok) {
+      this.log('warn', validation.message ?? 'Cannot duplicate parcel here.')
+      return null
+    }
+
+    const centroid = polygonCentroid(duplicatePoints)
+    const surfaceY = sampleFieldSurfaceY(this.map, centroid.x, centroid.z)
+    const duplicate = createFieldParcelFromPolygon(duplicatePoints, this.map, {
+      parcelBlock: props.parcelBlock,
+      parcelType: props.parcelType,
+      fertility: props.fertility,
+      surfaceY,
+      name: `${source.name ?? source.id} Copy`,
+    })
+
+    // createFieldParcelFromPolygon doesn't accept fieldTestState - patch after
+    const withState: MapObject = {
+      ...duplicate,
+      properties: patchFieldParcelProperties(
+        { ...duplicate.properties },
+        {
+          fieldTestState: props.fieldTestState,
+        },
+      ),
+    }
+
+    this.map = {
+      ...this.map,
+      objects: [...this.map.objects, withState],
+    }
+    this.dirty = true
+    this.selectedObject = withState
+    this.log('success', `Duplicated ${props.parcelId ?? source.id}`)
+    this.emit()
+    return withState
+  }
+
   deleteField(fieldId: string): boolean {
     const field = this.findObject(fieldId)
     if (!field || field.layer !== 'fields') {
       return false
     }
+    this.checkpointHistory('delete')
     this.map = {
       ...this.map,
       objects: this.map.objects.filter((object) => object.id !== fieldId),
@@ -1922,15 +2319,21 @@ export class StudioStore {
       roadSelection: this.roadSelection ? { ...this.roadSelection } : null,
       parcelTool: this.parcelTool,
       parcelBlock: this.parcelBlock,
+      parcelType: this.parcelType,
       parcelFertility: this.parcelFertility,
       parcelDraft: this.parcelDraft
         ? {
-            cornerA: { ...this.parcelDraft.cornerA },
-            cornerB: this.parcelDraft.cornerB
-              ? { ...this.parcelDraft.cornerB }
+            points: this.parcelDraft.points.map((point) => ({ ...point })),
+            cursor: this.parcelDraft.cursor
+              ? { ...this.parcelDraft.cursor }
               : null,
           }
         : null,
+      polygonDrawPointCount: this.polygonDrawPointCount,
+      terrainToolMode: this.terrainToolMode,
+      terrainPolygonTool: this.terrainPolygonTool,
+      terrainBaseHeight: this.terrainBaseHeight,
+      terrainBaseMaterial: this.terrainBaseMaterial,
       vegetationTool: this.vegetationTool,
       vegetationType: this.vegetationType,
       vegetationRandomRotation: this.vegetationRandomRotation,
@@ -1993,8 +2396,14 @@ export const EMPTY_STUDIO_SNAPSHOT: StudioSnapshot = {
   roadSelection: null,
   parcelTool: 'draw',
   parcelBlock: DEFAULT_PARCEL_BLOCK,
+  parcelType: DEFAULT_PARCEL_TYPE,
   parcelFertility: DEFAULT_PARCEL_FERTILITY,
   parcelDraft: null,
+  polygonDrawPointCount: 0,
+  terrainToolMode: 'paint',
+  terrainPolygonTool: 'draw',
+  terrainBaseHeight: 0,
+  terrainBaseMaterial: 'grass',
   vegetationTool: 'place',
   vegetationType: DEFAULT_VEGETATION_TYPE,
   vegetationRandomRotation: true,

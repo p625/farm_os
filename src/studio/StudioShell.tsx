@@ -179,11 +179,19 @@ export function StudioShell({ onSwitchToGame }: StudioShellProps) {
         return
       }
 
-      if (snapshot.activeModuleId === 'parcels') {
-        if (event.key === 'Escape' && snapshot.parcelDraft) {
+      if (snapshot.activeModuleId === 'terrain' && snapshot.terrainToolMode === 'polygon') {
+        if (event.key === 'Escape' && engineRef.current?.isPolygonDrawingActive()) {
           event.preventDefault()
-          store?.cancelParcelDraft()
-          engineRef.current?.refreshMap()
+          engineRef.current.cancelActivePolygonDrawing()
+          return
+        }
+        if (
+          event.key === 'Enter' &&
+          !inTextField &&
+          snapshot.polygonDrawPointCount >= 3
+        ) {
+          event.preventDefault()
+          engineRef.current?.finishActivePolygonDrawing()
           return
         }
         if (
@@ -191,7 +199,46 @@ export function StudioShell({ onSwitchToGame }: StudioShellProps) {
           !inTextField
         ) {
           event.preventDefault()
-          engineRef.current?.deleteSelectedParcel()
+          if (
+            snapshot.terrainPolygonTool === 'draw' &&
+            engineRef.current?.isPolygonDrawingActive()
+          ) {
+            engineRef.current.removeLastPolygonPoint()
+          } else {
+            engineRef.current?.deleteSelectedTerrainPolygon()
+          }
+        }
+        return
+      }
+
+      if (snapshot.activeModuleId === 'parcels') {
+        if (event.key === 'Escape' && engineRef.current?.isPolygonDrawingActive()) {
+          event.preventDefault()
+          engineRef.current.cancelActivePolygonDrawing()
+          return
+        }
+        if (
+          event.key === 'Enter' &&
+          !inTextField &&
+          snapshot.polygonDrawPointCount >= 3
+        ) {
+          event.preventDefault()
+          engineRef.current?.finishActivePolygonDrawing()
+          return
+        }
+        if (
+          (event.key === 'Delete' || event.key === 'Backspace') &&
+          !inTextField
+        ) {
+          event.preventDefault()
+          if (
+            snapshot.parcelTool === 'draw' &&
+            engineRef.current?.isPolygonDrawingActive()
+          ) {
+            engineRef.current.removeLastPolygonPoint()
+          } else {
+            engineRef.current?.deleteSelectedParcel()
+          }
         }
         return
       }
@@ -259,7 +306,7 @@ export function StudioShell({ onSwitchToGame }: StudioShellProps) {
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [onSwitchToGame, snapshot.activeModuleId, snapshot.roadDraft, snapshot.roadSelection, snapshot.parcelDraft, snapshot.waterSplineDraft, store])
+  }, [onSwitchToGame, snapshot.activeModuleId, snapshot.roadDraft, snapshot.roadSelection, snapshot.parcelTool, snapshot.terrainToolMode, snapshot.terrainPolygonTool, snapshot.polygonDrawPointCount, snapshot.waterSplineDraft, store])
 
   const refreshScene = () => {
     engineRef.current?.refreshMap()
@@ -302,7 +349,7 @@ export function StudioShell({ onSwitchToGame }: StudioShellProps) {
             <>
               <ProjectPanel store={store} />
               <LayersPanel store={store} />
-              <TerrainToolsPanel store={store} />
+              <TerrainToolsPanel store={store} onSceneRefresh={refreshScene} />
               <RoadToolsPanel store={store} onSceneRefresh={refreshScene} />
               <ParcelToolsPanel store={store} onSceneRefresh={refreshScene} />
               <VegetationToolsPanel store={store} onSceneRefresh={refreshScene} />

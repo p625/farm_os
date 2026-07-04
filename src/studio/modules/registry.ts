@@ -40,10 +40,10 @@ export const STUDIO_MODULES: readonly StudioModuleDefinition[] = [
   {
     id: 'parcels',
     name: 'Parcel Editor',
-    version: '0.5',
+    version: '0.3',
     layers: ['fields'],
     status: 'active',
-    description: 'Draw fields, validation, parcel IDs',
+    description: 'Polygon parcels, crop/soil state, Field Layout IDs',
   },
   {
     id: 'vegetation',

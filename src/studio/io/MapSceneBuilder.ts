@@ -18,9 +18,16 @@ import type { TerrainHeightfield } from '@/studio/terrain/TerrainHeightmap.ts'
 import { createRoadRibbonMesh, ROAD_SURFACE_OFFSET, snapRoadPointsToTerrain } from '@/studio/road/RoadMeshBuilder.ts'
 import { parseRoadProperties } from '@/types/road.ts'
 import type { RoadControlPoint, RoadKind } from '@/types/road.ts'
-import type { MapObject, StudioLayerId, WorldMapDocument } from '@/types/world-map.ts'
-import type { ParcelRect } from '@/studio/parcel/ParcelMath.ts'
-import { FIELD_SURFACE_THICKNESS } from '@/studio/parcel/parcelObject.ts'
+import type { MapObject, MapPolygonPoint, StudioLayerId, WorldMapDocument } from '@/types/world-map.ts'
+import { isMapPolygonShape } from '@/types/world-map.ts'
+import {
+  TERRAIN_POLYGON_KIND,
+  parseTerrainPolygonProperties,
+} from '@/types/terrain-polygon.ts'
+import {
+  createFieldPolygonMesh,
+  createParcelDraftLineMesh,
+} from '@/studio/parcel/fieldPolygonMesh.ts'
 import { sampleFieldSurfaceY as computeFieldSurfaceY } from '@/studio/parcel/parcelSurface.ts'
 import { sampleVegetationGroundY as computeVegetationGroundY } from '@/studio/vegetation/vegetationSurface.ts'
 import {
@@ -98,6 +105,30 @@ const LAYER_COLORS: Record<StudioLayerId, Color3> = {
   debug: new Color3(0.9, 0.2, 0.9),
 }
 
+const STUDIO_LAYER_RENDER_ORDER: StudioLayerId[] = [
+  'terrain',
+  'water',
+  'roads',
+  'fields',
+  'vegetation',
+  'buildings',
+  'vehicles',
+  'poi',
+  'debug',
+]
+
+const TERRAIN_MATERIAL_COLORS: Record<string, Color3> = {
+  grass: new Color3(0.32, 0.52, 0.28),
+  soil: new Color3(0.45, 0.32, 0.22),
+  rock: new Color3(0.5, 0.5, 0.52),
+  sand: new Color3(0.72, 0.65, 0.45),
+}
+
+function layerRenderIndex(layer: StudioLayerId): number {
+  const index = STUDIO_LAYER_RENDER_ORDER.indexOf(layer)
+  return index >= 0 ? index : STUDIO_LAYER_RENDER_ORDER.length
+}
+
 export interface MapSceneBuildOptions {
   /** Layers omitted from runtime scene build (e.g. vehicles rendered as gameplay meshes). */
   omitLayers?: readonly StudioLayerId[]
@@ -122,8 +153,11 @@ export class MapSceneBuilder {
     const root = new TransformNode('studio_map_root', scene)
     this.rootNode = root
     const omittedLayers = new Set(options?.omitLayers ?? [])
+    const sortedObjects = [...map.objects].sort(
+      (left, right) => layerRenderIndex(left.layer) - layerRenderIndex(right.layer),
+    )
 
-    for (const object of map.objects) {
+    for (const object of sortedObjects) {
       if (omittedLayers.has(object.layer)) {
         continue
       }
@@ -186,6 +220,68 @@ export class MapSceneBuilder {
       width: 1,
       height: 1,
       depth: 1,
+    }
+
+    if (
+      object.layer === 'terrain' &&
+      object.kind === TERRAIN_POLYGON_KIND &&
+      isMapPolygonShape(shape)
+    ) {
+      const mesh = createFieldPolygonMesh(
+        scene,
+        `studio_${object.id}`,
+        shape.points,
+        object.transform.position.y,
+        shape.height,
+      )
+      mesh.parent = root
+      const material = new StandardMaterial(`mat_${object.id}`, scene)
+      const terrainProps = parseTerrainPolygonProperties(object.properties)
+      const base =
+        TERRAIN_MATERIAL_COLORS[terrainProps?.baseMaterial ?? 'grass'] ??
+        LAYER_COLORS.terrain
+      material.diffuseColor = base
+      material.specularColor = base.scale(0.15)
+      mesh.material = material
+      mesh.receiveShadows = true
+      const metadata: StudioMeshMetadata = {
+        objectId: object.id,
+        layer: object.layer,
+        kind: object.kind,
+        mapObject: object,
+      }
+      mesh.metadata = { [STUDIO_METADATA_KEY]: metadata }
+      return
+    }
+
+    if (
+      object.layer === 'fields' &&
+      object.kind === 'field' &&
+      isMapPolygonShape(shape)
+    ) {
+      const mesh = createFieldPolygonMesh(
+        scene,
+        `studio_${object.id}`,
+        shape.points,
+        object.transform.position.y,
+        shape.height,
+      )
+      mesh.parent = root
+      const material = new StandardMaterial(`mat_${object.id}`, scene)
+      const base = LAYER_COLORS[object.layer].clone()
+      material.diffuseColor = base
+      material.specularColor = base.scale(0.15)
+      mesh.material = material
+      mesh.receiveShadows = true
+      this.applyFieldTestVisual(material, object)
+      const metadata: StudioMeshMetadata = {
+        objectId: object.id,
+        layer: object.layer,
+        kind: object.kind,
+        mapObject: object,
+      }
+      mesh.metadata = { [STUDIO_METADATA_KEY]: metadata }
+      return
     }
 
     if (shape.type !== 'box') {
@@ -354,12 +450,13 @@ export class MapSceneBuilder {
           depth: getVehicleTypeDefinition(legacyType).depth,
           color: getVehicleTypeDefinition(legacyType).color,
         }
+    const fieldBoxShape = object.shape?.type === 'box' ? object.shape : undefined
     const mesh = MeshBuilder.CreateBox(
       `studio_${object.id}`,
       {
-        width: object.shape?.width ?? definition.width,
-        height: object.shape?.height ?? definition.height,
-        depth: object.shape?.depth ?? definition.depth,
+        width: fieldBoxShape?.width ?? definition.width,
+        height: fieldBoxShape?.height ?? definition.height,
+        depth: fieldBoxShape?.depth ?? definition.depth,
       },
       scene,
     )
@@ -367,7 +464,7 @@ export class MapSceneBuilder {
     mesh.position.x = object.transform.position.x
     mesh.position.y =
       object.transform.position.y +
-      (object.shape?.height ?? definition.height) * 0.5
+      (fieldBoxShape?.height ?? definition.height) * 0.5
     mesh.position.z = object.transform.position.z
     if (object.transform.rotationY !== undefined) {
       mesh.rotation.y = object.transform.rotationY
@@ -653,7 +750,8 @@ export class MapSceneBuilder {
 
   refreshParcelDraftMesh(
     scene: Scene,
-    rect: ParcelRect,
+    points: readonly MapPolygonPoint[],
+    cursor: MapPolygonPoint | null,
     surfaceY: number,
     isValid: boolean,
   ): void {
@@ -666,29 +764,50 @@ export class MapSceneBuilder {
       return
     }
 
-    const mesh = MeshBuilder.CreateBox(
-      `studio_${PARCEL_DRAFT_ID}`,
-      {
-        width: Math.max(rect.width, 0.1),
-        height: FIELD_SURFACE_THICKNESS,
-        depth: Math.max(rect.depth, 0.1),
-      },
+    const mesh = createParcelDraftLineMesh(
       scene,
+      `studio_${PARCEL_DRAFT_ID}`,
+      points,
+      cursor,
+      surfaceY,
+      isValid,
     )
     mesh.parent = root
-    mesh.position = new Vector3(rect.centerX, surfaceY, rect.centerZ)
     mesh.isPickable = false
-    mesh.renderingGroupId = 2
 
-    const material = new StandardMaterial(`mat_${PARCEL_DRAFT_ID}`, scene)
-    const color = isValid
-      ? new Color3(0.35, 0.72, 0.32)
-      : new Color3(0.85, 0.28, 0.22)
-    material.diffuseColor = color
-    material.emissiveColor = color.scale(0.35)
-    material.alpha = 0.55
-    material.disableLighting = true
-    mesh.material = material
+    if (points.length >= 3) {
+      const fill = createFieldPolygonMesh(
+        scene,
+        `studio_${PARCEL_DRAFT_ID}_fill`,
+        cursor ? [...points, cursor] : points,
+        surfaceY,
+      )
+      fill.parent = root
+      fill.isPickable = false
+      fill.renderingGroupId = 2
+      const material = new StandardMaterial(`mat_${PARCEL_DRAFT_ID}_fill`, scene)
+      const color = isValid
+        ? new Color3(0.35, 0.72, 0.32)
+        : new Color3(0.85, 0.28, 0.22)
+      material.diffuseColor = color
+      material.emissiveColor = color.scale(0.35)
+      material.alpha = 0.45
+      material.disableLighting = true
+      fill.material = material
+      fill.metadata = {
+        [STUDIO_METADATA_KEY]: {
+          objectId: PARCEL_DRAFT_ID,
+          layer: 'fields',
+          kind: 'parcel_draft',
+          mapObject: {
+            id: PARCEL_DRAFT_ID,
+            layer: 'fields',
+            kind: 'parcel_draft',
+            transform: { position: { x: 0, y: surfaceY, z: 0 } },
+          },
+        },
+      }
+    }
 
     mesh.metadata = {
       [STUDIO_METADATA_KEY]: {
@@ -699,7 +818,7 @@ export class MapSceneBuilder {
           id: PARCEL_DRAFT_ID,
           layer: 'fields',
           kind: 'parcel_draft',
-          transform: { position: { x: rect.centerX, y: surfaceY, z: rect.centerZ } },
+          transform: { position: { x: 0, y: surfaceY, z: 0 } },
         },
       },
     }
@@ -707,6 +826,7 @@ export class MapSceneBuilder {
 
   disposeParcelDraftMesh(scene: Scene): void {
     findStudioMeshByObjectId(scene, PARCEL_DRAFT_ID)?.dispose(false, true)
+    scene.getMeshByName(`studio_${PARCEL_DRAFT_ID}_fill`)?.dispose(false, true)
   }
 
   sampleVegetationGroundY(

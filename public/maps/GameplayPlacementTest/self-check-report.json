@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-04T20:19:17.152Z",
+  "generatedAt": "2026-07-04T21:03:02.713Z",
   "passed": true,
   "catalogDefinitions": {
     "buildingCount": 18,
@@ -20,7 +20,7 @@
     "failures": []
   },
   "placement": {
-    "generatedAt": "2026-07-04T20:19:16.980Z",
+    "generatedAt": "2026-07-04T21:03:02.527Z",
     "mapId": "gameplay_placement_test",
     "counts": {
       "buildings": 2,
@@ -110,6 +110,10 @@
     "failures": []
   },
   "interactive": {
+    "passed": true,
+    "failures": []
+  },
+  "parcels": {
     "passed": true,
     "failures": []
   },

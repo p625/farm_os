@@ -18,6 +18,8 @@ import {
 } from '../src/maps/GameplayCatalogCoverageCheck.ts'
 import { runGameplayRuntimeDuplicationCheck } from '../src/maps/GameplayRuntimeDuplicationCheck.ts'
 import { runStudioInteractiveEditingCheck } from '../src/maps/StudioInteractiveEditingCheck.ts'
+import { runStudioParcelEditingCheck } from '../src/maps/StudioParcelEditingCheck.ts'
+import { runPolygonEditorCheck } from '../src/maps/PolygonEditorCheck.ts'
 
 const OUT_DIR = join(process.cwd(), 'public', 'maps', 'GameplayPlacementTest')
 
@@ -36,7 +38,7 @@ function main(): void {
 
   const allFailures: string[] = []
 
-  console.log('1/5 Catalog definition coverage')
+  console.log('1/6 Catalog definition coverage')
   const catalogDefinitions = runCatalogDefinitionCoverageCheck()
   console.log(
     `  buildings=${catalogDefinitions.buildingCount} machines=${catalogDefinitions.machineCount} attachments=${catalogDefinitions.attachmentCount} studio=${catalogDefinitions.studioPlacementCount}`,
@@ -46,7 +48,7 @@ function main(): void {
   )
   allFailures.push(...catalogDefinitions.failures)
 
-  console.log('\n2/5 Catalog placement coverage (all assets placed once)')
+  console.log('\n2/6 Catalog placement coverage (all assets placed once)')
   const catalogMap = buildCatalogCoveragePlacementMap()
   const catalogPlacement = runCatalogPlacementCoverageCheck(catalogMap)
   console.log(
@@ -57,7 +59,7 @@ function main(): void {
   )
   allFailures.push(...catalogPlacement.failures)
 
-  console.log('\n3/5 Gameplay placement E2E map')
+  console.log('\n3/6 Gameplay placement E2E map')
   const map = buildGameplayPlacementTestMap()
   const placement = runGameplayPlacementSelfCheck(map)
   console.log(
@@ -71,7 +73,7 @@ function main(): void {
   )
   allFailures.push(...placement.failures)
 
-  console.log('\n4/5 Runtime duplication + save bootstrap + scene checks')
+  console.log('\n4/6 Runtime duplication + save bootstrap + scene checks')
   const runtime = runGameplayRuntimeDuplicationCheck(map)
   console.log(
     `  save machines=${runtime.saveMachineCount} attachments=${runtime.saveAttachmentCount}`,
@@ -87,12 +89,26 @@ function main(): void {
   )
   allFailures.push(...runtime.failures)
 
-  console.log('\n5/5 Studio interactive editing')
+  console.log('\n5/6 Studio interactive editing')
   const interactive = runStudioInteractiveEditingCheck()
   console.log(
     `  ${interactive.passed ? 'PASSED' : 'FAILED'} (${interactive.failures.length} issue(s))`,
   )
   allFailures.push(...interactive.failures)
+
+  console.log('\n6/7 Studio parcel & crop editing')
+  const parcels = runStudioParcelEditingCheck()
+  console.log(
+    `  ${parcels.passed ? 'PASSED' : 'FAILED'} (${parcels.failures.length} issue(s))`,
+  )
+  allFailures.push(...parcels.failures)
+
+  console.log('\n7/7 Polygon editor regression')
+  const polygonEditor = runPolygonEditorCheck()
+  console.log(
+    `  ${polygonEditor.passed ? 'PASSED' : 'FAILED'} (${polygonEditor.failures.length} issue(s))`,
+  )
+  allFailures.push(...polygonEditor.failures)
 
   mkdirSync(OUT_DIR, { recursive: true })
   const mapPath = join(OUT_DIR, 'GameplayPlacementTest.farmos-map.json')
@@ -135,6 +151,7 @@ function main(): void {
     placement,
     runtime,
     interactive,
+    parcels,
     failures: allFailures,
   }
   const reportPath = join(OUT_DIR, 'self-check-report.json')

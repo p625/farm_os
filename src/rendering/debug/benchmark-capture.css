@@ -1,0 +1,13 @@
+html.farmos-benchmark-capture .game-hud,
+html.farmos-benchmark-capture .game-shell__top-actions,
+html.farmos-benchmark-capture .game-shell__loading,
+html.farmos-benchmark-capture .game-shell__error,
+html.farmos-benchmark-capture .farmos-benchmark-hud,
+html.farmos-benchmark-capture .farm-store-panel,
+html.farmos-benchmark-capture .fleet-panel,
+html.farmos-benchmark-capture .radial-context-menu,
+html.farmos-benchmark-capture .choose-crop-radial,
+html.farmos-benchmark-capture .field-work-mode-radial {
+  visibility: hidden !important;
+  pointer-events: none !important;
+}

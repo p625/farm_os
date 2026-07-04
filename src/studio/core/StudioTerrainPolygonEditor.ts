@@ -3,9 +3,9 @@ import type { StudioCameraController } from '@/studio/core/StudioCameraControlle
 import type { MapSceneBuilder } from '@/studio/io/MapSceneBuilder.ts'
 import type { StudioStore } from '@/studio/core/StudioStore.ts'
 import { PolygonEditor } from '@/studio/polygon/PolygonEditor.ts'
-import { ParcelPolygonAdapter } from '@/studio/polygon/adapters/ParcelPolygonAdapter.ts'
+import { TerrainPolygonAdapter } from '@/studio/polygon/adapters/TerrainPolygonAdapter.ts'
 
-export interface StudioParcelEditorDeps {
+export interface StudioTerrainPolygonEditorDeps {
   store: StudioStore
   cameraController: StudioCameraController
   mapSceneBuilder: MapSceneBuilder
@@ -14,14 +14,14 @@ export interface StudioParcelEditorDeps {
   onRefresh: () => void
 }
 
-export class StudioParcelEditor {
-  private readonly deps: StudioParcelEditorDeps
+export class StudioTerrainPolygonEditor {
+  private readonly deps: StudioTerrainPolygonEditorDeps
   private readonly editor: PolygonEditor
 
-  constructor(canvas: HTMLCanvasElement, deps: StudioParcelEditorDeps) {
+  constructor(canvas: HTMLCanvasElement, deps: StudioTerrainPolygonEditorDeps) {
     this.deps = deps
     this.editor = new PolygonEditor(canvas, {
-      adapter: new ParcelPolygonAdapter(deps.store),
+      adapter: new TerrainPolygonAdapter(deps.store),
       cameraController: deps.cameraController,
       mapSceneBuilder: deps.mapSceneBuilder,
       getScene: deps.getScene,
@@ -42,7 +42,10 @@ export class StudioParcelEditor {
   }
 
   syncModuleState(scene: Scene | null): void {
-    const active = this.deps.store.getSnapshot().activeModuleId === 'parcels'
+    const snapshot = this.deps.store.getSnapshot()
+    const active =
+      snapshot.activeModuleId === 'terrain' &&
+      snapshot.terrainToolMode === 'polygon'
     this.editor.syncModuleState(scene, active)
   }
 

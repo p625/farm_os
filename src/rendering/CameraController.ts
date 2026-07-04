@@ -7,6 +7,15 @@ import {
 } from '@/config/camera-profiles.ts'
 import type { IDisposable, IInitializable, IUpdatable } from '@/types/index.ts'
 
+export interface CameraBenchmarkState {
+  position: { x: number; y: number; z: number }
+  target: { x: number; y: number; z: number }
+  fov: number
+  alpha: number
+  beta: number
+  radius: number
+}
+
 /** Kept for future input layering; camera always uses LMB pan + RMB rotate. */
 export type CameraNavigateMode = 'navigate'
 export type CameraCommandMode = 'command'
@@ -122,6 +131,36 @@ export class CameraController implements IInitializable, IUpdatable, IDisposable
     camera.setTarget(new Vector3(target.x, target.y, target.z))
     camera.position = new Vector3(position.x, position.y, position.z)
     camera.fov = fov
+  }
+
+  captureBenchmarkState(): CameraBenchmarkState {
+    const camera = this.getCamera()
+    return {
+      position: {
+        x: camera.position.x,
+        y: camera.position.y,
+        z: camera.position.z,
+      },
+      target: {
+        x: camera.target.x,
+        y: camera.target.y,
+        z: camera.target.z,
+      },
+      fov: camera.fov,
+      alpha: camera.alpha,
+      beta: camera.beta,
+      radius: camera.radius,
+    }
+  }
+
+  restoreBenchmarkState(state: CameraBenchmarkState): void {
+    const camera = this.getCamera()
+    camera.setTarget(new Vector3(state.target.x, state.target.y, state.target.z))
+    camera.alpha = state.alpha
+    camera.beta = state.beta
+    camera.radius = state.radius
+    camera.position = new Vector3(state.position.x, state.position.y, state.position.z)
+    camera.fov = state.fov
   }
 
   focusOn(worldX: number, worldZ: number, radius = 42): void {

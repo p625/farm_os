@@ -5,7 +5,7 @@ Referenční dokument pro vizuální validaci rendereru po grafických milnící
 **Verze:** 2026-MS1C  
 **Baseline:** MS1B — Terrain Visual Upgrade  
 **Konfigurace:** `src/config/rendering/visual-benchmark-config.ts`  
-**Runtime tooling (DEV):** `src/rendering/debug/VisualBenchmarkRunner.ts`
+**Runtime tooling (DEV):** `src/rendering/debug/BenchmarkRunner.ts`, `ScreenshotCaptureManager.ts`
 
 ---
 
@@ -104,15 +104,26 @@ Každý preset obsahuje: `id`, `displayName`, `description`, `cameraPosition`, `
 ## 5. Jak porovnávat screenshoty
 
 1. Spusť hru v **DEV** režimu (`npm run dev`).
-2. Přepínej presety klávesami **F8** (další) / **Shift+F8** (předchozí).
-3. Ověř v konzoli aktivní preset (`[FarmOS Visual Benchmark]` log).
-4. Pořiď screenshot (OS nebo viz níže).
-5. Pojmenuj soubor: `{milestone}_{preset_id}_{datum}.png`  
-   Příklad: `MS1B_farm_yard_view_2026-07-04.png`
-6. Ulož do `docs/graphics/visual-benchmarks/screenshots/{milestone}/`.
-7. Porovnej side-by-side s předchozí baseline — stejný preset, stejné podmínky.
+2. Stiskni **Shift+F9** — automaticky se vygeneruje celá sada screenshotů.
+3. Screenshoty najdeš v `docs/graphics/visual-benchmarks/screenshots/latest/`.
+4. Porovnej side-by-side s předchozí verzí (archivuj `latest/` před dalším milníkem, pokud potřebuješ historii).
+5. Vyplň checklist v sekci 6.
 
 **Neporovnávej** screenshoty z různých FOV, jiné denní doby nebo jiného render quality presetu.
+
+### Workflow po každém Graphics Milestone
+
+```
+Shift+F9
+    ↓
+Vygeneruje se nová sada screenshotů (latest/)
+    ↓
+Porovnat s předchozí verzí
+    ↓
+Vyhodnotit rozdíly (checklist sekce 6)
+    ↓
+Teprve poté pokračovat na další milestone
+```
 
 ---
 
@@ -157,53 +168,63 @@ Každý preset obsahuje: `id`, `displayName`, `description`, `cameraPosition`, `
 
 ## 7. Pořizování screenshotů
 
+Vše probíhá **pouze klávesovými zkratkami** — Developer Console není potřeba.
+
 ### DEV hotkeys (pouze development build)
 
 | Klávesa | Akce |
 |---------|------|
 | **F8** | Další benchmark preset |
 | **Shift+F8** | Předchozí benchmark preset |
+| **F9** | Uloží screenshot aktuální benchmark kamery |
+| **Shift+F9** | Automaticky projde všechny presety, pořídí a uloží všechny PNG |
 
-Po přepnutí se do konzole vypíše aktivní preset včetně pozice kamery a validation focus.
+### Automatický export (Shift+F9)
 
-### Konzole (DEV)
+1. Skryje HUD a debug UI.
+2. Pro každý preset: přepne kameru → počká na stabilní frame → pořídí PNG přes Babylon `ScreenshotTools`.
+3. Uloží soubory do `docs/graphics/visual-benchmarks/screenshots/latest/`.
+4. Vytvoří `benchmark-report.txt`.
+5. Obnoví původní kameru a UI.
+6. Vypíše souhrn do konzole.
 
-```javascript
-// Aktivní runner po startu hry
-farmosVisualBenchmark.next()
-farmosVisualBenchmark.previous()
-farmosVisualBenchmark.applyPresetById('horizon_view')
-farmosVisualBenchmark.logActivePreset()
+### Názvy souborů
 
-// Volitelný export PNG (canvas.toDataURL)
-const dataUrl = await farmosVisualBenchmark.captureCurrentBenchmarkFrame()
-// Vlož do prohlížeče nebo stáhni ručně
+```
+001_farm_yard_view.png
+002_field_long_view.png
+003_meadow_ground_view.png
+004_dirt_road_view.png
+005_forest_edge_view.png
+006_horizon_view.png
+007_material_closeup.png
+benchmark-report.txt
 ```
 
-### Ruční screenshot
+Složka `latest/` se při **Shift+F9** před exportem vyčistí a přepíše.
 
-1. Přepni na požadovaný preset (F8).
-2. Počkej na stabilní frame.
-3. Použij OS screenshot nebo `captureCurrentBenchmarkFrame()` v konzoli.
+### Jednotlivý screenshot (F9)
+
+Uloží PNG pro aktuálně aktivní preset do `latest/` bez mazání ostatních souborů v této složce.
 
 ---
 
 ## 8. Screenshot galerie (MS1B Baseline)
 
-> **TODO:** Po prvním review vlož sem referenční screenshoty MS1B.
+> Po prvním **Shift+F9** exportu zkopíruj obsah `latest/` sem nebo do `screenshots/MS1B/` jako archiv baseline.
 
-| Preset | MS1B Baseline | Poznámka |
-|--------|---------------|----------|
-| `farm_yard_view` | *(pending)* | |
-| `field_long_view` | *(pending)* | |
-| `meadow_ground_view` | *(pending)* | |
-| `dirt_road_view` | *(pending)* | |
-| `forest_edge_view` | *(pending)* | |
-| `horizon_view` | *(pending)* | |
-| `material_closeup` | *(pending)* | |
+| Preset | Soubor | MS1B Baseline |
+|--------|--------|---------------|
+| `farm_yard_view` | `001_farm_yard_view.png` | *(pending)* |
+| `field_long_view` | `002_field_long_view.png` | *(pending)* |
+| `meadow_ground_view` | `003_meadow_ground_view.png` | *(pending)* |
+| `dirt_road_view` | `004_dirt_road_view.png` | *(pending)* |
+| `forest_edge_view` | `005_forest_edge_view.png` | *(pending)* |
+| `horizon_view` | `006_horizon_view.png` | *(pending)* |
+| `material_closeup` | `007_material_closeup.png` | *(pending)* |
 
-Doporučená cesta assetů:  
-`docs/graphics/visual-benchmarks/screenshots/MS1B/`
+Aktivní export: `docs/graphics/visual-benchmarks/screenshots/latest/`  
+Archiv baseline: `docs/graphics/visual-benchmarks/screenshots/MS1B/`
 
 ---
 
@@ -212,6 +233,14 @@ Doporučená cesta assetů:
 - Presety jsou **datově řízené** — žádné magic numbers v runtime kódu.
 - Pozice kamery se škálují podle aktivní mapy (`resolveVisualBenchmarkPreset`).
 - Anchor `farm_hub` = pozice stodoly; `world_center` = střed world bounds.
+- Screenshoty pořizuje Babylon `ScreenshotTools` (`CreateScreenshotAsync` / render target fallback).
+- Ukládání PNG probíhá přes Vite dev middleware:
+  - `GET /__farmos_dev/benchmark-ready`
+  - `POST /__farmos_dev/save-benchmark-screenshot`
+  - `POST /__farmos_dev/clear-benchmark-folder`
+  - `POST /__farmos_dev/save-benchmark-report`
+- Middleware: `src/devtools/benchmark-screenshot-middleware.ts`
+- Před capture se dočasně skryje HUD (`BenchmarkUiVisibility`).
 - Benchmark tooling **nikdy neběží v produkčním buildu** — pouze `import.meta.env.DEV`.
 - Nemění gameplay, save, AI, placement ani editor.
 

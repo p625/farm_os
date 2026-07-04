@@ -16,6 +16,12 @@ export const STUDIO_LAYER_DEFINITIONS: readonly LayerDefinition[] = [
     editableInFuture: 'Terrain Editor (v0.3)',
   },
   {
+    id: 'water',
+    label: 'Water',
+    description: 'Rivers, ponds, streams',
+    editableInFuture: 'Water Editor (v0.8)',
+  },
+  {
     id: 'roads',
     label: 'Roads',
     description: 'Movement network',
@@ -44,12 +50,6 @@ export const STUDIO_LAYER_DEFINITIONS: readonly LayerDefinition[] = [
     label: 'Vehicles',
     description: 'Machines, trailers, spawn anchors',
     editableInFuture: 'Vehicle Editor (v0.9)',
-  },
-  {
-    id: 'water',
-    label: 'Water',
-    description: 'Rivers, ponds, streams',
-    editableInFuture: 'Water Editor (v0.8)',
   },
   {
     id: 'poi',

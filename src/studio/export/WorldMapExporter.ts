@@ -5,7 +5,8 @@ import type { FieldCatalogEntry, FieldDevelopmentTier } from '@/config/field-cat
 import type { MapPackageData } from '@/types/map-package.ts'
 import { MAP_PACKAGE_FORMAT_VERSION } from '@/types/map-package.ts'
 import type { WorldMapDocument } from '@/types/world-map.ts'
-import { parseFieldParcelProperties } from '@/types/parcel.ts'
+import { isMapBoxShape } from '@/types/world-map.ts'
+import { parseFieldParcelProperties, getFieldShapeDimensions } from '@/types/parcel.ts'
 import { parseBuildingProperties } from '@/types/building.ts'
 import type { BuildingTypeId } from '@/types/building.ts'
 import { getTerrainBounds, getTerrainGroundObject } from '@/studio/validation/terrainBounds.ts'
@@ -185,23 +186,28 @@ export function exportWorldMapToPackage(
   }
 
   const ground = getTerrainGroundObject(map)!
-  const terrainWidth = ground.shape!.width
-  const terrainDepth = ground.shape!.depth
+  const groundShape = ground.shape
+  if (!isMapBoxShape(groundShape)) {
+    throw new Error('Export requires terrain_ground with a box shape.')
+  }
+  const terrainWidth = groundShape.width
+  const terrainDepth = groundShape.depth
   const worldCenter = {
     x: (bounds.minX + bounds.maxX) / 2,
     z: (bounds.minZ + bounds.maxZ) / 2,
   }
 
-  const fieldObjects = map.objects.filter(
-    (object) =>
-      object.layer === 'fields' &&
-      object.kind === 'field' &&
-      object.shape?.type === 'box',
-  )
+  const fieldObjects = map.objects.filter((object) => {
+    if (object.layer !== 'fields' || object.kind !== 'field') {
+      return false
+    }
+    return getFieldShapeDimensions(object.shape) !== null
+  })
 
   const fieldLayout = fieldObjects.map((field) => {
     const props = parseFieldParcelProperties(field.properties)
     const blockId = resolveGameFieldBlockId(props?.parcelBlock)
+    const dimensions = getFieldShapeDimensions(field.shape)!
     return {
       id: field.id,
       position: {
@@ -210,8 +216,8 @@ export function exportWorldMapToPackage(
         z: field.transform.position.z,
       },
       meshSize: {
-        width: field.shape!.width,
-        depth: field.shape!.depth,
+        width: dimensions.width,
+        depth: dimensions.depth,
       },
       ...(field.transform.rotationY !== undefined
         ? { rotationY: field.transform.rotationY }
@@ -224,8 +230,9 @@ export function exportWorldMapToPackage(
   const fields: FieldCatalogEntry[] = fieldObjects.map((field, index) => {
     const props = parseFieldParcelProperties(field.properties)
     const blockId = resolveGameFieldBlockId(props?.parcelBlock)
-    const width = field.shape!.width
-    const depth = field.shape!.depth
+    const dimensions = getFieldShapeDimensions(field.shape)!
+    const width = dimensions.width
+    const depth = dimensions.depth
     const area = estimateAreaHa(width, depth)
     const fertility = props?.fertility ?? 75
     const prices = defaultPrices(blockId, area)
@@ -236,7 +243,7 @@ export function exportWorldMapToPackage(
 
     return {
       id: field.id,
-      name: field.name ?? `Pole ${field.id.replace('field_', '')}`,
+      name: props?.parcelId ?? field.name ?? `Pole ${field.id.replace('field_', '')}`,
       purchasePrice: prices.purchasePrice,
       leasePrice: prices.leasePrice,
       area,

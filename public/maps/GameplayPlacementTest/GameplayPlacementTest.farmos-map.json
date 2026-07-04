@@ -5,8 +5,8 @@
   "meta": {
     "author": "FarmOS E2E",
     "description": "Automated gameplay-aware placement test map",
-    "createdAt": "2026-07-04T20:19:16.978Z",
-    "updatedAt": "2026-07-04T20:19:17.150Z"
+    "createdAt": "2026-07-04T21:03:02.524Z",
+    "updatedAt": "2026-07-04T21:03:02.711Z"
   },
   "terrain": {
     "width": 400,

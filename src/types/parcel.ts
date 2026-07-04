@@ -1,10 +1,16 @@
 import type { FieldBlockId } from '@/config/map-01-layout.ts'
-import type { MapObject } from '@/types/world-map.ts'
+import type { MapObject, MapShape } from '@/types/world-map.ts'
 import {
   parseFieldTestState,
   serializeFieldTestState,
+  FieldWorkState,
   type FieldTestState,
 } from '@/types/field-test-state.ts'
+import { FieldLifecycleState as States } from '@/types/field.ts'
+import {
+  getFieldPolygonPoints,
+  polygonBoundingFootprint,
+} from '@/studio/parcel/ParcelPolygon.ts'
 
 export type { FieldTestState } from '@/types/field-test-state.ts'
 export {
@@ -18,8 +24,37 @@ export const PARCEL_BLOCK_IDS = ['A', 'B', 'C', 'M'] as const
 
 export type ParcelBlockId = (typeof PARCEL_BLOCK_IDS)[number]
 
+export const PARCEL_TYPES = [
+  'arable',
+  'meadow',
+  'pasture',
+  'protected',
+] as const
+
+export type ParcelType = (typeof PARCEL_TYPES)[number]
+
+export const OWNERSHIP_STAGES = [
+  'start',
+  'development',
+  'advanced',
+  'goal',
+] as const
+
+export type OwnershipStage = (typeof OWNERSHIP_STAGES)[number]
+
 export function isParcelBlockId(value: unknown): value is ParcelBlockId {
   return typeof value === 'string' && (PARCEL_BLOCK_IDS as readonly string[]).includes(value)
+}
+
+export function isParcelType(value: unknown): value is ParcelType {
+  return typeof value === 'string' && (PARCEL_TYPES as readonly string[]).includes(value)
+}
+
+export function isOwnershipStage(value: unknown): value is OwnershipStage {
+  return (
+    typeof value === 'string' &&
+    (OWNERSHIP_STAGES as readonly string[]).includes(value)
+  )
 }
 
 /** @deprecated Use isParcelBlockId — game economy blocks are still A/B/C only. */
@@ -30,8 +65,10 @@ export function isFieldBlockId(value: unknown): value is FieldBlockId {
 export interface FieldParcelProperties {
   parcelBlock: ParcelBlockId
   fertility: number
-  catalogId?: string
   parcelId?: string
+  parcelType?: ParcelType
+  ownershipStage?: OwnershipStage
+  catalogId?: string
   roadAccess?: string
   fieldTestState?: FieldTestState
 }
@@ -45,6 +82,31 @@ export interface ParcelFootprint {
   depth: number
   centerX: number
   centerZ: number
+}
+
+export function defaultParcelTypeForBlock(block: ParcelBlockId): ParcelType {
+  return block === 'M' ? 'meadow' : 'arable'
+}
+
+export function defaultFieldTestStateForParcelType(
+  parcelType: ParcelType,
+): FieldTestState {
+  if (parcelType === 'meadow' || parcelType === 'pasture') {
+    return {
+      cropEnabled: false,
+      cropId: null,
+      lifecycleState: States.Grass,
+      growthPercent: 0,
+      workState: FieldWorkState.Idle,
+    }
+  }
+  return {
+    cropEnabled: false,
+    cropId: null,
+    lifecycleState: States.Plowed,
+    growthPercent: 0,
+    workState: FieldWorkState.NeedsSeeding,
+  }
 }
 
 export function parseFieldParcelProperties(
@@ -61,10 +123,18 @@ export function parseFieldParcelProperties(
     typeof properties.roadAccess === 'string' ? properties.roadAccess : undefined
   const parcelId =
     typeof properties.parcelId === 'string' ? properties.parcelId : undefined
+  const parcelType = isParcelType(properties.parcelType)
+    ? properties.parcelType
+    : defaultParcelTypeForBlock(properties.parcelBlock)
+  const ownershipStage = isOwnershipStage(properties.ownershipStage)
+    ? properties.ownershipStage
+    : 'start'
   const fieldTestState = parseFieldTestState(properties)
   return {
     parcelBlock: properties.parcelBlock,
     fertility,
+    parcelType,
+    ownershipStage,
     fieldTestState,
     ...(catalogId ? { catalogId } : {}),
     ...(parcelId ? { parcelId } : {}),
@@ -77,6 +147,10 @@ export function patchFieldParcelProperties(
   patch: {
     parcelBlock?: ParcelBlockId
     fertility?: number
+    parcelId?: string
+    parcelType?: ParcelType
+    ownershipStage?: OwnershipStage
+    roadAccess?: string
     fieldTestState?: FieldTestState
   },
 ): Record<string, unknown> {
@@ -87,6 +161,18 @@ export function patchFieldParcelProperties(
   if (patch.fertility !== undefined) {
     next.fertility = Math.max(0, Math.min(100, patch.fertility))
   }
+  if (patch.parcelId !== undefined) {
+    next.parcelId = patch.parcelId
+  }
+  if (patch.parcelType !== undefined) {
+    next.parcelType = patch.parcelType
+  }
+  if (patch.ownershipStage !== undefined) {
+    next.ownershipStage = patch.ownershipStage
+  }
+  if (patch.roadAccess !== undefined) {
+    next.roadAccess = patch.roadAccess
+  }
   if (patch.fieldTestState !== undefined) {
     next.fieldTestState = serializeFieldTestState(patch.fieldTestState)
   }
@@ -94,6 +180,11 @@ export function patchFieldParcelProperties(
 }
 
 export function getFieldParcelFootprint(object: MapObject): ParcelFootprint | null {
+  const polygonPoints = getFieldPolygonPoints(object)
+  if (polygonPoints && polygonPoints.length >= 3) {
+    return polygonBoundingFootprint(polygonPoints)
+  }
+
   if (object.layer !== 'fields' || object.shape?.type !== 'box') {
     return null
   }
@@ -130,4 +221,26 @@ export function getFieldParcelFootprint(object: MapObject): ParcelFootprint | nu
     centerX: x,
     centerZ: z,
   }
+}
+
+export function getFieldShapeDimensions(shape: MapShape | undefined): {
+  width: number
+  depth: number
+} | null {
+  if (!shape) {
+    return null
+  }
+  if (shape.type === 'box') {
+    return { width: shape.width, depth: shape.depth }
+  }
+  const footprint = polygonBoundingFootprint(shape.points)
+  return { width: footprint.width, depth: footprint.depth }
+}
+
+export function isArableParcelType(parcelType: ParcelType | undefined): boolean {
+  return parcelType === 'arable'
+}
+
+export function isMeadowLikeParcelType(parcelType: ParcelType | undefined): boolean {
+  return parcelType === 'meadow' || parcelType === 'pasture' || parcelType === 'protected'
 }

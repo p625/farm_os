@@ -1,14 +1,24 @@
-import type { FieldBlockId } from '@/config/map-01-layout.ts'
+import type { ParcelBlockId, ParcelType } from '@/types/parcel.ts'
 import type { MapObject, WorldMapDocument } from '@/types/world-map.ts'
-import type { FieldParcelProperties } from '@/types/parcel.ts'
+import type { MapPolygonPoint } from '@/types/world-map.ts'
+import {
+  defaultFieldTestStateForParcelType,
+  defaultParcelTypeForBlock,
+  type FieldParcelProperties,
+} from '@/types/parcel.ts'
+import {
+  createPolygonShape,
+  polygonCentroid,
+  rectToPolygonPoints,
+} from '@/studio/parcel/ParcelPolygon.ts'
 import {
   footprintFromRect,
   parcelRectFromCorners,
   type ParcelRect,
 } from '@/studio/parcel/ParcelMath.ts'
-
-const FIELD_SURFACE_THICKNESS = 0.08
-const FIELD_SURFACE_LIFT = 0.04
+import { allocateParcelLayoutId } from '@/studio/parcel/allocateParcelLayoutId.ts'
+export const FIELD_SURFACE_THICKNESS = 0.08
+export const FIELD_SURFACE_LIFT = 0.04
 
 let parcelCounter = 0
 
@@ -42,41 +52,59 @@ export function getFieldParcels(map: WorldMapDocument): MapObject[] {
 }
 
 export interface CreateFieldParcelOptions {
-  parcelBlock: FieldBlockId
+  parcelBlock: ParcelBlockId
   fertility: number
   surfaceY: number
   name?: string
+  parcelId?: string
+  parcelType?: ParcelType
 }
 
-export function createFieldParcelFromRect(
-  rect: ParcelRect,
+export function createFieldParcelFromPolygon(
+  points: readonly MapPolygonPoint[],
+  map: WorldMapDocument,
   options: CreateFieldParcelOptions,
 ): MapObject {
   const id = createFieldParcelId()
+  const parcelType = options.parcelType ?? defaultParcelTypeForBlock(options.parcelBlock)
+  const parcelId =
+    options.parcelId ?? allocateParcelLayoutId(map, options.parcelBlock)
+  const centroid = polygonCentroid(points)
   const properties: FieldParcelProperties = {
     parcelBlock: options.parcelBlock,
     fertility: options.fertility,
+    parcelId,
+    parcelType,
+    ownershipStage: 'start',
+    fieldTestState: defaultFieldTestStateForParcelType(parcelType),
   }
   return {
     id,
     layer: 'fields',
     kind: 'field',
-    name: options.name ?? `Pole ${id.replace('field_', '')}`,
+    name: options.name ?? `Parcel ${parcelId}`,
     transform: {
       position: {
-        x: rect.centerX,
+        x: centroid.x,
         y: options.surfaceY,
-        z: rect.centerZ,
+        z: centroid.z,
       },
     },
-    shape: {
-      type: 'box',
-      width: rect.width,
-      height: FIELD_SURFACE_THICKNESS,
-      depth: rect.depth,
-    },
+    shape: createPolygonShape(points, FIELD_SURFACE_THICKNESS),
     properties: { ...properties },
   }
+}
+
+export function createFieldParcelFromRect(
+  rect: ParcelRect,
+  map: WorldMapDocument,
+  options: CreateFieldParcelOptions,
+): MapObject {
+  return createFieldParcelFromPolygon(
+    rectToPolygonPoints(rect),
+    map,
+    options,
+  )
 }
 
 export function createFieldParcelFromCorners(
@@ -85,17 +113,16 @@ export function createFieldParcelFromCorners(
   bx: number,
   bz: number,
   surfaceY: number,
+  map: WorldMapDocument,
   options: Omit<CreateFieldParcelOptions, 'surfaceY'>,
 ): MapObject {
   const rect = parcelRectFromCorners(ax, az, bx, bz)
-  return createFieldParcelFromRect(rect, { ...options, surfaceY })
+  return createFieldParcelFromRect(rect, map, { ...options, surfaceY })
 }
 
 export function fieldParcelSurfaceY(sampledTerrainY: number): number {
   return sampledTerrainY + FIELD_SURFACE_LIFT
 }
-
-export { FIELD_SURFACE_THICKNESS, FIELD_SURFACE_LIFT }
 
 export function parcelRectToFootprint(rect: ParcelRect) {
   return footprintFromRect(rect)

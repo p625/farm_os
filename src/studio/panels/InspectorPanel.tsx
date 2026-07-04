@@ -7,6 +7,9 @@ import {
   isGameplayParentObject,
   isSceneAnchorObject,
 } from '@/studio/anchor/studioAnchorSync.ts'
+import { FieldStateInspector } from '@/studio/panels/FieldStateInspector.tsx'
+import { PolygonShapeInspector } from '@/studio/panels/PolygonShapeInspector.tsx'
+import { isMapPolygonShape } from '@/types/world-map.ts'
 
 interface InspectorPanelProps {
   store: StudioStore
@@ -420,6 +423,22 @@ export function InspectorPanel({
             })}
           </ul>
         </>
+      ) : null}
+
+      {shape && isMapPolygonShape(shape) ? (
+        <PolygonShapeInspector
+          store={store}
+          object={selectedObject}
+          onSceneRefresh={onSceneRefresh}
+        />
+      ) : null}
+
+      {selectedObject.layer === 'fields' && selectedObject.kind === 'field' ? (
+        <FieldStateInspector
+          store={store}
+          field={selectedObject}
+          onSceneRefresh={onSceneRefresh}
+        />
       ) : null}
 
       {selectedObject.properties &&

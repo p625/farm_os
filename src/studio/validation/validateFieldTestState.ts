@@ -30,7 +30,7 @@ export function validateFieldTestStates(
     if (state.cropId && !state.cropEnabled) {
       pushIssue({
         ruleId: 'field-crop-disabled-with-type',
-        severity: 'warn',
+        severity: 'error',
         objectId: object.id,
         message: `${object.name ?? object.id}: crop type is set but crop is disabled.`,
       })
@@ -47,11 +47,11 @@ export function validateFieldTestStates(
 
     if (
       state.workState === FieldWorkState.ReadyToHarvest &&
-      !state.cropEnabled
+      (!state.cropEnabled || !state.cropId)
     ) {
       pushIssue({
         ruleId: 'field-ready-without-crop',
-        severity: 'warn',
+        severity: 'error',
         objectId: object.id,
         message: `${object.name ?? object.id}: readyToHarvest work state without an active crop.`,
       })

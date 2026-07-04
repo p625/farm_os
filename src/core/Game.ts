@@ -170,7 +170,7 @@ export class Game implements IDisposable {
   private started = false
   private fleetPanelOpen = false
   private pendingPurchasedMachineSave: GameSaveData['machines'] | null = null
-  private visualBenchmarkInput: { dispose(): void } | null = null
+  private visualBenchmarkInput: IDisposable | null = null
 
   constructor(
     canvas: HTMLCanvasElement,
@@ -1969,18 +1969,16 @@ export class Game implements IDisposable {
     this.gameLoop.start(() => this.sceneManager.render())
 
     if (import.meta.env.DEV) {
-      const { createVisualBenchmarkRunner } = await import(
-        '@/rendering/debug/VisualBenchmarkRunner.ts'
-      )
+      const { createBenchmarkRunner } = await import('@/rendering/debug/BenchmarkRunner.ts')
       const { VisualBenchmarkInput } = await import('@/rendering/debug/VisualBenchmarkInput.ts')
-      const runner = createVisualBenchmarkRunner(
+      const runner = createBenchmarkRunner(
         this.sceneManager,
         this.cameraController,
         this.renderingSystem,
       )
-      this.visualBenchmarkInput = new VisualBenchmarkInput(runner)
-      this.visualBenchmarkInput.attach()
-      ;(globalThis as { farmosVisualBenchmark?: typeof runner }).farmosVisualBenchmark = runner
+      const input = new VisualBenchmarkInput(runner)
+      input.attach()
+      this.visualBenchmarkInput = input
     }
   }
 
