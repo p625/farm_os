@@ -33,6 +33,9 @@ export class SoundManager {
       case GameEventKind.CropSold:
         this.play(SoundEvent.Money)
         break
+      case GameEventKind.ProductSold:
+        this.play(SoundEvent.Money)
+        break
     }
   }
 }

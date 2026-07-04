@@ -56,6 +56,7 @@ function MoneyDisplay({ snapshot }: { snapshot: GameSnapshot }) {
 export function GameHUD({ game, snapshot }: GameHUDProps) {
   const [confirmReset, setConfirmReset] = useState(false)
   const [cropDialogOpen, setCropDialogOpen] = useState(false)
+  const [storageTab, setStorageTab] = useState<'raw' | 'processed'>('raw')
   const selectedField = snapshot.fields.find(
     (field) => field.id === snapshot.selectedFieldId,
   )
@@ -90,7 +91,7 @@ export function GameHUD({ game, snapshot }: GameHUDProps) {
     <aside className="game-hud">
       <header className="game-hud__header">
         <h1 className="game-hud__title">FarmOS</h1>
-        <p className="game-hud__subtitle">Phase 8 — Dynamic Market</p>
+        <p className="game-hud__subtitle">Phase 11A — Manual Machine Movement</p>
       </header>
 
       <section className="game-hud__panel">
@@ -131,6 +132,16 @@ export function GameHUD({ game, snapshot }: GameHUDProps) {
         <h2 className="game-hud__section-title">Tractor</h2>
         <dl className="game-hud__stats">
           <div className="game-hud__stat">
+            <dt>Selection</dt>
+            <dd>
+              {snapshot.selectedEntity.kind === 'machine'
+                ? 'Tractor selected'
+                : snapshot.selectedEntity.kind === 'field'
+                  ? 'Field selected'
+                  : 'None'}
+            </dd>
+          </div>
+          <div className="game-hud__stat">
             <dt>State</dt>
             <dd>{formatTractorState(snapshot.tractor.state)}</dd>
           </div>
@@ -150,9 +161,13 @@ export function GameHUD({ game, snapshot }: GameHUDProps) {
                 </div>
               ) : null}
             </>
-          ) : (
-            <p className="game-hud__hint">No active job.</p>
-          )}
+        ) : (
+          <p className="game-hud__hint">
+            {snapshot.selectedEntity.kind === 'machine'
+              ? 'Right-click terrain to move. Use field actions below for work.'
+              : 'Click the tractor to select it for manual movement.'}
+          </p>
+        )}
         </dl>
         {snapshot.tractor.state === TractorState.Working ? (
           <div className="game-hud__progress">
@@ -300,6 +315,42 @@ export function GameHUD({ game, snapshot }: GameHUDProps) {
       </section>
 
       <section className="game-hud__panel">
+        <h2 className="game-hud__section-title">Farm Shop</h2>
+        <ul className="game-hud__shop-list">
+          {snapshot.shopUpgrades.map((upgrade) => (
+            <li key={upgrade.id} className="game-hud__shop-item">
+              <div className="game-hud__shop-details">
+                <span className="game-hud__shop-name">
+                  {upgrade.name}{' '}
+                  <span className="game-hud__shop-level">
+                    Lv {upgrade.level}/{upgrade.maxLevel}
+                  </span>
+                </span>
+                <span className="game-hud__shop-description">
+                  {upgrade.description}
+                </span>
+                <span className="game-hud__shop-effect">
+                  {upgrade.effectSummary}
+                </span>
+              </div>
+              {upgrade.isMaxed ? (
+                <span className="game-hud__shop-maxed">Maxed</span>
+              ) : (
+                <button
+                  type="button"
+                  className="game-hud__button game-hud__button--shop"
+                  disabled={!upgrade.canAfford}
+                  onClick={() => game.purchaseUpgrade(upgrade.id)}
+                >
+                  Buy ₡{upgrade.nextPrice?.toLocaleString()}
+                </button>
+              )}
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      <section className="game-hud__panel">
         <h2 className="game-hud__section-title">Market Prices</h2>
         <ul className="game-hud__market-list">
           {snapshot.marketPrices.map((price) => (
@@ -323,44 +374,162 @@ export function GameHUD({ game, snapshot }: GameHUDProps) {
 
       <section className="game-hud__panel">
         <h2 className="game-hud__section-title">Storage</h2>
-        {snapshot.inventory.length > 0 ? (
-          <ul className="game-hud__inventory-list">
-            {snapshot.inventory.map((item) => {
-              const marketPrice = snapshot.marketPrices.find(
-                (price) => price.cropId === item.cropId,
-              )
-              const unitPrice = marketPrice?.currentPrice ?? 0
-              const totalValue = item.quantity * unitPrice
+        <div className="game-hud__tabs">
+          <button
+            type="button"
+            className={
+              storageTab === 'raw'
+                ? 'game-hud__tab game-hud__tab--active'
+                : 'game-hud__tab'
+            }
+            onClick={() => setStorageTab('raw')}
+          >
+            Raw Materials
+          </button>
+          <button
+            type="button"
+            className={
+              storageTab === 'processed'
+                ? 'game-hud__tab game-hud__tab--active'
+                : 'game-hud__tab'
+            }
+            onClick={() => setStorageTab('processed')}
+          >
+            Processed Goods
+          </button>
+        </div>
 
-              return (
-                <li key={item.cropId} className="game-hud__inventory-item">
-                  <div className="game-hud__inventory-details">
-                    <span
-                      className="game-hud__crop-swatch"
-                      style={{ backgroundColor: item.displayColor }}
-                    />
-                    <span>
-                      {item.quantity} {item.cropName}
-                    </span>
-                    <span className="game-hud__inventory-value">
-                      ₡{totalValue.toLocaleString()}
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    className="game-hud__button game-hud__button--sell"
-                    onClick={() => game.sellStoredCrop(item.cropId)}
-                  >
-                    Sell
-                  </button>
-                </li>
-              )
-            })}
-          </ul>
+        {storageTab === 'raw' ? (
+          snapshot.inventory.length > 0 ? (
+            <ul className="game-hud__inventory-list">
+              {snapshot.inventory.map((item) => {
+                const marketPrice = snapshot.marketPrices.find(
+                  (price) => price.cropId === item.cropId,
+                )
+                const unitPrice = marketPrice?.currentPrice ?? 0
+                const totalValue = item.quantity * unitPrice
+
+                return (
+                  <li key={item.cropId} className="game-hud__inventory-item">
+                    <div className="game-hud__inventory-details">
+                      <span
+                        className="game-hud__crop-swatch"
+                        style={{ backgroundColor: item.displayColor }}
+                      />
+                      <span>
+                        {item.quantity} {item.cropName}
+                      </span>
+                      <span className="game-hud__inventory-value">
+                        ₡{totalValue.toLocaleString()}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      className="game-hud__button game-hud__button--sell"
+                      onClick={() => game.sellStoredCrop(item.cropId)}
+                    >
+                      Sell
+                    </button>
+                  </li>
+                )
+              })}
+            </ul>
+          ) : (
+            <p className="game-hud__hint">
+              Harvested crops are stored here until sold or milled.
+            </p>
+          )
         ) : (
-          <p className="game-hud__hint">
-            Harvested crops are stored here until sold.
-          </p>
+          <>
+            <div className="game-hud__mill-panel">
+              <div className="game-hud__mill-header">
+                <span className="game-hud__mill-name">{snapshot.mill.name}</span>
+                <span className="game-hud__mill-recipe">
+                  {snapshot.mill.recipeLabel}
+                </span>
+              </div>
+
+              {snapshot.mill.state === 'processing' ? (
+                <div className="game-hud__mill-progress">
+                  <div
+                    className="game-hud__mill-progress-fill"
+                    style={{
+                      width: `${Math.round(snapshot.mill.progress * 100)}%`,
+                    }}
+                  />
+                </div>
+              ) : null}
+
+              <div className="game-hud__mill-actions">
+                <button
+                  type="button"
+                  className="game-hud__button"
+                  disabled={!snapshot.mill.canStart}
+                  onClick={() => game.startMilling()}
+                >
+                  Start Milling
+                </button>
+                <button
+                  type="button"
+                  className="game-hud__button game-hud__button--primary"
+                  disabled={!snapshot.mill.canCollect}
+                  onClick={() => game.collectFlour()}
+                >
+                  Collect Flour
+                </button>
+              </div>
+
+              {snapshot.mill.state === 'processing' ? (
+                <p className="game-hud__hint">
+                  Milling in progress — {Math.round(snapshot.mill.progress * 100)}
+                  %
+                </p>
+              ) : null}
+            </div>
+
+            {snapshot.processedInventory.length > 0 ? (
+              <ul className="game-hud__inventory-list">
+                {snapshot.processedInventory.map((item) => (
+                  <li key={item.productId} className="game-hud__inventory-item">
+                    <div className="game-hud__inventory-details">
+                      <span
+                        className="game-hud__crop-swatch"
+                        style={{ backgroundColor: item.displayColor }}
+                      />
+                      <span>
+                        {item.quantity} {item.productName}
+                      </span>
+                      <span className="game-hud__inventory-value">
+                        ₡{item.totalValue.toLocaleString()}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      className="game-hud__button game-hud__button--sell"
+                      onClick={() => game.sellProcessedProduct(item.productId)}
+                    >
+                      Sell
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="game-hud__hint">
+                Collect flour from the mill to store processed goods here.
+              </p>
+            )}
+
+            {snapshot.processedMarketPrices.length > 0 ? (
+              <ul className="game-hud__processed-prices">
+                {snapshot.processedMarketPrices.map((price) => (
+                  <li key={price.productId}>
+                    {price.productName}: ₡{price.currentPrice}/unit (base ₡
+                    {price.basePrice})
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+          </>
         )}
       </section>
 

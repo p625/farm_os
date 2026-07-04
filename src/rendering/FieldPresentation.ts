@@ -28,6 +28,7 @@ export class FieldPresentation {
   private cropSystem: CropSystem | null = null
   private hoveredFieldId: string | null = null
   private onVisualChange: (() => void) | null = null
+  private onFieldSelected: ((fieldId: string) => void) | null = null
   private pointerObserver: ReturnType<Scene['onPointerObservable']['add']> | null =
     null
 
@@ -37,6 +38,10 @@ export class FieldPresentation {
 
   setOnVisualChange(listener: () => void): void {
     this.onVisualChange = listener
+  }
+
+  setOnFieldSelected(listener: (fieldId: string) => void): void {
+    this.onFieldSelected = listener
   }
 
   attach(scene: Scene, fieldSystem: FieldSystem): void {
@@ -63,7 +68,11 @@ export class FieldPresentation {
 
       const fieldId = this.resolveFieldId(pick.pickedMesh)
       if (fieldId) {
-        this.fieldSystem?.selectField(fieldId)
+        if (this.onFieldSelected) {
+          this.onFieldSelected(fieldId)
+        } else {
+          this.fieldSystem?.selectField(fieldId)
+        }
         this.syncSelectionOverlay()
       }
     })

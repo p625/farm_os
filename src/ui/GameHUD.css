@@ -402,3 +402,142 @@
   padding: 0.35rem 0.65rem;
   font-size: 0.78rem;
 }
+
+.game-hud__shop-list {
+  display: grid;
+  gap: 0.55rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.game-hud__shop-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.6rem;
+  padding: 0.55rem 0.6rem;
+  background: rgb(0 0 0 / 18%);
+  border-radius: 6px;
+}
+
+.game-hud__shop-details {
+  display: grid;
+  gap: 0.18rem;
+  min-width: 0;
+}
+
+.game-hud__shop-name {
+  font-weight: 700;
+  font-size: 0.84rem;
+  color: #e8f5e3;
+}
+
+.game-hud__shop-level {
+  font-weight: 600;
+  font-size: 0.72rem;
+  color: rgb(200 230 185 / 75%);
+}
+
+.game-hud__shop-description,
+.game-hud__shop-effect {
+  font-size: 0.74rem;
+  color: rgb(255 255 255 / 58%);
+}
+
+.game-hud__shop-effect {
+  color: rgb(200 230 185 / 78%);
+}
+
+.game-hud__shop-maxed {
+  flex: 0 0 auto;
+  padding: 0.35rem 0.5rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgb(200 230 185 / 65%);
+}
+
+.game-hud__button--shop {
+  flex: 0 0 auto;
+  padding: 0.35rem 0.55rem;
+  font-size: 0.74rem;
+  white-space: nowrap;
+}
+
+.game-hud__tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.35rem;
+  margin-bottom: 0.65rem;
+}
+
+.game-hud__tab {
+  padding: 0.4rem 0.5rem;
+  font: inherit;
+  font-size: 0.76rem;
+  color: rgb(255 255 255 / 65%);
+  background: rgb(255 255 255 / 5%);
+  border: 1px solid rgb(255 255 255 / 10%);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.game-hud__tab--active {
+  color: #e8f5e3;
+  background: rgb(255 255 255 / 10%);
+  border-color: rgb(200 230 185 / 35%);
+}
+
+.game-hud__mill-panel {
+  display: grid;
+  gap: 0.55rem;
+  margin-bottom: 0.75rem;
+  padding: 0.6rem 0.65rem;
+  background: rgb(0 0 0 / 20%);
+  border-radius: 8px;
+}
+
+.game-hud__mill-header {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.game-hud__mill-name {
+  font-weight: 700;
+  color: #e8f5e3;
+}
+
+.game-hud__mill-recipe {
+  font-size: 0.76rem;
+  color: rgb(200 230 185 / 78%);
+}
+
+.game-hud__mill-progress {
+  height: 0.45rem;
+  overflow: hidden;
+  background: rgb(0 0 0 / 28%);
+  border-radius: 999px;
+}
+
+.game-hud__mill-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #8aaa5a, #d4b830);
+  border-radius: 999px;
+  transition: width 0.2s ease;
+}
+
+.game-hud__mill-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.45rem;
+}
+
+.game-hud__processed-prices {
+  margin: 0.65rem 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.74rem;
+  color: rgb(255 255 255 / 55%);
+}

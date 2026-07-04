@@ -67,6 +67,39 @@ export class GameEventLog {
     this.push(`${cropName} price changed`, GameEventKind.PriceChanged, day)
   }
 
+  recordUpgradePurchased(
+    upgradeName: string,
+    level: number,
+    day: number,
+  ): void {
+    this.push(
+      `Purchased ${upgradeName} level ${level}`,
+      GameEventKind.UpgradePurchased,
+      day,
+    )
+  }
+
+  recordMillingStarted(inputName: string, day: number): void {
+    this.push(`Started milling ${inputName}.`, GameEventKind.MillingStarted, day)
+  }
+
+  recordMillFinishedFlour(day: number): void {
+    this.push('Mill finished Flour.', GameEventKind.MillFinished, day)
+  }
+
+  recordProductSold(
+    productName: string,
+    _quantity: number,
+    total: number,
+    day: number,
+  ): void {
+    this.push(`Sold ${productName}.`, GameEventKind.ProductSold, day)
+    this.latestMoneyGain = {
+      amount: total,
+      id: ++this.moneyGainSeq,
+    }
+  }
+
   recordFieldPurchased(fieldName: string, day: number): void {
     this.push(
       `Player purchased ${fieldName}.`,

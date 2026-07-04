@@ -14,6 +14,11 @@ export function GameShell() {
       return
     }
 
+    const preventContextMenu = (event: MouseEvent) => {
+      event.preventDefault()
+    }
+    canvas.addEventListener('contextmenu', preventContextMenu)
+
     let active = true
     const gameInstance = new Game(canvas)
 
@@ -27,6 +32,7 @@ export function GameShell() {
 
     return () => {
       active = false
+      canvas.removeEventListener('contextmenu', preventContextMenu)
       gameInstance.dispose()
       setGame(null)
     }

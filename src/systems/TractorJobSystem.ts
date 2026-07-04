@@ -5,6 +5,11 @@ import {
   TRACTOR_HOME_ROTATION_Y,
   TRACTOR_MOVE_SPEED,
 } from '@/config/farm-layout.ts'
+import { machineHasCapability } from '@/config/machine-catalog.ts'
+import { MachineCapability, MachineId, type MachineCommand } from '@/types/machine.ts'
+import type { IMachineController } from '@/types/machine-controller.ts'
+import type { MachineSaveData } from '@/types/save.ts'
+import type { FarmShopSystem } from './FarmShopSystem.ts'
 import type { CropSystem } from './CropSystem.ts'
 import type { FieldSystem } from './FieldSystem.ts'
 import { GameSystem } from './GameSystem.ts'
@@ -14,12 +19,7 @@ import {
   type JobType as JobTypeValue,
   type TractorSnapshot,
 } from '@/types/tractor.ts'
-
-interface ActiveJob {
-  type: JobTypeValue
-  fieldId: string
-  cropId?: string
-}
+import type { CommandTask as MachineCommandTask } from '@/types/machine.ts'
 
 interface Vec3 {
   x: number
@@ -27,16 +27,26 @@ interface Vec3 {
   z: number
 }
 
+interface ActiveWork {
+  type: JobTypeValue
+  fieldId: string
+  cropId?: string
+}
+
 const ARRIVAL_THRESHOLD = 0.15
 
-export class TractorJobSystem extends GameSystem {
+export class TractorJobSystem extends GameSystem implements IMachineController {
   readonly name = 'TractorJobSystem'
+  readonly machineId = MachineId.Tractor1
   private readonly fieldSystem: FieldSystem
   private cropSystem: CropSystem | null = null
+  private farmShopSystem: FarmShopSystem | null = null
   private state: TractorState = TractorState.Idle
   private position: Vec3 = { ...TRACTOR_HOME }
   private rotationY = TRACTOR_HOME_ROTATION_Y
-  private activeJob: ActiveJob | null = null
+  private activeCommand: MachineCommand | null = null
+  private moveTarget: Vec3 = { ...TRACTOR_HOME }
+  private activeWork: ActiveWork | null = null
   private workTimer = 0
   private workDuration = 1.5
   private onChange: (() => void) | null = null
@@ -51,6 +61,10 @@ export class TractorJobSystem extends GameSystem {
     this.cropSystem = cropSystem
   }
 
+  setFarmShopSystem(farmShopSystem: FarmShopSystem): void {
+    this.farmShopSystem = farmShopSystem
+  }
+
   setOnChange(listener: () => void): void {
     this.onChange = listener
   }
@@ -59,13 +73,101 @@ export class TractorJobSystem extends GameSystem {
     this.onVisualChange = listener
   }
 
+  getCapabilities(): readonly MachineCapability[] {
+    return [
+      MachineCapability.Move,
+      MachineCapability.Plow,
+      MachineCapability.Seed,
+      MachineCapability.Harvest,
+    ]
+  }
+
   initialize(): void {
     this.state = TractorState.Idle
     this.position = { ...TRACTOR_HOME }
     this.rotationY = TRACTOR_HOME_ROTATION_Y
-    this.activeJob = null
+    this.activeCommand = null
+    this.moveTarget = { ...TRACTOR_HOME }
+    this.activeWork = null
     this.workTimer = 0
     this.notifyChange()
+  }
+
+  applySave(saved: MachineSaveData): void {
+    this.state = isTractorState(saved.state) ? saved.state : TractorState.Idle
+    this.position = {
+      x: saved.position.x,
+      y: saved.position.y,
+      z: saved.position.z,
+    }
+    this.rotationY = saved.rotationY
+    this.activeCommand = saved.activeCommand
+      ? cloneCommand(saved.activeCommand as MachineCommand)
+      : null
+    this.activeWork = saved.activeWork
+      ? parseActiveWork(saved.activeWork)
+      : null
+    this.workTimer = saved.workTimer
+    this.workDuration = saved.workDuration
+
+    if (this.activeCommand) {
+      this.moveTarget = resolveMoveTarget(this.activeCommand, this.position)
+      if (this.state === TractorState.Moving) {
+        // keep moving
+      } else if (this.state === TractorState.Working && this.activeWork) {
+        // keep working
+      } else {
+        this.state = TractorState.Idle
+        this.activeCommand = null
+        this.activeWork = null
+      }
+    } else {
+      this.activeWork = null
+      if (this.state !== TractorState.Idle) {
+        this.state = TractorState.Idle
+      }
+    }
+
+    this.notifyChange()
+  }
+
+  toSaveData(): MachineSaveData {
+    return {
+      machineId: this.machineId,
+      position: { ...this.position },
+      rotationY: this.rotationY,
+      state: this.state,
+      activeCommand: this.activeCommand ? cloneCommand(this.activeCommand) : null,
+      activeWork: this.activeWork ? { ...this.activeWork } : null,
+      workTimer: this.workTimer,
+      workDuration: this.workDuration,
+    }
+  }
+
+  issueCommand(command: MachineCommand): boolean {
+    if (this.isBusy()) {
+      return false
+    }
+
+    const requiredCapability = getRequiredCapability(command.task)
+    if (
+      requiredCapability &&
+      !machineHasCapability(this.machineId, requiredCapability)
+    ) {
+      return false
+    }
+
+    if (!this.validateCommand(command)) {
+      return false
+    }
+
+    this.activeCommand = cloneCommand(command)
+    this.moveTarget = resolveMoveTarget(command, this.position)
+    this.activeWork = buildActiveWork(command)
+    this.workTimer = 0
+    this.state = TractorState.Moving
+    this.notifyChange()
+    return true
   }
 
   update(deltaTime: number): void {
@@ -73,17 +175,21 @@ export class TractorJobSystem extends GameSystem {
       return
     }
 
-    const step = TRACTOR_MOVE_SPEED * deltaTime
+    const step = TRACTOR_MOVE_SPEED * this.getTractorSpeedMultiplier() * deltaTime
     let notifyHud = false
 
     switch (this.state) {
-      case TractorState.MovingToField: {
-        const target = this.getFieldPosition(this.activeJob!.fieldId)
-        if (this.moveToward(target, step)) {
-          this.state = TractorState.Working
-          this.workTimer = 0
-          this.workDuration = JOB_WORK_DURATION[this.activeJob!.type] ?? 1.5
-          notifyHud = true
+      case TractorState.Moving: {
+        if (this.moveToward(this.moveTarget, step)) {
+          if (!this.activeWork) {
+            this.finishCommand()
+            notifyHud = true
+          } else {
+            this.state = TractorState.Working
+            this.workTimer = 0
+            this.workDuration = this.getWorkDuration(this.activeWork.type)
+            notifyHud = true
+          }
         }
         break
       }
@@ -91,19 +197,8 @@ export class TractorJobSystem extends GameSystem {
         this.workTimer += deltaTime
         notifyHud = true
         if (this.workTimer >= this.workDuration) {
-          this.applyJob()
-          this.state = TractorState.Returning
-          notifyHud = true
-        }
-        break
-      }
-      case TractorState.Returning: {
-        const home = { ...TRACTOR_HOME }
-        if (this.moveToward(home, step)) {
-          this.rotationY = TRACTOR_HOME_ROTATION_Y
-          this.state = TractorState.Idle
-          this.activeJob = null
-          this.workTimer = 0
+          this.applyWork()
+          this.finishCommand()
           notifyHud = true
         }
         break
@@ -120,18 +215,6 @@ export class TractorJobSystem extends GameSystem {
     return this.state !== TractorState.Idle
   }
 
-  enqueuePlow(fieldId: string): boolean {
-    return this.enqueueJob(JobType.Plow, fieldId)
-  }
-
-  enqueueSeed(fieldId: string, cropId: string): boolean {
-    return this.enqueueJob(JobType.Seed, fieldId, cropId)
-  }
-
-  enqueueHarvest(fieldId: string): boolean {
-    return this.enqueueJob(JobType.Harvest, fieldId)
-  }
-
   getPosition(): Readonly<Vec3> {
     return this.position
   }
@@ -141,20 +224,22 @@ export class TractorJobSystem extends GameSystem {
   }
 
   toSnapshot(): TractorSnapshot {
-    const field = this.activeJob
-      ? this.fieldSystem.getField(this.activeJob.fieldId)
+    const field = this.activeWork
+      ? this.fieldSystem.getField(this.activeWork.fieldId)
       : undefined
 
     return {
       state: this.state,
-      activeJob: this.activeJob
+      position: { ...this.position },
+      rotationY: this.rotationY,
+      activeJob: this.activeWork
         ? {
-            type: this.activeJob.type,
-            fieldId: this.activeJob.fieldId,
-            fieldName: field?.name ?? this.activeJob.fieldId,
-            cropId: this.activeJob.cropId,
-            cropName: this.activeJob.cropId
-              ? this.cropSystem?.getCropName(this.activeJob.cropId)
+            type: this.activeWork.type,
+            fieldId: this.activeWork.fieldId,
+            fieldName: field?.name ?? this.activeWork.fieldId,
+            cropId: this.activeWork.cropId,
+            cropName: this.activeWork.cropId
+              ? this.cropSystem?.getCropName(this.activeWork.cropId)
               : undefined,
           }
         : null,
@@ -166,55 +251,66 @@ export class TractorJobSystem extends GameSystem {
   }
 
   dispose(): void {
-    this.activeJob = null
+    this.activeCommand = null
+    this.activeWork = null
     this.onChange = null
     this.onVisualChange = null
     this.cropSystem = null
+    this.farmShopSystem = null
   }
 
-  private enqueueJob(
-    type: JobTypeValue,
-    fieldId: string,
-    cropId?: string,
-  ): boolean {
-    if (this.isBusy()) {
-      return false
-    }
-
-    if (!this.canPerformJob(type, fieldId, cropId)) {
-      return false
-    }
-
-    this.activeJob = { type, fieldId, cropId }
-    this.state = TractorState.MovingToField
+  private finishCommand(): void {
+    this.state = TractorState.Idle
+    this.activeCommand = null
+    this.activeWork = null
     this.workTimer = 0
-    this.notifyChange()
-    return true
   }
 
-  private canPerformJob(
-    type: JobTypeValue,
-    fieldId: string,
-    cropId?: string,
-  ): boolean {
-    switch (type) {
-      case JobType.Plow:
-        return this.fieldSystem.canPlow(fieldId)
-      case JobType.Seed:
-        return cropId ? this.fieldSystem.canSeed(fieldId, cropId) : false
-      case JobType.Harvest:
-        return this.fieldSystem.canHarvest(fieldId)
+  private getTractorSpeedMultiplier(): number {
+    return this.farmShopSystem?.getTractorSpeedMultiplier() ?? 1
+  }
+
+  private getWorkDuration(type: JobTypeValue): number {
+    const base = JOB_WORK_DURATION[type] ?? 1.5
+    const multiplier = this.farmShopSystem?.getWorkDurationMultiplier() ?? 1
+    return base * multiplier
+  }
+
+  private validateCommand(command: MachineCommand): boolean {
+    switch (command.task.kind) {
+      case 'none':
+        return command.destination.kind === 'world'
+      case 'plow':
+        return (
+          command.destination.kind === 'field' &&
+          this.fieldSystem.canPlow(command.destination.fieldId)
+        )
+      case 'seed':
+        return (
+          command.destination.kind === 'field' &&
+          this.fieldSystem.canSeed(
+            command.destination.fieldId,
+            command.task.cropId,
+          )
+        )
+      case 'harvest':
+        return (
+          command.destination.kind === 'field' &&
+          this.fieldSystem.canHarvest(command.destination.fieldId)
+        )
+      case 'unload':
+        return false
       default:
         return false
     }
   }
 
-  private applyJob(): void {
-    if (!this.activeJob) {
+  private applyWork(): void {
+    if (!this.activeWork) {
       return
     }
 
-    const { type, fieldId, cropId } = this.activeJob
+    const { type, fieldId, cropId } = this.activeWork
     switch (type) {
       case JobType.Plow:
         this.fieldSystem.plowField(fieldId)
@@ -228,10 +324,6 @@ export class TractorJobSystem extends GameSystem {
         this.fieldSystem.harvestField(fieldId)
         break
     }
-  }
-
-  private getFieldPosition(fieldId: string): Vec3 {
-    return FIELD_POSITIONS[fieldId] ?? { ...TRACTOR_HOME }
   }
 
   private moveToward(target: Vec3, step: number): boolean {
@@ -258,16 +350,108 @@ export class TractorJobSystem extends GameSystem {
   }
 }
 
+function parseActiveWork(
+  work: NonNullable<MachineSaveData['activeWork']>,
+): ActiveWork | null {
+  if (typeof work.fieldId !== 'string') {
+    return null
+  }
+
+  if (work.type === JobType.Plow) {
+    return { type: JobType.Plow, fieldId: work.fieldId }
+  }
+  if (work.type === JobType.Seed && typeof work.cropId === 'string') {
+    return { type: JobType.Seed, fieldId: work.fieldId, cropId: work.cropId }
+  }
+  if (work.type === JobType.Harvest) {
+    return { type: JobType.Harvest, fieldId: work.fieldId }
+  }
+
+  return null
+}
+
+function getRequiredCapability(
+  task: MachineCommandTask,
+): MachineCapability | null {
+  switch (task.kind) {
+    case 'none':
+      return MachineCapability.Move
+    case 'plow':
+      return MachineCapability.Plow
+    case 'seed':
+      return MachineCapability.Seed
+    case 'harvest':
+      return MachineCapability.Harvest
+    case 'unload':
+      return null
+    default:
+      return null
+  }
+}
+
+function buildActiveWork(command: MachineCommand): ActiveWork | null {
+  switch (command.task.kind) {
+    case 'plow':
+      if (command.destination.kind !== 'field') {
+        return null
+      }
+      return { type: JobType.Plow, fieldId: command.destination.fieldId }
+    case 'seed':
+      if (command.destination.kind !== 'field') {
+        return null
+      }
+      return {
+        type: JobType.Seed,
+        fieldId: command.destination.fieldId,
+        cropId: command.task.cropId,
+      }
+    case 'harvest':
+      if (command.destination.kind !== 'field') {
+        return null
+      }
+      return { type: JobType.Harvest, fieldId: command.destination.fieldId }
+    case 'none':
+    case 'unload':
+      return null
+    default:
+      return null
+  }
+}
+
+function resolveMoveTarget(command: MachineCommand, fallback: Vec3): Vec3 {
+  switch (command.destination.kind) {
+    case 'world':
+      return { x: command.destination.x, y: 0, z: command.destination.z }
+    case 'field':
+      return FIELD_POSITIONS[command.destination.fieldId] ?? { ...fallback }
+    case 'farm':
+    case 'building':
+      return { ...fallback }
+    default:
+      return { ...fallback }
+  }
+}
+
+function cloneCommand(command: MachineCommand): MachineCommand {
+  return structuredClone(command)
+}
+
+function isTractorState(value: string): value is TractorState {
+  return (
+    value === TractorState.Idle ||
+    value === TractorState.Moving ||
+    value === TractorState.Working
+  )
+}
+
 export function formatTractorState(state: TractorState): string {
   switch (state) {
     case TractorState.Idle:
       return 'Idle'
-    case TractorState.MovingToField:
-      return 'Moving to field'
+    case TractorState.Moving:
+      return 'Moving'
     case TractorState.Working:
       return 'Working'
-    case TractorState.Returning:
-      return 'Returning'
     default:
       return state
   }

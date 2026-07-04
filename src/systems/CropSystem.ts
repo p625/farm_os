@@ -11,10 +11,16 @@ import {
   type CropDefinition,
   type CropSnapshot,
 } from '@/types/crop.ts'
+import type { FarmShopSystem } from './FarmShopSystem.ts'
 import { GameSystem } from './GameSystem.ts'
 
 export class CropSystem extends GameSystem {
   readonly name = 'CropSystem'
+  private farmShopSystem: FarmShopSystem | null = null
+
+  setFarmShopSystem(farmShopSystem: FarmShopSystem): void {
+    this.farmShopSystem = farmShopSystem
+  }
 
   initialize(): void {
     // Crop definitions are static catalog data.
@@ -25,7 +31,7 @@ export class CropSystem extends GameSystem {
   }
 
   dispose(): void {
-    // No runtime state to release.
+    this.farmShopSystem = null
   }
 
   getAllCrops(): readonly CropDefinition[] {
@@ -98,7 +104,9 @@ export class CropSystem extends GameSystem {
   }
 
   getYield(cropId: string): number {
-    return getCropDefinition(cropId)?.yield ?? 0
+    const base = getCropDefinition(cropId)?.yield ?? 0
+    const multiplier = this.farmShopSystem?.getYieldMultiplier() ?? 1
+    return Math.max(1, Math.round(base * multiplier))
   }
 
   getProfitEstimate(cropId: string): number {

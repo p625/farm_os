@@ -9,15 +9,21 @@ import {
 } from '@babylonjs/core'
 import { FIELD_POSITIONS } from '@/config/farm-layout.ts'
 import type { TractorJobSystem } from '@systems/TractorJobSystem.ts'
+import { SelectedEntityKind } from '@/types/machine.ts'
 import { TractorState } from '@/types/tractor.ts'
 
 const TRACTOR_NODE_NAME = 'tractor'
+const TRACTOR_BODY_NAME = 'tractorBody'
 const WORK_INDICATOR_NAME = 'tractor_work_indicator'
+
+const SELECT_EMISSIVE = new Color3(0.22, 0.3, 0.1)
+const IDLE_BODY_EMISSIVE = new Color3(0, 0, 0)
 
 export class TractorPresentation {
   private scene: Scene | null = null
   private tractorSystem: TractorJobSystem | null = null
   private workIndicator: Mesh | null = null
+  private isSelected = false
 
   attach(scene: Scene, tractorSystem: TractorJobSystem): void {
     this.detach()
@@ -25,6 +31,11 @@ export class TractorPresentation {
     this.tractorSystem = tractorSystem
     this.createWorkIndicator(scene)
     this.syncVisuals()
+  }
+
+  setSelected(selected: boolean): void {
+    this.isSelected = selected
+    this.syncSelectionVisual()
   }
 
   syncVisuals(): void {
@@ -41,14 +52,32 @@ export class TractorPresentation {
       node.rotation.y = this.tractorSystem.getRotationY()
     }
 
+    this.syncSelectionVisual()
     this.syncWorkIndicator()
   }
 
   detach(): void {
     this.workIndicator?.dispose()
     this.workIndicator = null
+    this.isSelected = false
     this.scene = null
     this.tractorSystem = null
+  }
+
+  private syncSelectionVisual(): void {
+    if (!this.scene) {
+      return
+    }
+
+    const body = this.scene.getMeshByName(TRACTOR_BODY_NAME)
+    const material = body?.material as StandardMaterial | undefined
+    if (!material) {
+      return
+    }
+
+    material.emissiveColor = this.isSelected
+      ? SELECT_EMISSIVE.clone()
+      : IDLE_BODY_EMISSIVE.clone()
   }
 
   private createWorkIndicator(scene: Scene): void {
@@ -93,4 +122,14 @@ export class TractorPresentation {
     )
     this.workIndicator.scaling.setAll(pulse)
   }
+}
+
+export function isTractorSelected(
+  selectedEntity: { kind: SelectedEntityKind; machineId: string | null },
+  machineId: string,
+): boolean {
+  return (
+    selectedEntity.kind === SelectedEntityKind.Machine &&
+    selectedEntity.machineId === machineId
+  )
 }

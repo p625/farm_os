@@ -1,8 +1,7 @@
 export const TractorState = {
   Idle: 'idle',
-  MovingToField: 'moving_to_field',
+  Moving: 'moving',
   Working: 'working',
-  Returning: 'returning',
 } as const
 
 export type TractorState = (typeof TractorState)[keyof typeof TractorState]
@@ -27,4 +26,6 @@ export interface TractorSnapshot {
   state: TractorState
   activeJob: TractorJobSnapshot | null
   workProgress: number
+  position: { x: number; y: number; z: number }
+  rotationY: number
 }

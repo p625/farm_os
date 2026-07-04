@@ -8,6 +8,7 @@ import {
 } from '@babylonjs/core'
 import { FarmDecorationsBuilder } from './FarmDecorationsBuilder.ts'
 import { FarmEnvironment } from './FarmEnvironment.ts'
+import { MILL_POSITION } from '@/config/production-catalog.ts'
 import { FIELD_POSITIONS } from '@/config/farm-layout.ts'
 
 const TERRAIN_COLOR = new Color3(0.26, 0.46, 0.18)
@@ -29,6 +30,7 @@ export class FarmSceneBuilder {
     this.createFields(scene)
     this.createFarmyard(scene)
     this.createBarn(scene)
+    this.createMill(scene)
     this.createTractor(scene)
   }
 
@@ -162,6 +164,33 @@ export class FarmSceneBuilder {
     siloCap.scaling.y = 0.45
     siloCap.material = roofMat
     siloCap.parent = root
+  }
+
+  private createMill(scene: Scene): void {
+    const body = MeshBuilder.CreateBox(
+      'mill_building',
+      { width: 3.2, height: 2.8, depth: 3.6 },
+      scene,
+    )
+    body.position = new Vector3(MILL_POSITION.x, 1.4, MILL_POSITION.z)
+
+    const material = new StandardMaterial('millBuildingMaterial', scene)
+    material.diffuseColor = new Color3(0.62, 0.55, 0.42)
+    material.specularColor = new Color3(0.06, 0.05, 0.04)
+    material.emissiveColor = new Color3(0.02, 0.02, 0.015)
+    body.material = material
+    body.receiveShadows = true
+
+    const roof = MeshBuilder.CreateBox(
+      'mill_roof',
+      { width: 3.6, height: 0.35, depth: 4 },
+      scene,
+    )
+    roof.position = new Vector3(MILL_POSITION.x, 2.95, MILL_POSITION.z)
+    const roofMat = new StandardMaterial('millRoofMaterial', scene)
+    roofMat.diffuseColor = new Color3(0.38, 0.28, 0.2)
+    roof.material = roofMat
+    roof.receiveShadows = true
   }
 
   private createTractor(scene: Scene): void {
