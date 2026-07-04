@@ -47,8 +47,8 @@ interface ActiveWork {
 const ARRIVAL_THRESHOLD = 0.15
 
 export class TractorJobSystem extends GameSystem implements IMachineController {
-  readonly name = 'TractorJobSystem'
-  readonly machineId = MachineId.Tractor1
+  readonly name: string
+  readonly machineId: MachineId
   private readonly fieldSystem: FieldSystem
   private cropSystem: CropSystem | null = null
   private farmShopSystem: FarmShopSystem | null = null
@@ -66,9 +66,19 @@ export class TractorJobSystem extends GameSystem implements IMachineController {
   private onChange: (() => void) | null = null
   private onVisualChange: (() => void) | null = null
 
-  constructor(fieldSystem: FieldSystem) {
+  constructor(
+    fieldSystem: FieldSystem,
+    machineId: MachineId = MachineId.Tractor1,
+    home: Vec3 = { ...TRACTOR_HOME },
+    rotationY: number = TRACTOR_HOME_ROTATION_Y,
+  ) {
     super()
     this.fieldSystem = fieldSystem
+    this.machineId = machineId
+    this.name = `TractorJobSystem:${machineId}`
+    this.position = { ...home }
+    this.rotationY = rotationY
+    this.moveTarget = { ...home }
   }
 
   setCropSystem(cropSystem: CropSystem): void {
@@ -110,10 +120,12 @@ export class TractorJobSystem extends GameSystem implements IMachineController {
 
   initialize(): void {
     this.state = TractorState.Idle
-    this.position = { ...TRACTOR_HOME }
-    this.rotationY = TRACTOR_HOME_ROTATION_Y
+    if (this.machineId === MachineId.Tractor1) {
+      this.position = { ...TRACTOR_HOME }
+      this.rotationY = TRACTOR_HOME_ROTATION_Y
+      this.moveTarget = { ...TRACTOR_HOME }
+    }
     this.activeCommand = null
-    this.moveTarget = { ...TRACTOR_HOME }
     this.activeWork = null
     this.workTimer = 0
     this.notifyChange()

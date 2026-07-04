@@ -124,6 +124,10 @@ export class GameEventLog {
     this.push('Přenos se nezdařil — zkuste to znovu.', GameEventKind.LogisticsFailed, day)
   }
 
+  recordProductPurchased(productName: string, day: number): void {
+    this.push(`Purchased ${productName}.`, GameEventKind.ProductPurchased, day)
+  }
+
   restore(entries: readonly GameLogEntry[], nextId: number): void {
     this.entries = [...entries].slice(0, MAX_ENTRIES)
     this.nextId = Math.max(1, nextId)

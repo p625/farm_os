@@ -223,6 +223,8 @@ Map_01_View_Composition
     ↓
 Map_01_Master_Plan               ← tento dokument
     ↓
+Map_01_Agricultural_Master_Plan
+    ↓
 Road Network · Field Layout · POI · Vegetation · Lighting · Asset List
 ```
 
@@ -235,6 +237,7 @@ Road Network · Field Layout · POI · Vegetation · Lighting · Asset List
 | Spatial Design | [Map_01_Spatial_Design.md](Map_01_Spatial_Design.md) |
 | Landscape Layout | [Map_01_Landscape_Layout.md](Map_01_Landscape_Layout.md) |
 | View Composition | [Map_01_View_Composition.md](Map_01_View_Composition.md) |
+| Agricultural Master Plan | [Map_01_Agricultural_Master_Plan.md](Map_01_Agricultural_Master_Plan.md) |
 | Reference fotografií | [Map_01_References/](Map_01_References/README.md) |
 
 ---
@@ -249,8 +252,11 @@ Road Network · Field Layout · POI · Vegetation · Lighting · Asset List
 | **Macro Layout** (Landscape Layout, Varianta A) | Complete | Schváleno |
 | **Composition** (View Composition) | Complete | Schváleno |
 | **Master Plan** | Complete | Tento dokument |
-| **Road Network** | Pending | Další produkční dokument |
-| **Field Layout** | Pending | Po Road Network |
+| **Agricultural Logic** | Complete | [Agricultural Master Plan](Map_01_Agricultural_Master_Plan.md) |
+| **Road Network** | Complete | [Road Network](Map_01_Road_Network.md) |
+| **Field Layout** | Complete | [Field Layout](Map_01_Field_Layout.md) |
+| **Dokumentace Map 01** | **Uzavřena** | → Phase 13 World Editor |
+| **Blockout** | Pending | Ve World Editoru |
 | **POI Guide** | Pending | Po Field Layout |
 | **Vegetation** | Pending | |
 | **Lighting** | Pending | |
@@ -370,9 +376,11 @@ Rozhodnutí, která **nejsou uzamčena** — musí být uzavřena před nebo bě
 
 ## 12. Next Production Documents
 
-Po schválení Master Planu **končí strategická dokumentace Map 01**. Následuje produkce konkrétních podkladů v tomto pořadí:
+Po schválení Master Planu a Agricultural Master Planu **končí strategická dokumentace Map 01**. Následuje produkce konkrétních podkladů:
 
 ```text
+Map_01_Agricultural_Master_Plan     ← uzamčeno
+    ↓
 Map_01_Road_Network.md
     ↓
 Map_01_Field_Layout.md
@@ -427,8 +435,9 @@ Každý produkční dokument má jasnou pozici v hierarchii a závazné vstupy. 
 | Landscape Layout (Varianta A) | ✅ |
 | View Composition | ✅ |
 | Master Plan | ✅ |
+| Agricultural Master Plan | ✅ |
 | References architektura | ✅ (obsah TBD) |
-| **Další krok** | `Map_01_Road_Network.md` |
+| **Další krok** | **Phase 13 — FarmOS World Editor** |
 
 ---
 
@@ -438,6 +447,7 @@ Každý produkční dokument má jasnou pozici v hierarchii a závazné vstupy. 
 - [Map_01_Spatial_Design.md](Map_01_Spatial_Design.md)
 - [Map_01_Landscape_Layout.md](Map_01_Landscape_Layout.md)
 - [Map_01_View_Composition.md](Map_01_View_Composition.md)
+- [Map_01_Agricultural_Master_Plan.md](Map_01_Agricultural_Master_Plan.md)
 - [Map_01_References/README.md](Map_01_References/README.md)
 - [Maps README](../README.md)
 - [Map_Design_Principles.md](../00_Map_Guidelines/Map_Design_Principles.md)

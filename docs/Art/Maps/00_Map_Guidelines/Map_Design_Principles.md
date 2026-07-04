@@ -25,10 +25,13 @@ Map_XX_Design_Bible
     → Map_XX_Landscape_Layout
     → Map_XX_View_Composition
     → Map_XX_Master_Plan
-    → Map_XX_Road_Network · Field_Layout · POI_Guide · Vegetation · …
+    → Map_XX_Agricultural_Master_Plan
+    → Map_XX_Road_Network
+    → Map_XX_Field_Layout
+    → World Editor (implementace mapy)
 ```
 
-**[RULE]** Nepřeskakovat Spatial Design před Landscape Layout. Nepřeskakovat View Composition před Road Network a Field Layout — kompozice z kamery rozhoduje dříve než logika cest a parcel.
+**[RULE]** Nepřeskakovat Spatial Design před Landscape Layout. Nepřeskakovat View Composition před Road Network. Field Layout podřízen Road Network. Po Field Layout následuje World Editor — ne další strategické dokumenty.
 
 ---
 

@@ -7,7 +7,11 @@ import {
   type Vector3,
 } from '@babylonjs/core'
 import type { Game } from '@core/Game.ts'
-import { isKnownMachineSceneNode } from '@/config/machine-catalog.ts'
+import { isKnownMachineSceneNode, resolveMachineIdFromMeshName } from '@/config/machine-catalog.ts'
+import { getInteractionPointDefinition } from '@/config/interaction-point-catalog.ts'
+import { InteractionPointType } from '@/types/interaction-point.ts'
+import { getMachineTemplateId } from '@systems/MachineInstanceRegistry.ts'
+import { MachineTemplateId } from '@/types/machine-template.ts'
 import { FIELD_IDS } from '@/config/field-catalog.ts'
 import { resolveInteractionPointIdFromMesh } from '@/config/interaction-point-catalog.ts'
 import { FIELD_POSITIONS } from '@/config/farm-layout.ts'
@@ -121,6 +125,21 @@ export class MachineInputPresentation {
     screenX: number,
     screenY: number,
   ): void {
+    const interactionPointId = mesh
+      ? this.resolveInteractionPointId(mesh)
+      : null
+    if (interactionPointId) {
+      const definition = getInteractionPointDefinition(interactionPointId)
+      if (definition?.type === InteractionPointType.Shop) {
+        this.game?.openInteractionContextMenu(
+          interactionPointId,
+          screenX,
+          screenY,
+        )
+        return
+      }
+    }
+
     const machineId = this.getSelectedMachineId()
     if (!machineId) {
       return
@@ -130,9 +149,6 @@ export class MachineInputPresentation {
     const machineSnapshot = snapshot?.selectedMachine
     const machinePosition = machineSnapshot?.position ?? { x: 0, z: 0 }
 
-    const interactionPointId = mesh
-      ? this.resolveInteractionPointId(mesh)
-      : null
     if (interactionPointId) {
       this.game?.openInteractionContextMenu(
         interactionPointId,
@@ -420,9 +436,13 @@ export class MachineInputPresentation {
   private resolveMachineId(mesh: AbstractMesh): MachineId | null {
     let current: Node | null = mesh
     while (current) {
-      const machineId = isKnownMachineSceneNode(current.name)
+      const machineId = resolveMachineIdFromMeshName(current.name)
       if (machineId) {
         return machineId
+      }
+      const fromScene = isKnownMachineSceneNode(current.name)
+      if (fromScene) {
+        return fromScene
       }
       current = current.parent
     }
@@ -444,7 +464,11 @@ export class MachineInputPresentation {
   }
 
   private isTractorMesh(mesh: AbstractMesh): boolean {
-    return this.resolveMachineId(mesh) === MachineId.Tractor1
+    const machineId = this.resolveMachineId(mesh)
+    if (!machineId) {
+      return false
+    }
+    return getMachineTemplateId(machineId) === MachineTemplateId.SmallTractor
   }
 
   private isTerrainMesh(mesh: AbstractMesh): boolean {

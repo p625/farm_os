@@ -9,6 +9,7 @@ import { RadialContextMenu } from './RadialContextMenu.tsx'
 import { AttachmentRadialMenu } from './AttachmentRadialMenu.tsx'
 import { MachineRadialMenu } from './MachineRadialMenu.tsx'
 import { InteractionRadialMenu } from './InteractionRadialMenu.tsx'
+import { FarmStorePanel } from './FarmStorePanel.tsx'
 import { AttachmentRadialActionKind } from '@/types/attachment.ts'
 import {
   InteractionRadialActionKind,
@@ -239,6 +240,9 @@ export function GameShell() {
           onAction={(action) => {
             const menu = snapshot.interactionContextMenu!
             switch (action) {
+              case InteractionRadialActionKind.OpenStore:
+                game.openFarmStoreFromInteraction(menu.interactionPointId)
+                break
               case InteractionRadialActionKind.UnloadToSilo:
                 game.unloadToSilo(menu.interactionPointId)
                 break
@@ -248,6 +252,9 @@ export function GameShell() {
             }
           }}
         />
+      ) : null}
+      {game ? (
+        <FarmStorePanel game={game} farmStore={snapshot.farmStore} />
       ) : null}
     </div>
   )

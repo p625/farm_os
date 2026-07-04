@@ -9,21 +9,13 @@ import {
   type AttachmentTypeValue,
   type MachineSlotIdValue,
 } from '@/types/attachment.ts'
+import { buildCatalogEntryForInstance } from '@systems/MachineInstanceRegistry.ts'
+import type {
+  MachineCatalogEntry,
+  MachineSlotDefinition,
+} from '@/types/machine-catalog-entry.ts'
 
-export interface MachineSlotDefinition {
-  id: MachineSlotIdValue
-  label: string
-  acceptedTypes: readonly AttachmentTypeValue[]
-}
-
-export interface MachineCatalogEntry {
-  id: MachineId
-  name: string
-  capabilities: readonly MachineCapabilityValue[]
-  slots: readonly MachineSlotDefinition[]
-  sceneNodeName: string
-  bodyMeshName: string
-}
+export type { MachineCatalogEntry, MachineSlotDefinition } from '@/types/machine-catalog-entry.ts'
 
 export const MACHINE_CATALOG: readonly MachineCatalogEntry[] = [
   {
@@ -97,7 +89,11 @@ const catalogById = new Map(MACHINE_CATALOG.map((entry) => [entry.id, entry]))
 export function getMachineCatalogEntry(
   machineId: MachineId,
 ): MachineCatalogEntry | undefined {
-  return catalogById.get(machineId)
+  const staticEntry = catalogById.get(machineId)
+  if (staticEntry) {
+    return staticEntry
+  }
+  return buildCatalogEntryForInstance(machineId)
 }
 
 export function machineHasCapability(
@@ -128,6 +124,35 @@ export function isKnownMachineSceneNode(nodeName: string): MachineId | null {
       return entry.id
     }
   }
+  if (/^tractor_\d+$/.test(nodeName)) {
+    return nodeName
+  }
+  if (/^grain_combine_\d+$/.test(nodeName) || /^corn_combine_\d+$/.test(nodeName)) {
+    return nodeName
+  }
+  return null
+}
+
+export function resolveMachineIdFromMeshName(meshName: string): MachineId | null {
+  const fromNode = isKnownMachineSceneNode(meshName)
+  if (fromNode) {
+    return fromNode
+  }
+
+  for (const entry of MACHINE_CATALOG) {
+    if (entry.bodyMeshName === meshName) {
+      return entry.id
+    }
+  }
+
+  if (/^tractor_\d+_body$/.test(meshName)) {
+    return meshName.replace(/_body$/, '')
+  }
+
+  if (meshName === 'tractorBody') {
+    return MachineId.Tractor1
+  }
+
   return null
 }
 

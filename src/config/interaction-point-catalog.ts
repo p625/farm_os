@@ -4,6 +4,7 @@ import {
   type InteractionPointId as InteractionPointIdValue,
   type InteractionPointType as InteractionPointTypeValue,
 } from '@/types/interaction-point.ts'
+import { FarmStoreId } from '@/types/farm-store.ts'
 
 export interface InteractionPointDefinition {
   id: InteractionPointIdValue
@@ -12,6 +13,7 @@ export interface InteractionPointDefinition {
   meshName: string
   position: { x: number; y: number; z: number }
   arrivalRadius: number
+  farmStoreId?: FarmStoreId
 }
 
 export const INTERACTION_POINT_CATALOG: readonly InteractionPointDefinition[] = [
@@ -22,6 +24,15 @@ export const INTERACTION_POINT_CATALOG: readonly InteractionPointDefinition[] = 
     meshName: 'interaction_point_silo_entry',
     position: { x: 20, y: 0, z: 14 },
     arrivalRadius: 2.5,
+  },
+  {
+    id: InteractionPointId.DealerEntry,
+    type: InteractionPointType.Shop,
+    label: 'Farm Dealer',
+    meshName: 'interaction_point_dealer_entry',
+    position: { x: 4, y: 0, z: 16 },
+    arrivalRadius: 2.5,
+    farmStoreId: FarmStoreId.Dealer,
   },
 ] as const
 

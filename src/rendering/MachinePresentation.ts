@@ -15,6 +15,12 @@ import {
 import type { MachineRegistry } from '@systems/MachineRegistry.ts'
 import { MachineId } from '@/types/machine.ts'
 import { TractorState } from '@/types/tractor.ts'
+import {
+  createTractorVisual,
+  disposeTractorVisual,
+} from './TractorMeshBuilder.ts'
+import { getMachineTemplateId } from '@systems/MachineInstanceRegistry.ts'
+import { MachineTemplateId } from '@/types/machine-template.ts'
 
 const WORK_INDICATOR_PREFIX = 'machine_work_indicator_'
 const FULL_BIN_INDICATOR_PREFIX = 'machine_full_bin_indicator_'
@@ -29,6 +35,7 @@ export class MachinePresentation {
   private readonly selectionState = new Map<MachineId, boolean>()
   private readonly workIndicators = new Map<MachineId, Mesh>()
   private readonly fullBinIndicators = new Map<MachineId, Mesh>()
+  private readonly spawnedInstances = new Set<MachineId>()
 
   attach(scene: Scene, registry: MachineRegistry): void {
     this.detach()
@@ -36,8 +43,7 @@ export class MachinePresentation {
     this.registry = registry
 
     for (const entry of MACHINE_CATALOG) {
-      this.createWorkIndicator(scene, entry.id)
-      this.createFullBinIndicator(scene, entry.id)
+      this.ensureIndicators(scene, entry.id)
     }
 
     this.syncVisuals()
@@ -48,18 +54,76 @@ export class MachinePresentation {
     this.syncSelectionVisuals()
   }
 
+  spawnTractorInstance(
+    machineId: MachineId,
+    position: { x: number; y: number; z: number },
+    rotationY: number,
+  ): void {
+    if (!this.scene || machineId === MachineId.Tractor1) {
+      return
+    }
+
+    const catalog = getMachineCatalogEntry(machineId)
+    if (!catalog) {
+      return
+    }
+
+    if (this.scene.getTransformNodeByName(catalog.sceneNodeName)) {
+      return
+    }
+
+    createTractorVisual(
+      this.scene,
+      machineId,
+      catalog.sceneNodeName,
+      catalog.bodyMeshName,
+      position,
+      rotationY,
+    )
+    this.spawnedInstances.add(machineId)
+    this.ensureIndicators(this.scene, machineId)
+    this.syncVisuals()
+  }
+
+  despawnInstance(machineId: MachineId): void {
+    if (!this.scene || machineId === MachineId.Tractor1) {
+      return
+    }
+
+    const catalog = getMachineCatalogEntry(machineId)
+    if (!catalog) {
+      return
+    }
+
+    disposeTractorVisual(this.scene, catalog.sceneNodeName)
+    this.spawnedInstances.delete(machineId)
+    this.selectionState.delete(machineId)
+
+    const workIndicator = this.workIndicators.get(machineId)
+    workIndicator?.dispose()
+    this.workIndicators.delete(machineId)
+
+    const fullIndicator = this.fullBinIndicators.get(machineId)
+    fullIndicator?.dispose()
+    this.fullBinIndicators.delete(machineId)
+  }
+
   syncVisuals(): void {
     if (!this.scene || !this.registry) {
       return
     }
 
-    for (const entry of MACHINE_CATALOG) {
-      const controller = this.registry.get(entry.id)
+    for (const controller of this.registry.getAll()) {
+      const catalog = getMachineCatalogEntry(controller.machineId)
+      if (!catalog) {
+        continue
+      }
+
       const node = this.scene.getTransformNodeByName(
-        entry.sceneNodeName,
+        catalog.sceneNodeName,
       ) as TransformNode | null
 
-      if (!controller || !node) {
+      if (!node) {
         continue
       }
 
@@ -83,28 +147,49 @@ export class MachinePresentation {
     }
     this.fullBinIndicators.clear()
     this.selectionState.clear()
+    this.spawnedInstances.clear()
     this.selectedMachineId = null
     this.scene = null
     this.registry = null
   }
 
+  private ensureIndicators(scene: Scene, machineId: MachineId): void {
+    if (!this.workIndicators.has(machineId)) {
+      this.createWorkIndicator(scene, machineId)
+    }
+    const templateId = getMachineTemplateId(machineId)
+    if (
+      templateId === MachineTemplateId.GrainCombine ||
+      templateId === MachineTemplateId.CornCombine
+    ) {
+      if (!this.fullBinIndicators.has(machineId)) {
+        this.createFullBinIndicator(scene, machineId)
+      }
+    }
+  }
+
   private syncSelectionVisuals(): void {
-    if (!this.scene) {
+    if (!this.scene || !this.registry) {
       return
     }
 
-    for (const entry of MACHINE_CATALOG) {
-      const body = this.scene.getMeshByName(entry.bodyMeshName)
+    for (const controller of this.registry.getAll()) {
+      const catalog = getMachineCatalogEntry(controller.machineId)
+      if (!catalog) {
+        continue
+      }
+
+      const body = this.scene.getMeshByName(catalog.bodyMeshName)
       const material = body?.material as StandardMaterial | undefined
       if (!material) {
         continue
       }
 
-      const isSelected = this.selectedMachineId === entry.id
-      if (this.selectionState.get(entry.id) === isSelected) {
+      const isSelected = this.selectedMachineId === controller.machineId
+      if (this.selectionState.get(controller.machineId) === isSelected) {
         continue
       }
-      this.selectionState.set(entry.id, isSelected)
+      this.selectionState.set(controller.machineId, isSelected)
       material.emissiveColor.copyFrom(
         isSelected ? SELECT_EMISSIVE : IDLE_BODY_EMISSIVE,
       )
@@ -154,10 +239,9 @@ export class MachinePresentation {
       return
     }
 
-    for (const entry of MACHINE_CATALOG) {
-      const indicator = this.fullBinIndicators.get(entry.id)
-      const controller = this.registry.get(entry.id)
-      if (!indicator || !controller) {
+    for (const controller of this.registry.getAll()) {
+      const indicator = this.fullBinIndicators.get(controller.machineId)
+      if (!indicator) {
         continue
       }
 
@@ -179,10 +263,9 @@ export class MachinePresentation {
       return
     }
 
-    for (const entry of MACHINE_CATALOG) {
-      const indicator = this.workIndicators.get(entry.id)
-      const controller = this.registry.get(entry.id)
-      if (!indicator || !controller) {
+    for (const controller of this.registry.getAll()) {
+      const indicator = this.workIndicators.get(controller.machineId)
+      if (!indicator) {
         continue
       }
 
@@ -229,6 +312,9 @@ export function resolveMachineIdFromMesh(meshNameChain: string[]): MachineId | n
     const entry = MACHINE_CATALOG.find((machine) => machine.sceneNodeName === name)
     if (entry) {
       return entry.id
+    }
+    if (/^tractor_\d+$/.test(name)) {
+      return name
     }
   }
   return null

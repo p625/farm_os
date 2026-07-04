@@ -11,6 +11,7 @@ export type InteractionPointType =
 
 export const InteractionPointId = {
   SiloEntry: 'silo_entry',
+  DealerEntry: 'dealer_entry',
 } as const
 
 export type InteractionPointId =
@@ -18,6 +19,7 @@ export type InteractionPointId =
 
 export const InteractionRadialActionKind = {
   UnloadToSilo: 'unload_to_silo',
+  OpenStore: 'open_store',
   Cancel: 'cancel',
 } as const
 

@@ -13,6 +13,10 @@ export class MachineRegistry {
     return this.controllers.get(machineId)
   }
 
+  unregister(machineId: MachineId): void {
+    this.controllers.delete(machineId)
+  }
+
   getAll(): readonly IMachineController[] {
     return [...this.controllers.values()]
   }

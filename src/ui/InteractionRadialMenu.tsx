@@ -12,6 +12,7 @@ interface InteractionRadialMenuProps {
 
 const ACTION_LABELS: Record<InteractionRadialActionKind, string> = {
   [InteractionRadialActionKind.UnloadToSilo]: 'Vyložit',
+  [InteractionRadialActionKind.OpenStore]: 'Obchod',
   [InteractionRadialActionKind.Cancel]: 'Zrušit',
 }
 

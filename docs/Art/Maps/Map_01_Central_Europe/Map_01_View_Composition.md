@@ -311,7 +311,7 @@ Kompozice z kamery je to, co hráč vidí 500+ hodin — ne CAD plán pole. Odd�
 
 ### Co následuje
 
-Po schválení a blockout testu CM-01–03: [Map_01_Master_Plan.md](Map_01_Master_Plan.md) → `Map_01_Road_Network` → `Map_01_Field_Layout` → POI → Vegetation → Lighting.
+Po schválení a blockout testu CM-01–03: [Map_01_Master_Plan.md](Map_01_Master_Plan.md) → [Map_01_Agricultural_Master_Plan.md](Map_01_Agricultural_Master_Plan.md) → `Map_01_Road_Network` → `Map_01_Field_Layout` → POI → Vegetation → Lighting.
 
 ### Produkční balíček
 

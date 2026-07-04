@@ -1,1 +1,1 @@
-export const STARTING_MONEY = 1000
+export const STARTING_MONEY = 20000

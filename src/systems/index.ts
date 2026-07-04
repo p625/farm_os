@@ -25,3 +25,13 @@ export {
 export { GrainBin } from './GrainBin.ts'
 export { CargoContainer } from './CargoContainer.ts'
 export { LogisticsSystem } from './LogisticsSystem.ts'
+export { FarmStoreSystem } from './FarmStoreSystem.ts'
+export { WorldObjectFactory } from './WorldObjectFactory.ts'
+export { MachineTickSystem } from './MachineTickSystem.ts'
+export {
+  initializeMachineInstanceRegistry,
+  registerMachineInstance,
+  unregisterMachineInstance,
+  getMachineTemplateId,
+  getPurchasedTractorInstanceIds,
+} from './MachineInstanceRegistry.ts'

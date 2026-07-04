@@ -21,16 +21,22 @@ import {
   CropSystem,
   FarmShopSystem,
   FieldSystem,
+  FarmStoreSystem,
   GrainCombineJobSystem,
   InventorySystem,
   LogisticsSystem,
   MachineRegistry,
+  MachineTickSystem,
   MarketSystem,
   MachineCapabilityResolver,
   OwnershipSystem,
   ProductionSystem,
   TractorJobSystem,
+  WorldObjectFactory,
+  initializeMachineInstanceRegistry,
 } from '@systems/index.ts'
+import { getFarmStoreByInteractionPoint } from '@/config/farm-store-catalog.ts'
+import { getProductDefinition } from '@/config/product-catalog.ts'
 import { getMachineCatalogEntry } from '@/config/machine-catalog.ts'
 import { getFieldCatalogEntry } from '@/config/field-catalog.ts'
 import { getProcessedProductDefinition } from '@/config/production-catalog.ts'
@@ -41,6 +47,10 @@ import { DEFAULT_GAME_CONFIG } from '@/types/index.ts'
 import type { IDisposable } from '@/types/index.ts'
 import type { GameSaveData } from '@/types/save.ts'
 import type { ShopUpgradeId } from '@/types/shop.ts'
+import type { FarmStoreId } from '@/types/farm-store.ts'
+import { ProductCategory } from '@/types/product.ts'
+import { isPurchasedTractorInstanceId, MachineTemplateId } from '@/types/machine-template.ts'
+import type { IMachineController } from '@/types/machine-controller.ts'
 import type { ProcessedProductId } from '@/types/production.ts'
 import {
   EMPTY_SELECTED_ENTITY,
@@ -80,6 +90,8 @@ export class Game implements IDisposable {
   private readonly inventorySystem: InventorySystem
   private readonly marketSystem: MarketSystem
   private readonly farmShopSystem: FarmShopSystem
+  private readonly farmStoreSystem: FarmStoreSystem
+  private readonly worldObjectFactory: WorldObjectFactory
   private readonly productionSystem: ProductionSystem
   private readonly fieldSystem: FieldSystem
   private readonly ownershipSystem: OwnershipSystem
@@ -90,6 +102,7 @@ export class Game implements IDisposable {
   private readonly logisticsSystem: LogisticsSystem
   private readonly capabilityResolver: MachineCapabilityResolver
   private readonly machineRegistry: MachineRegistry
+  private readonly machineTickSystem: MachineTickSystem
   private readonly eventLog: GameEventLog
   private readonly soundManager: SoundManager
   private readonly saveGameService: SaveGameService
@@ -112,6 +125,7 @@ export class Game implements IDisposable {
   private autoSaveEnabled = false
   private disposed = false
   private started = false
+  private pendingPurchasedMachineSave: GameSaveData['machines'] | null = null
 
   constructor(
     canvas: HTMLCanvasElement,
@@ -126,10 +140,13 @@ export class Game implements IDisposable {
       this.soundManager.playForGameEvent(entry.kind)
     })
     this.saveGameService = new SaveGameService()
+    initializeMachineInstanceRegistry()
     this.cropSystem = new CropSystem()
     this.inventorySystem = new InventorySystem()
     this.marketSystem = new MarketSystem()
     this.farmShopSystem = new FarmShopSystem(this.world)
+    this.farmStoreSystem = new FarmStoreSystem()
+    this.worldObjectFactory = new WorldObjectFactory()
     this.productionSystem = new ProductionSystem(this.world)
     this.ownershipSystem = new OwnershipSystem(this.world)
     this.fieldSystem = new FieldSystem(this.world)
@@ -177,6 +194,13 @@ export class Game implements IDisposable {
     this.machineRegistry.register(this.tractorJobSystem)
     this.machineRegistry.register(this.grainCombineJobSystem)
     this.machineRegistry.register(this.cornCombineJobSystem)
+    this.worldObjectFactory.setFieldSystem(this.fieldSystem)
+    this.worldObjectFactory.setCropSystem(this.cropSystem)
+    this.worldObjectFactory.setFarmShopSystem(this.farmShopSystem)
+    this.worldObjectFactory.setCapabilityResolver(this.capabilityResolver)
+    this.worldObjectFactory.setLogisticsSystem(this.logisticsSystem)
+    this.worldObjectFactory.setMachineRegistry(this.machineRegistry)
+    this.machineTickSystem = new MachineTickSystem(this.machineRegistry)
     this.logisticsSystem.setMachineRegistry(this.machineRegistry)
     this.logisticsSystem.setAttachmentSystem(this.attachmentSystem)
     this.logisticsSystem.setInventorySystem(this.inventorySystem)
@@ -216,9 +240,7 @@ export class Game implements IDisposable {
       this.world,
       this.fieldSystem,
       this.productionSystem,
-      this.tractorJobSystem,
-      this.grainCombineJobSystem,
-      this.cornCombineJobSystem,
+      this.machineTickSystem,
       this.cameraController,
     ])
   }
@@ -574,6 +596,11 @@ export class Game implements IDisposable {
   getInteractionRadialActions(
     interactionPointId: InteractionPointId,
   ): InteractionRadialActionKind[] {
+    const store = getFarmStoreByInteractionPoint(interactionPointId)
+    if (store) {
+      return [InteractionRadialActionKind.OpenStore]
+    }
+
     const haulerMachineId = this.getSelectedMachineId()
     if (!haulerMachineId || this.isMachineBusy(haulerMachineId)) {
       return []
@@ -588,6 +615,89 @@ export class Game implements IDisposable {
     }
 
     return [InteractionRadialActionKind.UnloadToSilo]
+  }
+
+  openFarmStore(storeId: FarmStoreId): void {
+    this.closeInteractionContextMenu()
+    if (this.farmStoreSystem.openStore(storeId)) {
+      this.notifyListeners()
+    }
+  }
+
+  closeFarmStore(): void {
+    if (!this.farmStoreSystem.isOpen()) {
+      return
+    }
+    this.farmStoreSystem.closeStore()
+    this.notifyListeners()
+  }
+
+  setFarmStoreCategory(category: ProductCategory): void {
+    this.farmStoreSystem.setActiveCategory(category)
+    this.notifyListeners()
+  }
+
+  purchaseProduct(productId: string): void {
+    const prepared = this.farmStoreSystem.preparePurchase(productId, {
+      money: this.world.money,
+      currentDay: this.world.currentDay,
+      machinePositions: this.machineRegistry
+        .getAll()
+        .map((controller) => {
+          const position = controller.getPosition()
+          return { x: position.x, z: position.z }
+        }),
+    })
+
+    if (!prepared) {
+      return
+    }
+
+    if (!this.world.spendMoney(prepared.price)) {
+      return
+    }
+
+    const controller = this.worldObjectFactory.createPurchasedTractor({
+      x: prepared.fulfillment.position.x,
+      y: prepared.fulfillment.position.y,
+      z: prepared.fulfillment.position.z,
+      rotationY: prepared.fulfillment.rotationY,
+    })
+
+    if (!controller) {
+      this.world.addMoney(prepared.price)
+      return
+    }
+
+    this.wireMachineController(controller)
+    this.machineRegistry.register(controller)
+    this.machinePresentation.spawnTractorInstance(
+      controller.machineId,
+      prepared.fulfillment.position,
+      prepared.fulfillment.rotationY,
+    )
+    this.farmStoreSystem.commitPurchase(
+      prepared,
+      controller.machineId,
+      this.world.currentDay,
+    )
+
+    const product = getProductDefinition(productId)
+    if (product) {
+      this.eventLog.recordProductPurchased(product.name, this.world.currentDay)
+    }
+
+    this.autoSave()
+    this.notifyListeners()
+    this.machinePresentation.syncVisuals()
+  }
+
+  openFarmStoreFromInteraction(interactionPointId: InteractionPointId): void {
+    const store = getFarmStoreByInteractionPoint(interactionPointId)
+    if (!store) {
+      return
+    }
+    this.openFarmStore(store.id)
   }
 
   getAttachmentRadialActions(
@@ -852,6 +962,72 @@ export class Game implements IDisposable {
     }
   }
 
+  private wireMachineController(controller: IMachineController): void {
+    const system = controller as TractorJobSystem & {
+      setOnChange?: (listener: () => void) => void
+      setOnVisualChange?: (listener: () => void) => void
+    }
+
+    system.setOnChange?.(() => {
+      this.autoSave()
+      this.notifyListeners()
+    })
+    system.setOnVisualChange?.(() => {
+      this.machinePresentation.syncVisuals()
+      this.attachmentPresentation.syncVisuals()
+    })
+  }
+
+  private hydratePurchasedMachines(machines: GameSaveData['machines']): void {
+    for (const [machineId, machineSave] of Object.entries(machines)) {
+      if (!isPurchasedTractorInstanceId(machineId)) {
+        continue
+      }
+      if (this.machineRegistry.get(machineId)) {
+        continue
+      }
+
+      const controller = this.worldObjectFactory.createMachineFromTemplate(
+        MachineTemplateId.SmallTractor,
+        machineId,
+        {
+          x: machineSave.position.x,
+          y: machineSave.position.y,
+          z: machineSave.position.z,
+          rotationY: machineSave.rotationY,
+        },
+      )
+
+      if (!controller) {
+        continue
+      }
+
+      this.wireMachineController(controller)
+      this.machineRegistry.register(controller)
+      controller.applySave(machineSave)
+      this.machinePresentation.spawnTractorInstance(
+        machineId,
+        machineSave.position,
+        machineSave.rotationY,
+      )
+    }
+
+    this.farmStoreSystem.reconcileOwnedProductsFromMachines()
+  }
+
+  private removePurchasedMachines(): void {
+    for (const controller of [...this.machineRegistry.getAll()]) {
+      if (!isPurchasedTractorInstanceId(controller.machineId)) {
+        continue
+      }
+      this.machineRegistry.unregister(controller.machineId)
+      this.machinePresentation.despawnInstance(controller.machineId)
+      if (controller instanceof TractorJobSystem) {
+        controller.dispose()
+      }
+    }
+  }
+
   startMilling(): void {
     if (this.productionSystem.startMilling()) {
       this.syncProductionVisuals()
@@ -913,12 +1089,15 @@ export class Game implements IDisposable {
     this.inventorySystem.initialize()
     this.marketSystem.initialize()
     this.farmShopSystem.initialize()
+    this.farmStoreSystem.initialize()
     this.productionSystem.initialize()
     this.ownershipSystem.initialize()
     this.fieldSystem.initialize()
     this.tractorJobSystem.initialize()
     this.grainCombineJobSystem.initialize()
     this.cornCombineJobSystem.initialize()
+    this.removePurchasedMachines()
+    this.pendingPurchasedMachineSave = null
     this.attachmentSystem.initialize()
     this.selectedEntity = EMPTY_SELECTED_ENTITY
     this.fieldContextMenu = null
@@ -1006,14 +1185,7 @@ export class Game implements IDisposable {
       this.grainCombineJobSystem,
       this.cornCombineJobSystem,
     ]) {
-      system.setOnChange(() => {
-        this.autoSave()
-        this.notifyListeners()
-      })
-      system.setOnVisualChange(() => {
-        this.machinePresentation.syncVisuals()
-        this.attachmentPresentation.syncVisuals()
-      })
+      this.wireMachineController(system)
     }
     this.attachmentSystem.setOnChange(() => {
       this.autoSave()
@@ -1062,6 +1234,11 @@ export class Game implements IDisposable {
     this.machinePresentation.attach(scene, this.machineRegistry)
     this.attachmentPresentation.attach(scene, this.attachmentSystem)
     this.machineInputPresentation.attach(scene, this)
+
+    if (this.pendingPurchasedMachineSave) {
+      this.hydratePurchasedMachines(this.pendingPurchasedMachineSave)
+      this.pendingPurchasedMachineSave = null
+    }
 
     this.syncFieldVisuals()
     this.syncProductionVisuals()
@@ -1147,6 +1324,8 @@ export class Game implements IDisposable {
     this.tractorJobSystem.applySave(machines[MachineId.Tractor1])
     this.grainCombineJobSystem.applySave(machines[MachineId.GrainCombine1])
     this.cornCombineJobSystem.applySave(machines[MachineId.CornCombine1])
+    this.farmStoreSystem.applySave(saved.farmStore)
+    this.pendingPurchasedMachineSave = machines
     this.attachmentSystem.applySave(
       this.saveGameService.normalizeAttachmentsSave(saved.attachments),
     )
@@ -1184,12 +1363,13 @@ export class Game implements IDisposable {
       processedMarketPrices: this.marketSystem.toSaveProcessedPrices(),
       production: this.productionSystem.toSaveData(),
       upgrades: this.farmShopSystem.toSaveUpgrades(),
-      machines: {
-        [MachineId.Tractor1]: this.tractorJobSystem.toSaveData(),
-        [MachineId.GrainCombine1]: this.grainCombineJobSystem.toSaveData(),
-        [MachineId.CornCombine1]: this.cornCombineJobSystem.toSaveData(),
-      },
+      machines: Object.fromEntries(
+        this.machineRegistry
+          .getAll()
+          .map((controller) => [controller.machineId, controller.toSaveData()]),
+      ),
       attachments: this.attachmentSystem.toSaveData(),
+      farmStore: this.farmStoreSystem.toSaveData(),
       eventLog: [...this.eventLog.getEntries()],
       eventLogNextId: this.eventLog.getNextId(),
     }
@@ -1299,6 +1479,7 @@ export class Game implements IDisposable {
       marketPrices: this.marketSystem.toSnapshots(),
       shopUpgrades: this.farmShopSystem.toSnapshots(this.world.money),
       ...this.buildSelectedMachineSnapshotFields(),
+      farmStore: this.farmStoreSystem.buildSnapshot(this.world.money),
       eventLog: this.eventLog.getEntries(),
       moneyGain: this.eventLog.getLatestMoneyGain(),
     }

@@ -23,6 +23,8 @@ import { ProductionBuildingId, ProductionBuildingState } from '@/types/productio
 import { FieldLifecycleState as States } from '@/types/field.ts'
 import { TractorState } from '@/types/tractor.ts'
 import { isLogisticsSaveCommand } from '@systems/MachineLogisticsSupport.ts'
+import { isPurchasedTractorInstanceId } from '@/types/machine-template.ts'
+import type { FarmStoreSaveData } from '@/types/farm-store.ts'
 import { DEFAULT_GRAIN_BIN_CAPACITY, type GrainBinSaveData } from '@/types/grain-bin.ts'
 import type {
   AttachmentsSaveData,
@@ -32,11 +34,12 @@ import type {
   ProductionSaveData,
 } from '@/types/save.ts'
 
-type LegacySaveData = Omit<GameSaveData, 'machines' | 'attachments'> & {
+type LegacySaveData = Omit<GameSaveData, 'machines' | 'attachments' | 'farmStore'> & {
   version?: number
   machine?: MachineSaveData
   machines?: MachinesSaveData
   attachments?: AttachmentsSaveData
+  farmStore?: FarmStoreSaveData
 }
 
 export class SaveGameService {
@@ -396,6 +399,7 @@ export class SaveGameService {
       upgrades: data.upgrades,
       machines,
       attachments: this.normalizeAttachmentsSave(data.attachments),
+      farmStore: this.normalizeFarmStoreSave(data.farmStore),
       eventLog: data.eventLog,
       eventLogNextId: data.eventLogNextId,
     }
@@ -416,7 +420,7 @@ export class SaveGameService {
   resolveMachinesSave(data: LegacySaveData): MachinesSaveData {
     const legacyTractor = data.machines?.[MachineId.Tractor1] ?? data.machine
 
-    return {
+    const machines: MachinesSaveData = {
       [MachineId.Tractor1]: this.normalizeMachineSave(
         legacyTractor,
         MachineId.Tractor1,
@@ -429,6 +433,47 @@ export class SaveGameService {
         data.machines?.[MachineId.CornCombine1],
         MachineId.CornCombine1,
       ),
+    }
+
+    for (const [machineId, machineSave] of Object.entries(data.machines ?? {})) {
+      if (machineId in machines) {
+        continue
+      }
+      if (isPurchasedTractorInstanceId(machineId)) {
+        machines[machineId] = this.normalizeMachineSave(machineSave, machineId)
+      }
+    }
+
+    return machines
+  }
+
+  normalizeFarmStoreSave(farmStore: unknown): FarmStoreSaveData {
+    if (!farmStore || typeof farmStore !== 'object') {
+      return {
+        ownedProducts: {},
+        deliveryQueue: [],
+      }
+    }
+
+    const saved = farmStore as Partial<FarmStoreSaveData>
+    const ownedProducts =
+      saved.ownedProducts && typeof saved.ownedProducts === 'object'
+        ? { ...saved.ownedProducts }
+        : {}
+
+    const deliveryQueue = Array.isArray(saved.deliveryQueue)
+      ? saved.deliveryQueue.filter(
+          (entry) =>
+            entry &&
+            typeof entry === 'object' &&
+            typeof entry.id === 'string' &&
+            typeof entry.productId === 'string',
+        )
+      : []
+
+    return {
+      ownedProducts,
+      deliveryQueue,
     }
   }
 
@@ -729,17 +774,34 @@ export class SaveGameService {
       }
     }
 
-    return {
-      machineId: MachineId.CornCombine1,
-      position: { ...CORN_COMBINE_HOME },
-      rotationY: CORN_COMBINE_HOME_ROTATION_Y,
-      state: TractorState.Idle,
-      activeCommand: null,
-      activeWork: null,
-      workTimer: 0,
-      workDuration: 2,
-      grainBin: this.emptyGrainBin(),
+    if (machineId === MachineId.CornCombine1) {
+      return {
+        machineId: MachineId.CornCombine1,
+        position: { ...CORN_COMBINE_HOME },
+        rotationY: CORN_COMBINE_HOME_ROTATION_Y,
+        state: TractorState.Idle,
+        activeCommand: null,
+        activeWork: null,
+        workTimer: 0,
+        workDuration: 2,
+        grainBin: this.emptyGrainBin(),
+      }
     }
+
+    if (isPurchasedTractorInstanceId(machineId)) {
+      return {
+        machineId,
+        position: { x: 2, y: 0, z: 18 },
+        rotationY: TRACTOR_HOME_ROTATION_Y,
+        state: TractorState.Idle,
+        activeCommand: null,
+        activeWork: null,
+        workTimer: 0,
+        workDuration: 1.5,
+      }
+    }
+
+    return this.emptyMachineFor(MachineId.Tractor1)
   }
 
   private emptyGrainBin(): GrainBinSaveData {

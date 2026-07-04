@@ -26,7 +26,9 @@ import type {
 } from '@/types/attachment.ts'
 import type { GrainBinSnapshot } from '@/types/grain-bin.ts'
 import type { CargoContainerSnapshot } from '@/types/cargo.ts'
+import type { FarmStoreSnapshot } from '@/types/farm-store.ts'
 import type { InteractionContextMenuSnapshot } from '@/types/interaction-point.ts'
+import { ProductCategory } from '@/types/product.ts'
 import {
   TractorState,
   type TractorJobSnapshot,
@@ -70,6 +72,7 @@ export interface GameSnapshot {
   harvestCompatibilityHint: string | null
   logisticsHint: string | null
   trailerCargo: CargoContainerSnapshot | null
+  farmStore: FarmStoreSnapshot
   eventLog: readonly GameLogEntry[]
   moneyGain: MoneyGainEffect | null
 }
@@ -123,6 +126,13 @@ export const EMPTY_GAME_SNAPSHOT: GameSnapshot = {
   harvestCompatibilityHint: null,
   logisticsHint: null,
   trailerCargo: null,
+  farmStore: {
+    open: false,
+    storeId: null,
+    storeName: null,
+    activeCategory: ProductCategory.Tractors,
+    products: [],
+  },
   eventLog: [],
   moneyGain: null,
 }

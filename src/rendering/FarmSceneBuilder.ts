@@ -32,6 +32,7 @@ export class FarmSceneBuilder {
     this.createFarmyard(scene)
     this.createBarn(scene)
     this.createMill(scene)
+    this.createDealership(scene)
     this.createTractor(scene)
     this.createCombines(scene)
     this.createInteractionPoints(scene)
@@ -195,6 +196,52 @@ export class FarmSceneBuilder {
     roofMat.diffuseColor = new Color3(0.38, 0.28, 0.2)
     roof.material = roofMat
     roof.receiveShadows = true
+  }
+
+  private createDealership(scene: Scene): void {
+    const root = new TransformNode('dealership_root', scene)
+    root.position = new Vector3(4, 0, 14)
+
+    const wallMaterial = new StandardMaterial('dealership_wall_mat', scene)
+    wallMaterial.diffuseColor = new Color3(0.72, 0.68, 0.62)
+
+    const roofMaterial = new StandardMaterial('dealership_roof_mat', scene)
+    roofMaterial.diffuseColor = new Color3(0.35, 0.42, 0.55)
+
+    const signMaterial = new StandardMaterial('dealership_sign_mat', scene)
+    signMaterial.diffuseColor = new Color3(0.85, 0.7, 0.2)
+    signMaterial.emissiveColor = new Color3(0.25, 0.18, 0.04)
+
+    const showroom = MeshBuilder.CreateBox(
+      'dealership_showroom',
+      { width: 8, height: 3.2, depth: 6 },
+      scene,
+    )
+    showroom.position = new Vector3(0, 1.6, 0)
+    showroom.parent = root
+    showroom.material = wallMaterial
+    showroom.receiveShadows = true
+    showroom.isPickable = false
+
+    const roof = MeshBuilder.CreateBox(
+      'dealership_roof',
+      { width: 8.6, height: 0.35, depth: 6.6 },
+      scene,
+    )
+    roof.position = new Vector3(0, 3.35, 0)
+    roof.parent = root
+    roof.material = roofMaterial
+    roof.isPickable = false
+
+    const sign = MeshBuilder.CreateBox(
+      'dealership_sign',
+      { width: 3.6, height: 0.8, depth: 0.15 },
+      scene,
+    )
+    sign.position = new Vector3(0, 3.9, 3.1)
+    sign.parent = root
+    sign.material = signMaterial
+    sign.isPickable = false
   }
 
   private createTractor(scene: Scene): void {

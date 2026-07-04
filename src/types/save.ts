@@ -1,4 +1,5 @@
 import type { GameLogEntry } from '@/types/events.ts'
+import type { FarmStoreSaveData } from '@/types/farm-store.ts'
 import type { GrainBinSaveData } from '@/types/grain-bin.ts'
 import type { FieldLifecycleState } from '@/types/field.ts'
 import type { FieldOwnership } from '@/types/ownership.ts'
@@ -133,6 +134,7 @@ export interface GameSaveData {
   upgrades: ShopUpgradeSaveData[]
   machines: MachinesSaveData
   attachments: AttachmentsSaveData
+  farmStore: FarmStoreSaveData
   eventLog: GameLogEntry[]
   eventLogNextId: number
 }

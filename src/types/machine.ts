@@ -4,7 +4,9 @@ export const MachineId = {
   CornCombine1: 'corn_combine_1',
 } as const
 
-export type MachineId = (typeof MachineId)[keyof typeof MachineId]
+export type MachineId = string
+
+export type KnownMachineId = (typeof MachineId)[keyof typeof MachineId]
 
 export const MachineCapability = {
   Move: 'move',

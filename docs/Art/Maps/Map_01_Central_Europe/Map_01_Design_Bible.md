@@ -553,6 +553,7 @@ Po schválení Map 01 Design Bible vzniknou produkční podklady:
 | [Map_01_Landscape_Layout.md](Map_01_Landscape_Layout.md) | Makrokompozice (Varianta A) | World Director |
 | [Map_01_View_Composition.md](Map_01_View_Composition.md) | Kompozice pohledů z kamery | World Director |
 | [Map_01_Master_Plan.md](Map_01_Master_Plan.md) | **SoT produkce Map 01** | World Director |
+| [Map_01_Agricultural_Master_Plan.md](Map_01_Agricultural_Master_Plan.md) | **SoT zemědělské logiky** | World Director |
 | `Map_01_Road_Network.md` | Silnice a polní cesty | World Director |
 | `Map_01_Field_Layout.md` | Parcely polí | Level Design |
 | `Map_01_POI_Guide.md` | Detail POI | Environment Lead |
@@ -567,6 +568,7 @@ Map_01_Design_Bible (schválit první)
        ├── Map_01_Landscape_Layout
        ├── Map_01_View_Composition
        ├── Map_01_Master_Plan
+       ├── Map_01_Agricultural_Master_Plan
        ├── Map_01_Road_Network
        ├── Map_01_Field_Layout
        ├── Map_01_POI_Guide
@@ -603,7 +605,7 @@ Map 01 není jednorázová aréna — je **genetický kód** vizuální identity
 
 ### Navazující dokumenty
 
-`Map_01_Master_Plan` (aktuální SoT produkce), poté `Map_01_Road_Network`, `Map_01_Field_Layout`, `Map_01_POI_Guide`, `Map_01_Vegetation`, `Map_01_Lighting`, `Map_01_Asset_List` — viz sekce výše.
+`Map_01_Agricultural_Master_Plan`, poté `Map_01_Road_Network`, `Map_01_Field_Layout` … — viz sekce výše.
 
 ### Rozhodnutí před produkcí
 
