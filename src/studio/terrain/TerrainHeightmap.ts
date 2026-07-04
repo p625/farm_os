@@ -13,10 +13,10 @@ export interface TerrainBrushSettings {
 }
 
 export const DEFAULT_TERRAIN_BRUSH: TerrainBrushSettings = {
-  mode: 'raise',
+  mode: 'paint',
   radius: 3,
   strength: 0.08,
-  surfaceId: 0,
+  surfaceId: 1,
 }
 
 export interface TerrainHeightfield {

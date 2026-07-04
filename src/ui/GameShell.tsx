@@ -10,6 +10,7 @@ import { AttachmentRadialMenu } from './AttachmentRadialMenu.tsx'
 import { MachineRadialMenu } from './MachineRadialMenu.tsx'
 import { InteractionRadialMenu } from './InteractionRadialMenu.tsx'
 import { FarmStorePanel } from './FarmStorePanel.tsx'
+import { FleetPanel } from './FleetPanel.tsx'
 import { AttachmentRadialActionKind } from '@/types/attachment.ts'
 import {
   InteractionRadialActionKind,
@@ -276,6 +277,13 @@ export function GameShell({ onSwitchToStudio }: GameShellProps) {
       ) : null}
       {game ? (
         <FarmStorePanel game={game} farmStore={snapshot.farmStore} />
+      ) : null}
+      {game ? (
+        <FleetPanel
+          game={game}
+          open={snapshot.fleetPanelOpen}
+          fleet={snapshot.fleet}
+        />
       ) : null}
     </div>
   )

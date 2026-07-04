@@ -15,7 +15,6 @@ import {
   type TerrainHeightfield,
 } from '@/studio/terrain/TerrainHeightmap.ts'
 import { TerrainBrushPreview } from '@/studio/terrain/TerrainBrushPreview.ts'
-import { syncFieldObjectsFromTerrain } from '@/studio/terrain/TerrainFieldSync.ts'
 import { terrainPreviewTint } from '@/studio/terrain/TerrainMeshSync.ts'
 
 export interface StudioTerrainEditorDeps {
@@ -189,13 +188,8 @@ export class StudioTerrainEditor {
     const draftMap = {
       ...this.deps.store.getMap(),
       terrain: mergeTerrainIntoDocument(this.deps.store.getMap().terrain, this.draftField),
-      objects: syncFieldObjectsFromTerrain({
-        ...this.deps.store.getMap(),
-        terrain: mergeTerrainIntoDocument(this.deps.store.getMap().terrain, this.draftField),
-      }),
     }
     this.deps.mapSceneBuilder.refreshTerrainMesh(scene, draftMap)
-    this.deps.mapSceneBuilder.refreshFieldMeshes(scene, draftMap)
   }
 
   private commitDraft(): void {

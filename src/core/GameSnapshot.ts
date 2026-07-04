@@ -28,6 +28,7 @@ import type { GrainBinSnapshot } from '@/types/grain-bin.ts'
 import type { CargoContainerSnapshot } from '@/types/cargo.ts'
 import type { FarmStoreSnapshot } from '@/types/farm-store.ts'
 import type { InteractionContextMenuSnapshot } from '@/types/interaction-point.ts'
+import type { FleetMachineSnapshot } from '@/types/machine-fleet.ts'
 import { ProductCategory } from '@/types/product.ts'
 import {
   TractorState,
@@ -73,6 +74,8 @@ export interface GameSnapshot {
   logisticsHint: string | null
   trailerCargo: CargoContainerSnapshot | null
   farmStore: FarmStoreSnapshot
+  fleetPanelOpen: boolean
+  fleet: readonly FleetMachineSnapshot[]
   eventLog: readonly GameLogEntry[]
   moneyGain: MoneyGainEffect | null
 }
@@ -133,6 +136,8 @@ export const EMPTY_GAME_SNAPSHOT: GameSnapshot = {
     activeCategory: ProductCategory.Tractors,
     products: [],
   },
+  fleetPanelOpen: false,
+  fleet: [],
   eventLog: [],
   moneyGain: null,
 }

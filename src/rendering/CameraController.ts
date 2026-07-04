@@ -65,6 +65,19 @@ export class CameraController implements IInitializable, IUpdatable, IDisposable
     return this.activeProfileId
   }
 
+  focusOn(worldX: number, worldZ: number, radius = 42): void {
+    if (!this.camera) {
+      return
+    }
+
+    const profile = getCameraProfile(this.activeProfileId)
+    this.camera.setTarget(new Vector3(worldX, 0, worldZ))
+    this.camera.radius = Math.min(
+      Math.max(radius, profile.lowerRadiusLimit),
+      profile.upperRadiusLimit,
+    )
+  }
+
   getCamera(): ArcRotateCamera {
     if (!this.camera) {
       throw new Error('CameraController is not initialized.')

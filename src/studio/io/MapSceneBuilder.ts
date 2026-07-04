@@ -13,7 +13,6 @@ import {
   tintTerrainMaterial,
 } from '@/studio/terrain/TerrainMeshSync.ts'
 import { ensureTerrainHeightfield } from '@/studio/terrain/TerrainHeightmap.ts'
-import { getTerrainSurfaceColor } from '@/studio/terrain/TerrainSurfacePalette.ts'
 import type { MapObject, StudioLayerId, WorldMapDocument } from '@/types/world-map.ts'
 
 export const STUDIO_METADATA_KEY = 'farmosStudio'
@@ -125,15 +124,7 @@ export class MapSceneBuilder {
     }
 
     const material = new StandardMaterial(`mat_${object.id}`, scene)
-    let base = LAYER_COLORS[object.layer].clone()
-    if (object.layer === 'fields' && object.kind === 'field') {
-      const surfaceId =
-        typeof object.properties?.surfaceId === 'number'
-          ? object.properties.surfaceId
-          : 1
-      const [r, g, b] = getTerrainSurfaceColor(surfaceId)
-      base = new Color3(r, g, b)
-    }
+    const base = LAYER_COLORS[object.layer].clone()
     material.diffuseColor = base
     material.specularColor = base.scale(0.15)
     if (object.layer === 'poi' || object.layer === 'debug') {
@@ -183,34 +174,6 @@ export class MapSceneBuilder {
       return
     }
     syncTerrainMesh(mesh as Mesh, map.terrain, ground.transform.position.y)
-  }
-
-  refreshFieldMeshes(scene: Scene, map: WorldMapDocument): void {
-    this.lastMap = map
-    for (const object of map.objects) {
-      if (object.layer !== 'fields' || object.kind !== 'field') {
-        continue
-      }
-
-      const mesh = findStudioMeshByObjectId(scene, object.id)
-      if (!mesh) {
-        continue
-      }
-
-      mesh.position.y = object.transform.position.y
-
-      const surfaceId =
-        typeof object.properties?.surfaceId === 'number'
-          ? object.properties.surfaceId
-          : 1
-      const [r, g, b] = getTerrainSurfaceColor(surfaceId)
-      const color = new Color3(r, g, b)
-      const material = mesh.material
-      if (material instanceof StandardMaterial) {
-        material.diffuseColor = color
-        material.specularColor = color.scale(0.15)
-      }
-    }
   }
 }
 

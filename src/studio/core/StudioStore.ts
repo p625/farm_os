@@ -16,7 +16,6 @@ import {
   type TerrainHeightfield,
   ensureTerrainHeightfield,
 } from '@/studio/terrain/TerrainHeightmap.ts'
-import { syncFieldObjectsFromTerrain } from '@/studio/terrain/TerrainFieldSync.ts'
 
 export type StudioModuleId = 'transform' | 'terrain'
 
@@ -49,11 +48,9 @@ export class StudioStore {
   private cachedSnapshot: StudioSnapshot
 
   constructor(initialMap: WorldMapDocument) {
-    const terrain = ensureTerrainHeightfield(initialMap.terrain)
-    const mapWithTerrain = { ...initialMap, terrain }
     this.map = {
-      ...mapWithTerrain,
-      objects: syncFieldObjectsFromTerrain(mapWithTerrain),
+      ...initialMap,
+      terrain: ensureTerrainHeightfield(initialMap.terrain),
     }
     this.layerVisibility = createDefaultLayerVisibility()
     this.cachedSnapshot = this.createSnapshot()
@@ -166,11 +163,9 @@ export class StudioStore {
   }
 
   setMap(map: WorldMapDocument, options?: { markDirty?: boolean }): void {
-    const terrain = ensureTerrainHeightfield(map.terrain)
-    const mapWithTerrain = { ...map, terrain }
     this.map = {
-      ...mapWithTerrain,
-      objects: syncFieldObjectsFromTerrain(mapWithTerrain),
+      ...map,
+      terrain: ensureTerrainHeightfield(map.terrain),
     }
     this.selectedObject = null
     if (options?.markDirty !== false) {
@@ -200,6 +195,9 @@ export class StudioStore {
     this.activeModuleId = moduleId
     if (moduleId === 'terrain') {
       this.selectedObject = null
+      if (this.terrainBrush.mode !== 'paint') {
+        this.terrainBrush = { ...this.terrainBrush, mode: 'paint' }
+      }
     }
     this.log('info', `Module: ${moduleId}`)
     this.emit()
@@ -211,11 +209,9 @@ export class StudioStore {
   }
 
   setTerrainField(field: TerrainHeightfield): void {
-    const terrain = mergeTerrainIntoDocument(this.map.terrain, field)
-    const draftMap = { ...this.map, terrain }
     this.map = {
-      ...draftMap,
-      objects: syncFieldObjectsFromTerrain(draftMap),
+      ...this.map,
+      terrain: mergeTerrainIntoDocument(this.map.terrain, field),
     }
     this.dirty = true
     this.emit()

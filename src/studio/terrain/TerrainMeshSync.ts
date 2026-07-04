@@ -49,7 +49,12 @@ export function syncTerrainMesh(
   }
 
   mesh.updateVerticesData(VertexBuffer.PositionKind, positions)
-  mesh.updateVerticesData(VertexBuffer.ColorKind, colors)
+  if (mesh.isVerticesDataPresent(VertexBuffer.ColorKind)) {
+    mesh.updateVerticesData(VertexBuffer.ColorKind, colors)
+  } else {
+    mesh.setVerticesData(VertexBuffer.ColorKind, colors)
+  }
+  mesh.useVertexColors = true
   mesh.createNormals(true)
   mesh.refreshBoundingInfo()
 }

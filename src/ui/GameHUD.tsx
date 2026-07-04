@@ -141,8 +141,21 @@ export function GameHUD({ game, snapshot }: GameHUDProps) {
     <aside className="game-hud">
       <header className="game-hud__header">
         <h1 className="game-hud__title">FarmOS</h1>
-        <p className="game-hud__subtitle">Phase 13 — Farm Store</p>
+        <p className="game-hud__subtitle">Phase 16A — Fleet Overview</p>
       </header>
+
+      <section className="game-hud__panel">
+        <h2 className="game-hud__section-title">Fleet</h2>
+        <div className="game-hud__actions">
+          <button
+            type="button"
+            className="game-hud__button game-hud__button--primary"
+            onClick={() => game.openFleetPanel()}
+          >
+            Fleet ({snapshot.fleet.length})
+          </button>
+        </div>
+      </section>
 
       <section className="game-hud__panel">
         <h2 className="game-hud__section-title">Farm Status</h2>

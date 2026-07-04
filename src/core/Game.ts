@@ -41,6 +41,7 @@ import { getMachineCatalogEntry } from '@/config/machine-catalog.ts'
 import { getFieldCatalogEntry } from '@/config/field-catalog.ts'
 import { getProcessedProductDefinition } from '@/config/production-catalog.ts'
 import { SAVE_VERSION } from '@/config/save.ts'
+import { buildFleetSnapshots } from '@core/buildFleetSnapshots.ts'
 import { clampRadialAnchor } from '@/utils/radial-menu-position.ts'
 import type { GameConfig } from '@/types/index.ts'
 import { DEFAULT_GAME_CONFIG } from '@/types/index.ts'
@@ -125,6 +126,7 @@ export class Game implements IDisposable {
   private autoSaveEnabled = false
   private disposed = false
   private started = false
+  private fleetPanelOpen = false
   private pendingPurchasedMachineSave: GameSaveData['machines'] | null = null
 
   constructor(
@@ -645,6 +647,7 @@ export class Game implements IDisposable {
 
   openFarmStore(storeId: FarmStoreId): void {
     this.closeInteractionContextMenu()
+    this.fleetPanelOpen = false
     if (this.farmStoreSystem.openStore(storeId)) {
       this.notifyListeners()
     }
@@ -656,6 +659,34 @@ export class Game implements IDisposable {
     }
     this.farmStoreSystem.closeStore()
     this.notifyListeners()
+  }
+
+  openFleetPanel(): void {
+    this.closeFarmStore()
+    this.closeFieldContextMenu()
+    this.closeAttachmentContextMenu()
+    this.closeMachineContextMenu()
+    this.closeInteractionContextMenu()
+    this.fleetPanelOpen = true
+    this.notifyListeners()
+  }
+
+  closeFleetPanel(): void {
+    if (!this.fleetPanelOpen) {
+      return
+    }
+    this.fleetPanelOpen = false
+    this.notifyListeners()
+  }
+
+  selectMachineFromFleet(machineId: MachineId): void {
+    this.closeFleetPanel()
+    this.selectMachine(machineId)
+    const controller = this.machineRegistry.get(machineId)
+    if (controller) {
+      const position = controller.getPosition()
+      this.cameraController.focusOn(position.x, position.z)
+    }
   }
 
   setFarmStoreCategory(category: ProductCategory): void {
@@ -1565,6 +1596,14 @@ export class Game implements IDisposable {
       shopUpgrades: this.farmShopSystem.toSnapshots(this.world.money),
       ...this.buildSelectedMachineSnapshotFields(),
       farmStore: this.farmStoreSystem.buildSnapshot(this.world.money),
+      fleetPanelOpen: this.fleetPanelOpen,
+      fleet: buildFleetSnapshots({
+        machineRegistry: this.machineRegistry,
+        attachmentSystem: this.attachmentSystem,
+        fields: this.buildFieldSnapshots(),
+        selectedMachineId: this.getSelectedMachineId(),
+        getCropName: (cropId) => this.cropSystem.getCropName(cropId),
+      }),
       eventLog: this.eventLog.getEntries(),
       moneyGain: this.eventLog.getLatestMoneyGain(),
     }

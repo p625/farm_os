@@ -159,7 +159,6 @@ export class StudioEngine {
     }
     const map = this.store.getMap()
     this.mapSceneBuilder.refreshTerrainMesh(this.scene, map)
-    this.mapSceneBuilder.refreshFieldMeshes(this.scene, map)
     this.syncModules()
   }
 
