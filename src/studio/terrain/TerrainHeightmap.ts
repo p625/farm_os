@@ -2,6 +2,10 @@ import {
   DEFAULT_TERRAIN_RESOLUTION,
   type WorldMapTerrain,
 } from '@/types/world-map.ts'
+import {
+  terrainGridSteps,
+  terrainVertexWorldPosition,
+} from '@/studio/terrain/TerrainGridMapping.ts'
 
 export type TerrainBrushMode = 'raise' | 'lower' | 'smooth' | 'paint'
 
@@ -173,31 +177,11 @@ export function applyTerrainBrush(
   return { minI, maxI, minJ, maxJ }
 }
 
-export function terrainVertexWorldPosition(
-  field: TerrainHeightfield,
-  originX: number,
-  originZ: number,
-  i: number,
-  j: number,
-): { x: number; z: number } {
-  const subdivisions = Math.max(1, field.resolution - 1)
-  const stepX = field.width / subdivisions
-  const stepZ = field.height / subdivisions
-  const halfW = field.width * 0.5
-  const halfH = field.height * 0.5
-  return {
-    x: originX - halfW + i * stepX,
-    z: originZ - halfH + j * stepZ,
-  }
-}
-
 export function brushRadiusWorldUnits(
   terrain: Pick<TerrainHeightfield, 'width' | 'height' | 'resolution'>,
   radiusCells: number,
 ): number {
-  const subdivisions = Math.max(1, terrain.resolution - 1)
-  const stepX = terrain.width / subdivisions
-  const stepZ = terrain.height / subdivisions
+  const { stepX, stepZ } = terrainGridSteps(terrain as TerrainHeightfield)
   const step = (stepX + stepZ) * 0.5
   return Math.max(0.1, radiusCells * step)
 }
@@ -210,9 +194,7 @@ function paintBrushBounds(
   worldZ: number,
   worldRadius: number,
 ): TerrainCellBounds {
-  const subdivisions = Math.max(1, field.resolution - 1)
-  const stepX = field.width / subdivisions
-  const stepZ = field.height / subdivisions
+  const { stepX, stepZ } = terrainGridSteps(field)
   const halfW = field.width * 0.5
   const halfH = field.height * 0.5
   const localX = worldX - originX + halfW
@@ -250,9 +232,8 @@ function applyPaintBrush(
     for (let i = bounds.minI; i <= bounds.maxI; i++) {
       const vertex = terrainVertexWorldPosition(field, originX, originZ, i, j)
       const distance = Math.hypot(vertex.x - worldX, vertex.z - worldZ)
-      // Include half a grid step so vertex-colored quads fill the brush circle.
-      const subdivisions = Math.max(1, field.resolution - 1)
-      const gridPad = Math.max(field.width / subdivisions, field.height / subdivisions) * 0.5
+      const { stepX, stepZ } = terrainGridSteps(field)
+      const gridPad = Math.max(stepX, stepZ) * 0.5
       if (distance > worldRadius + gridPad) {
         continue
       }
@@ -263,20 +244,54 @@ function applyPaintBrush(
   return bounds
 }
 
-export function sampleTerrainHeightAt(
+export function sampleTerrainHeightBilinear(
   field: TerrainHeightfield,
   originX: number,
   originZ: number,
+  baseY: number,
   worldX: number,
   worldZ: number,
-  baseY: number,
 ): number {
-  const cell = worldToTerrainCell(field, originX, originZ, worldX, worldZ)
-  if (!cell) {
+  const halfW = field.width * 0.5
+  const halfH = field.height * 0.5
+  const localX = worldX - originX + halfW
+  const localZ = worldZ - originZ + halfH
+
+  if (localX < 0 || localZ < 0 || localX > field.width || localZ > field.height) {
     return baseY
   }
-  const index = cellIndex(cell.i, cell.j, field.resolution)
-  return baseY + field.heights[index]
+
+  const resolution = field.resolution
+  const subdivisions = Math.max(1, resolution - 1)
+  const gx = (localX / field.width) * subdivisions
+  const gz = (localZ / field.height) * subdivisions
+  const i0 = Math.min(resolution - 1, Math.max(0, Math.floor(gx)))
+  const j0 = Math.min(resolution - 1, Math.max(0, Math.floor(gz)))
+  const i1 = Math.min(resolution - 1, i0 + 1)
+  const j1 = Math.min(resolution - 1, j0 + 1)
+  const tx = Math.min(1, Math.max(0, gx - i0))
+  const tz = Math.min(1, Math.max(0, gz - j0))
+
+  const h00 = field.heights[cellIndex(i0, j0, resolution)]
+  const h10 = field.heights[cellIndex(i1, j0, resolution)]
+  const h01 = field.heights[cellIndex(i0, j1, resolution)]
+  const h11 = field.heights[cellIndex(i1, j1, resolution)]
+  const hx0 = h00 * (1 - tx) + h10 * tx
+  const hx1 = h01 * (1 - tx) + h11 * tx
+  return baseY + hx0 * (1 - tz) + hx1 * tz
+}
+
+export function applyTerrainHeightToPoint(
+  field: TerrainHeightfield,
+  originX: number,
+  originZ: number,
+  baseY: number,
+  worldX: number,
+  worldZ: number,
+  surfaceOffset = 0.06,
+): { x: number; y: number; z: number } {
+  const y = sampleTerrainHeightBilinear(field, originX, originZ, baseY, worldX, worldZ)
+  return { x: worldX, y: y + surfaceOffset, z: worldZ }
 }
 
 export function mergeTerrainIntoDocument(

@@ -32,6 +32,7 @@ interface PendingSeedWork {
   screenX: number
   screenY: number
   useGps: boolean
+  gpsScope: 'this_field' | 'selected_fields'
 }
 
 export function GameShell({ onSwitchToStudio }: GameShellProps) {
@@ -195,13 +196,14 @@ export function GameShell({ onSwitchToStudio }: GameShellProps) {
                 screenX: anchor.x,
                 screenY: anchor.y,
                 useGps: false,
+                gpsScope: 'this_field',
               })
               game.closeFieldWorkModeMenu()
               return
             }
             game.performFieldWorkManually(menu.fieldId, menu.taskKind)
           }}
-          onAutomaticGps={() => {
+          onGpsThisField={() => {
             const menu = snapshot.fieldWorkModeMenu!
             if (menu.taskKind === FieldRadialActionKind.Seed) {
               const anchor = clampRadialAnchor(menu.screenX, menu.screenY)
@@ -210,11 +212,32 @@ export function GameShell({ onSwitchToStudio }: GameShellProps) {
                 screenX: anchor.x,
                 screenY: anchor.y,
                 useGps: true,
+                gpsScope: 'this_field',
               })
               game.closeFieldWorkModeMenu()
               return
             }
-            game.performFieldWorkGps(menu.fieldId, menu.taskKind)
+            game.performFieldWorkGps(menu.fieldId, menu.taskKind, {
+              gpsScope: 'this_field',
+            })
+          }}
+          onGpsSelectedFields={() => {
+            const menu = snapshot.fieldWorkModeMenu!
+            if (menu.taskKind === FieldRadialActionKind.Seed) {
+              const anchor = clampRadialAnchor(menu.screenX, menu.screenY)
+              setPendingSeed({
+                fieldId: menu.fieldId,
+                screenX: anchor.x,
+                screenY: anchor.y,
+                useGps: true,
+                gpsScope: 'selected_fields',
+              })
+              game.closeFieldWorkModeMenu()
+              return
+            }
+            game.performFieldWorkGps(menu.fieldId, menu.taskKind, {
+              gpsScope: 'selected_fields',
+            })
           }}
         />
       ) : null}
@@ -229,7 +252,7 @@ export function GameShell({ onSwitchToStudio }: GameShellProps) {
               game.performFieldWorkGps(
                 pendingSeed.fieldId,
                 FieldRadialActionKind.Seed,
-                cropId,
+                { cropId, gpsScope: pendingSeed.gpsScope },
               )
             } else {
               game.plantField(pendingSeed.fieldId, cropId)

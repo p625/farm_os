@@ -28,6 +28,7 @@ export class FieldSystem extends GameSystem {
   private inventorySystem: InventorySystem | null = null
   private marketSystem: MarketSystem | null = null
   private selectedFieldId: string | null = null
+  private selectedFieldIds = new Set<string>()
   private dayTimer = 0
   private onChange: (() => void) | null = null
   private eventLog: GameEventLog | null = null
@@ -67,6 +68,7 @@ export class FieldSystem extends GameSystem {
       this.fields.set(definition.id, new Field(definition.id, definition.name))
     }
     this.selectedFieldId = 'field_1'
+    this.selectedFieldIds = new Set(['field_1'])
     this.dayTimer = 0
     this.notifyChange()
   }
@@ -113,6 +115,7 @@ export class FieldSystem extends GameSystem {
 
     if (selectedFieldId && this.fields.has(selectedFieldId)) {
       this.selectedFieldId = selectedFieldId
+      this.selectedFieldIds = new Set([selectedFieldId])
     }
 
     this.dayTimer = 0
@@ -148,6 +151,13 @@ export class FieldSystem extends GameSystem {
     return this.selectedFieldId
   }
 
+  getSelectedFieldIds(): readonly string[] {
+    const order = new Map(FIELD_CATALOG.map((entry, index) => [entry.id, index]))
+    return [...this.selectedFieldIds].sort(
+      (left, right) => (order.get(left) ?? 0) - (order.get(right) ?? 0),
+    )
+  }
+
   getSelectedField(): Field | undefined {
     if (!this.selectedFieldId) {
       return undefined
@@ -157,6 +167,7 @@ export class FieldSystem extends GameSystem {
 
   clearSelection(): void {
     this.selectedFieldId = null
+    this.selectedFieldIds.clear()
     this.notifyChange()
   }
 
@@ -169,6 +180,27 @@ export class FieldSystem extends GameSystem {
       return false
     }
     this.selectedFieldId = id
+    this.selectedFieldIds = new Set([id])
+    this.notifyChange()
+    return true
+  }
+
+  toggleFieldSelection(id: string): boolean {
+    if (!this.fields.has(id)) {
+      return false
+    }
+
+    if (this.selectedFieldIds.has(id)) {
+      this.selectedFieldIds.delete(id)
+      if (this.selectedFieldId === id) {
+        const remaining = this.getSelectedFieldIds()
+        this.selectedFieldId = remaining[0] ?? null
+      }
+    } else {
+      this.selectedFieldIds.add(id)
+      this.selectedFieldId = id
+    }
+
     this.notifyChange()
     return true
   }

@@ -26,6 +26,8 @@ export interface AutomationSession {
   taskKind: AutomationTaskKind
   cropId?: string
   startedAtDay: number
+  /** @deprecated Phase 16C — use activeWorkOrderId on MachineAutomationState */
+  workOrderId?: string
 }
 
 /**
@@ -42,13 +44,16 @@ export type AutomationPauseReason =
 export interface MachineAutomationState {
   machineId: MachineId
   commandOwner: CommandOwner
+  /** @deprecated — migrated to activeWorkOrderId in v13 */
   session: AutomationSession | null
+  activeWorkOrderId: string | null
 }
 
 export interface MachineAutomationSaveData {
   machineId: string
   commandOwner: CommandOwner
-  session: AutomationSession | null
+  session?: AutomationSession | null
+  activeWorkOrderId?: string | null
 }
 
 export interface IssueMachineCommandContext {

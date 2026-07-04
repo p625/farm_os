@@ -31,6 +31,7 @@ import type { FarmStoreSnapshot } from '@/types/farm-store.ts'
 import type { InteractionContextMenuSnapshot } from '@/types/interaction-point.ts'
 import type { FleetMachineSnapshot } from '@/types/machine-fleet.ts'
 import { CommandOwner } from '@/types/machine-automation.ts'
+import type { WorkOrderSnapshot } from '@/types/work-order.ts'
 import { ProductCategory } from '@/types/product.ts'
 import {
   TractorState,
@@ -57,6 +58,7 @@ export interface GameSnapshot {
   currentDay: number
   gameSpeed: number
   selectedFieldId: string | null
+  selectedFieldIds: readonly string[]
   selectedEntity: SelectedEntitySnapshot
   fieldContextMenu: FieldContextMenuSnapshot | null
   fieldWorkModeMenu: FieldWorkModeMenuSnapshot | null
@@ -81,6 +83,7 @@ export interface GameSnapshot {
   farmStore: FarmStoreSnapshot
   fleetPanelOpen: boolean
   fleet: readonly FleetMachineSnapshot[]
+  activeWorkOrder: WorkOrderSnapshot | null
   eventLog: readonly GameLogEntry[]
   moneyGain: MoneyGainEffect | null
 }
@@ -104,6 +107,7 @@ export const EMPTY_GAME_SNAPSHOT: GameSnapshot = {
   currentDay: 1,
   gameSpeed: 1,
   selectedFieldId: null,
+  selectedFieldIds: [],
   selectedEntity: EMPTY_SELECTED_ENTITY,
   fieldContextMenu: null,
   fieldWorkModeMenu: null,
@@ -146,6 +150,7 @@ export const EMPTY_GAME_SNAPSHOT: GameSnapshot = {
   },
   fleetPanelOpen: false,
   fleet: [],
+  activeWorkOrder: null,
   eventLog: [],
   moneyGain: null,
 }

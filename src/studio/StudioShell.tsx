@@ -8,6 +8,7 @@ import { StudioToolbar } from '@/studio/panels/StudioToolbar.tsx'
 import { ProjectPanel } from '@/studio/panels/ProjectPanel.tsx'
 import { LayersPanel } from '@/studio/panels/LayersPanel.tsx'
 import { TerrainToolsPanel } from '@/studio/panels/TerrainToolsPanel.tsx'
+import { RoadToolsPanel } from '@/studio/panels/RoadToolsPanel.tsx'
 import { InspectorPanel } from '@/studio/panels/InspectorPanel.tsx'
 import { LogPanel } from '@/studio/panels/LogPanel.tsx'
 import './StudioShell.css'
@@ -108,18 +109,33 @@ export function StudioShell({ onSwitchToGame }: StudioShellProps) {
         return
       }
 
-      if (event.key !== 'Delete' && event.key !== 'Backspace') {
-        return
-      }
-      if (snapshot.activeModuleId !== 'transform') {
+      const target = event.target
+      const inTextField =
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLTextAreaElement
+
+      if (snapshot.activeModuleId === 'roads') {
+        if (event.key === 'Escape' && snapshot.roadDraft) {
+          event.preventDefault()
+          store?.cancelRoadDraft()
+          engineRef.current?.refreshMap()
+          return
+        }
+        if (
+          (event.key === 'Delete' || event.key === 'Backspace') &&
+          !inTextField
+        ) {
+          event.preventDefault()
+          engineRef.current?.deleteSelectedRoad()
+        }
         return
       }
 
-      const target = event.target
-      if (
-        target instanceof HTMLInputElement ||
-        target instanceof HTMLTextAreaElement
-      ) {
+      if (event.key !== 'Delete' && event.key !== 'Backspace') {
+        return
+      }
+
+      if (snapshot.activeModuleId !== 'transform' || inTextField) {
         return
       }
 
@@ -128,7 +144,7 @@ export function StudioShell({ onSwitchToGame }: StudioShellProps) {
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [onSwitchToGame, snapshot.activeModuleId])
+  }, [onSwitchToGame, snapshot.activeModuleId, snapshot.roadDraft, snapshot.roadSelection, store])
 
   const refreshScene = () => {
     engineRef.current?.refreshMap()
@@ -162,6 +178,7 @@ export function StudioShell({ onSwitchToGame }: StudioShellProps) {
               <ProjectPanel store={store} />
               <LayersPanel store={store} />
               <TerrainToolsPanel store={store} />
+              <RoadToolsPanel store={store} onSceneRefresh={refreshScene} />
             </>
           ) : null}
         </aside>
@@ -169,7 +186,7 @@ export function StudioShell({ onSwitchToGame }: StudioShellProps) {
         <main ref={viewportRef} className="studio-workspace__viewport">
           <canvas ref={canvasRef} className="studio-shell__canvas" />
           <div className="studio-viewport-hint">
-            Transform: drag objects · Terrain: paint ground · F10 Game
+            Transform: drag · Terrain: paint · Roads: draw paths · F10 Game
           </div>
         </main>
 

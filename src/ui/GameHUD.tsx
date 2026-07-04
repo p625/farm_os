@@ -151,7 +151,7 @@ export function GameHUD({ game, snapshot }: GameHUDProps) {
     <aside className="game-hud">
       <header className="game-hud__header">
         <h1 className="game-hud__title">FarmOS</h1>
-        <p className="game-hud__subtitle">Phase 16B — GPS Autowork</p>
+        <p className="game-hud__subtitle">Phase 16C — Work Orders</p>
       </header>
 
       <section className="game-hud__panel">
@@ -212,6 +212,22 @@ export function GameHUD({ game, snapshot }: GameHUDProps) {
         ) : (
           <>
             <dl className="game-hud__stats">
+              {gpsActive && snapshot.activeWorkOrder ? (
+                <div className="game-hud__stat game-hud__stat--gps">
+                  <dt>Work order</dt>
+                  <dd>{snapshot.activeWorkOrder.displayName}</dd>
+                </div>
+              ) : null}
+              {snapshot.activeWorkOrder ? (
+                <div className="game-hud__stat">
+                  <dt>Order progress</dt>
+                  <dd>
+                    {snapshot.activeWorkOrder.completedFieldCount}/
+                    {snapshot.activeWorkOrder.totalFieldCount} fields (
+                    {snapshot.activeWorkOrder.remainingArea} ha left)
+                  </dd>
+                </div>
+              ) : null}
               {gpsActive ? (
                 <div className="game-hud__stat game-hud__stat--gps">
                   <dt>GPS</dt>
@@ -299,7 +315,7 @@ export function GameHUD({ game, snapshot }: GameHUDProps) {
                   className="game-hud__button game-hud__button--danger"
                   onClick={() => game.cancelMachineCommand(selectedMachineId)}
                 >
-                  Cancel GPS
+                  Cancel work order
                 </button>
               </div>
             ) : null}
@@ -826,17 +842,26 @@ export function GameHUD({ game, snapshot }: GameHUDProps) {
 
       <section className="game-hud__panel game-hud__panel--fields">
         <h2 className="game-hud__section-title">All Fields</h2>
+        <p className="game-hud__hint">
+          Click to select a field. Shift+click to add or remove from selection.
+        </p>
         <ul className="game-hud__field-list">
           {snapshot.fields.map((field) => (
             <li key={field.id}>
               <button
                 type="button"
                 className={
-                  field.id === snapshot.selectedFieldId
+                  snapshot.selectedFieldIds.includes(field.id)
                     ? 'game-hud__field-item game-hud__field-item--active'
                     : 'game-hud__field-item'
                 }
-                onClick={() => game.selectField(field.id)}
+                onClick={(event) => {
+                  if (event.shiftKey) {
+                    game.toggleFieldSelection(field.id)
+                  } else {
+                    game.selectField(field.id)
+                  }
+                }}
               >
                 {field.name}: {formatFieldOwnership(field.ownership)}
                 {field.usable

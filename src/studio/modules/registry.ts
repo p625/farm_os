@@ -34,8 +34,8 @@ export const STUDIO_MODULES: readonly StudioModuleDefinition[] = [
     name: 'Road Editor',
     version: '0.4',
     layers: ['roads'],
-    status: 'planned',
-    description: 'Spline roads, control points',
+    status: 'active',
+    description: 'Spline roads — wide/narrow asphalt and field paths',
   },
   {
     id: 'parcels',

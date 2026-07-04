@@ -6,6 +6,7 @@ import type {
   StudioLogEntry,
   WorldMapDocument,
 } from '@/types/world-map.ts'
+import type { RoadControlPoint, RoadKind } from '@/types/road.ts'
 import { createDefaultLayerVisibility } from '@/studio/core/LayerRegistry.ts'
 import {
   DEFAULT_TERRAIN_BRUSH,
@@ -16,8 +17,22 @@ import {
   type TerrainHeightfield,
   ensureTerrainHeightfield,
 } from '@/studio/terrain/TerrainHeightmap.ts'
+import { createRoadObject } from '@/studio/road/roadObject.ts'
 
-export type StudioModuleId = 'transform' | 'terrain'
+export type StudioModuleId = 'transform' | 'terrain' | 'roads'
+export type RoadToolMode = 'draw' | 'select'
+
+export interface RoadDraft {
+  roadKind: RoadKind
+  points: RoadControlPoint[]
+}
+
+export interface RoadPointSelection {
+  roadId: string
+  pointIndex: number
+}
+
+export const DEFAULT_ROAD_KIND: RoadKind = 'asphalt_narrow'
 
 export interface StudioSnapshot {
   map: WorldMapDocument
@@ -27,6 +42,10 @@ export interface StudioSnapshot {
   isDirty: boolean
   activeModuleId: StudioModuleId
   terrainBrush: TerrainBrushSettings
+  roadTool: RoadToolMode
+  roadKind: RoadKind
+  roadDraft: RoadDraft | null
+  roadSelection: RoadPointSelection | null
 }
 
 let logCounter = 0
@@ -45,6 +64,10 @@ export class StudioStore {
   private dirty = false
   private activeModuleId: StudioModuleId = 'transform'
   private terrainBrush: TerrainBrushSettings = { ...DEFAULT_TERRAIN_BRUSH }
+  private roadTool: RoadToolMode = 'draw'
+  private roadKind: RoadKind = DEFAULT_ROAD_KIND
+  private roadDraft: RoadDraft | null = null
+  private roadSelection: RoadPointSelection | null = null
   private cachedSnapshot: StudioSnapshot
 
   constructor(initialMap: WorldMapDocument) {
@@ -195,9 +218,20 @@ export class StudioStore {
     this.activeModuleId = moduleId
     if (moduleId === 'terrain') {
       this.selectedObject = null
+      this.roadDraft = null
+      this.roadSelection = null
       if (this.terrainBrush.mode !== 'paint') {
         this.terrainBrush = { ...this.terrainBrush, mode: 'paint' }
       }
+    }
+    if (moduleId === 'roads') {
+      this.selectedObject = null
+      this.roadDraft = null
+      this.roadSelection = null
+    }
+    if (moduleId === 'transform') {
+      this.roadDraft = null
+      this.roadSelection = null
     }
     this.log('info', `Module: ${moduleId}`)
     this.emit()
@@ -215,6 +249,120 @@ export class StudioStore {
     }
     this.dirty = true
     this.emit()
+  }
+
+  setRoadTool(tool: RoadToolMode): void {
+    this.roadTool = tool
+    this.roadSelection = null
+    this.emit()
+  }
+
+  setRoadKind(kind: RoadKind): void {
+    this.roadKind = kind
+    if (this.roadDraft) {
+      this.roadDraft = { ...this.roadDraft, roadKind: kind }
+    }
+    this.emit()
+  }
+
+  startRoadDraft(): void {
+    this.roadDraft = { roadKind: this.roadKind, points: [] }
+    this.roadSelection = null
+    this.emit()
+  }
+
+  cancelRoadDraft(): void {
+    this.roadDraft = null
+    this.emit()
+  }
+
+  addRoadDraftPoint(point: RoadControlPoint): void {
+    if (!this.roadDraft) {
+      this.roadDraft = { roadKind: this.roadKind, points: [] }
+    }
+    this.roadDraft = {
+      ...this.roadDraft,
+      points: [...this.roadDraft.points, point],
+    }
+    this.emit()
+  }
+
+  updateRoadDraftPoints(points: RoadControlPoint[]): void {
+    if (!this.roadDraft) {
+      return
+    }
+    this.roadDraft = { ...this.roadDraft, points }
+    this.emit()
+  }
+
+  commitRoadDraft(): boolean {
+    if (!this.roadDraft || this.roadDraft.points.length < 2) {
+      this.log('warn', 'Road needs at least 2 points.')
+      return false
+    }
+    const road = createRoadObject(this.roadDraft.points, this.roadDraft.roadKind)
+    this.map = {
+      ...this.map,
+      objects: [...this.map.objects, road],
+    }
+    this.roadDraft = null
+    this.dirty = true
+    this.log('success', `Created ${road.name}`)
+    this.emit()
+    return true
+  }
+
+  selectRoadPoint(roadId: string, pointIndex: number): void {
+    this.roadSelection = { roadId, pointIndex }
+    this.emit()
+  }
+
+  clearRoadSelection(): void {
+    if (!this.roadSelection) {
+      return
+    }
+    this.roadSelection = null
+    this.emit()
+  }
+
+  updateRoadPoints(roadId: string, points: RoadControlPoint[]): void {
+    const index = this.map.objects.findIndex((object) => object.id === roadId)
+    if (index < 0) {
+      return
+    }
+    const current = this.map.objects[index]
+    const objects = [...this.map.objects]
+    objects[index] = {
+      ...current,
+      properties: {
+        ...current.properties,
+        points: points.map((point) => ({
+          ...point,
+          ...(point.junction ? { junction: { ...point.junction } } : {}),
+        })),
+      },
+    }
+    this.map = { ...this.map, objects }
+    this.dirty = true
+    this.emit()
+  }
+
+  deleteRoad(roadId: string): boolean {
+    const road = this.findObject(roadId)
+    if (!road || road.layer !== 'roads') {
+      return false
+    }
+    this.map = {
+      ...this.map,
+      objects: this.map.objects.filter((object) => object.id !== roadId),
+    }
+    if (this.roadSelection?.roadId === roadId) {
+      this.roadSelection = null
+    }
+    this.dirty = true
+    this.log('info', `Deleted ${road.name ?? roadId}`)
+    this.emit()
+    return true
   }
 
   markSaved(): void {
@@ -254,6 +402,12 @@ export class StudioStore {
       isDirty: this.dirty,
       activeModuleId: this.activeModuleId,
       terrainBrush: { ...this.terrainBrush },
+      roadTool: this.roadTool,
+      roadKind: this.roadKind,
+      roadDraft: this.roadDraft
+        ? { ...this.roadDraft, points: [...this.roadDraft.points] }
+        : null,
+      roadSelection: this.roadSelection ? { ...this.roadSelection } : null,
     }
   }
 }
@@ -273,4 +427,8 @@ export const EMPTY_STUDIO_SNAPSHOT: StudioSnapshot = {
   isDirty: false,
   activeModuleId: 'transform',
   terrainBrush: { ...DEFAULT_TERRAIN_BRUSH },
+  roadTool: 'draw',
+  roadKind: DEFAULT_ROAD_KIND,
+  roadDraft: null,
+  roadSelection: null,
 }

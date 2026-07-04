@@ -36,6 +36,12 @@ export {
   machineSupportsGpsFieldWork,
 } from './MachineAutomationRegistry.ts'
 export {
+  WorkOrderSystem,
+  buildWorkOrderDisplayName,
+  resolveWorkOrderFieldQueue,
+  sumFieldAreas,
+} from './WorkOrderSystem.ts'
+export {
   initializeMachineInstanceRegistry,
   registerMachineInstance,
   unregisterMachineInstance,

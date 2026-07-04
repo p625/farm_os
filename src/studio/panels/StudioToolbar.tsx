@@ -22,7 +22,7 @@ export function StudioToolbar({
     <header className="studio-toolbar">
       <div className="studio-toolbar__brand">
         <span className="studio-toolbar__logo">FarmOS Studio</span>
-        <span className="studio-toolbar__badge">v0.3</span>
+        <span className="studio-toolbar__badge">v0.4</span>
       </div>
 
       <ModuleSwitcher store={store} />

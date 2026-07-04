@@ -113,7 +113,7 @@ export class FieldPresentation {
       return
     }
 
-    const selectedId = this.fieldSystem.getSelectedFieldId()
+    const selectedIds = this.fieldSystem.getSelectedFieldIds()
 
     for (const meshId of FIELD_MESH_IDS) {
       const mesh = this.scene.getMeshByName(meshId)
@@ -127,7 +127,7 @@ export class FieldPresentation {
         ? material.emissiveColor.clone()
         : getFieldVisualStyle(field.state, field.growthPercent).emissive.clone()
 
-      material.emissiveColor = this.emissiveForField(meshId, selectedId).add(
+      material.emissiveColor = this.emissiveForField(meshId, selectedIds).add(
         baseEmissive,
       )
     }
@@ -166,9 +166,9 @@ export class FieldPresentation {
 
   private emissiveForField(
     meshId: string,
-    selectedId: string | null,
+    selectedIds: readonly string[],
   ): Color3 {
-    if (meshId === selectedId) {
+    if (selectedIds.includes(meshId)) {
       return SELECT_EMISSIVE.clone()
     }
     if (meshId === this.hoveredFieldId) {

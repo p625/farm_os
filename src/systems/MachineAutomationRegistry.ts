@@ -10,6 +10,7 @@ import {
 } from '@/types/machine-automation.ts'
 import type { MachineCommand, MachineId } from '@/types/machine.ts'
 import { FieldRadialActionKind } from '@/types/machine.ts'
+import type { WorkOrderId } from '@/types/work-order.ts'
 
 const GPS_FIELD_TASKS: readonly AutomationTaskKindValue[] = [
   AutomationTaskKind.Plow,
@@ -125,6 +126,11 @@ export class MachineAutomationRegistry {
     return this.states.get(machineId)?.commandOwner ?? CommandOwner.Player
   }
 
+  getActiveWorkOrderId(machineId: MachineId): WorkOrderId | null {
+    return this.states.get(machineId)?.activeWorkOrderId ?? null
+  }
+
+  /** @deprecated Phase 16C — use WorkOrderSystem */
   getSession(machineId: MachineId): AutomationSession | null {
     return this.states.get(machineId)?.session ?? null
   }
@@ -132,9 +138,14 @@ export class MachineAutomationRegistry {
   setAutomation(
     machineId: MachineId,
     commandOwner: CommandOwner,
-    session: AutomationSession | null,
+    activeWorkOrderId: WorkOrderId | null,
   ): void {
-    this.states.set(machineId, { machineId, commandOwner, session })
+    this.states.set(machineId, {
+      machineId,
+      commandOwner,
+      session: null,
+      activeWorkOrderId,
+    })
   }
 
   clearAutomation(machineId: MachineId): void {
@@ -142,6 +153,7 @@ export class MachineAutomationRegistry {
       machineId,
       commandOwner: CommandOwner.Player,
       session: null,
+      activeWorkOrderId: null,
     })
   }
 
@@ -150,11 +162,17 @@ export class MachineAutomationRegistry {
   }
 
   toSaveData(): MachineAutomationSaveData[] {
-    return [...this.states.values()].map((state) => ({
-      machineId: state.machineId,
-      commandOwner: state.commandOwner,
-      session: state.session,
-    }))
+    return [...this.states.values()]
+      .filter(
+        (state) =>
+          state.commandOwner !== CommandOwner.Player ||
+          state.activeWorkOrderId !== null,
+      )
+      .map((state) => ({
+        machineId: state.machineId,
+        commandOwner: state.commandOwner,
+        activeWorkOrderId: state.activeWorkOrderId,
+      }))
   }
 
   applySave(saved: MachineAutomationSaveData[] | undefined): void {
@@ -169,11 +187,11 @@ export class MachineAutomationRegistry {
       const commandOwner = isCommandOwner(entry.commandOwner)
         ? entry.commandOwner
         : CommandOwner.Player
-      const session = normalizeSession(entry.session)
       this.states.set(entry.machineId, {
         machineId: entry.machineId,
         commandOwner,
-        session,
+        session: normalizeSession(entry.session),
+        activeWorkOrderId: entry.activeWorkOrderId ?? null,
       })
     }
   }
@@ -205,5 +223,6 @@ function normalizeSession(
     taskKind: session.taskKind,
     cropId: session.cropId,
     startedAtDay: session.startedAtDay,
+    workOrderId: session.workOrderId,
   }
 }

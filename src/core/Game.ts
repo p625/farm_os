@@ -30,6 +30,7 @@ import {
   MarketSystem,
   MachineAutomationRegistry,
   MachineCapabilityResolver,
+  WorkOrderSystem,
   OwnershipSystem,
   ProductionSystem,
   TractorJobSystem,
@@ -50,7 +51,8 @@ import type { IDisposable } from '@/types/index.ts'
 import type { GameSaveData } from '@/types/save.ts'
 import type { ShopUpgradeId } from '@/types/shop.ts'
 import type { FarmStoreId } from '@/types/farm-store.ts'
-import { ProductCategory } from '@/types/product.ts'
+import { FieldOwnership } from '@/types/ownership.ts'
+import type { ProductCategory } from '@/types/product.ts'
 import { isPurchasedTractorInstanceId, MachineTemplateId } from '@/types/machine-template.ts'
 import type { IMachineController } from '@/types/machine-controller.ts'
 import type { ProcessedProductId } from '@/types/production.ts'
@@ -81,8 +83,14 @@ import {
 import {
   buildFieldWorkCommand,
   fieldRadialActionToAutomationTask,
-  formatAutomationTaskLabel,
 } from '@systems/MachineAutomationRegistry.ts'
+import {
+  buildWorkOrderDisplayName,
+  resolveWorkOrderFieldQueue,
+  type WorkOrderFieldEligibility,
+} from '@systems/WorkOrderSystem.ts'
+import { WorkOrderScopeKind, WorkOrderStatus } from '@/types/work-order.ts'
+import type { WorkOrderScope, WorkOrderSnapshot } from '@/types/work-order.ts'
 import { getInteractionPointDefinition } from '@/config/interaction-point-catalog.ts'
 import {
   AttachmentLifecycleState,
@@ -117,6 +125,7 @@ export class Game implements IDisposable {
   private readonly capabilityResolver: MachineCapabilityResolver
   private readonly machineRegistry: MachineRegistry
   private readonly machineAutomationRegistry: MachineAutomationRegistry
+  private readonly workOrderSystem: WorkOrderSystem
   private readonly machineTickSystem: MachineTickSystem
   private readonly eventLog: GameEventLog
   private readonly soundManager: SoundManager
@@ -209,6 +218,7 @@ export class Game implements IDisposable {
     }
     this.machineRegistry = new MachineRegistry()
     this.machineAutomationRegistry = new MachineAutomationRegistry()
+    this.workOrderSystem = new WorkOrderSystem()
     this.machineRegistry.register(this.tractorJobSystem)
     this.machineRegistry.register(this.grainCombineJobSystem)
     this.machineRegistry.register(this.cornCombineJobSystem)
@@ -415,16 +425,20 @@ export class Game implements IDisposable {
 
     this.closeFieldContextMenu()
     const anchor = clampRadialAnchor(screenX, screenY)
+    const actions: FieldWorkModeActionKind[] = [
+      FieldWorkModeActionKind.PerformManually,
+      FieldWorkModeActionKind.GpsThisField,
+    ]
+    if (this.fieldSystem.getSelectedFieldIds().length > 0) {
+      actions.push(FieldWorkModeActionKind.GpsSelectedFields)
+    }
+    actions.push(FieldWorkModeActionKind.Cancel)
     this.fieldWorkModeMenu = {
       fieldId,
       taskKind,
       screenX: anchor.x,
       screenY: anchor.y,
-      actions: [
-        FieldWorkModeActionKind.PerformManually,
-        FieldWorkModeActionKind.AutomaticGps,
-        FieldWorkModeActionKind.Cancel,
-      ],
+      actions,
     }
     this.notifyListeners()
   }
@@ -461,9 +475,12 @@ export class Game implements IDisposable {
   }
 
   performFieldWorkGps(
-    fieldId: string,
+    contextFieldId: string,
     taskKind: FieldRadialActionKind,
-    cropId?: string,
+    options?: {
+      cropId?: string
+      gpsScope?: 'this_field' | 'selected_fields'
+    },
   ): void {
     const machineId = this.getSelectedMachineId()
     if (!machineId) {
@@ -476,67 +493,154 @@ export class Game implements IDisposable {
     }
 
     this.closeFieldWorkModeMenu()
-    this.startGpsFieldWork(machineId, fieldId, automationTask, cropId)
+
+    const gpsScope = options?.gpsScope ?? 'this_field'
+    const cropId = options?.cropId
+    const scope: WorkOrderScope =
+      gpsScope === 'selected_fields'
+        ? {
+            kind: WorkOrderScopeKind.Fields,
+            fieldIds: this.fieldSystem.getSelectedFieldIds(),
+          }
+        : {
+            kind: WorkOrderScopeKind.Single,
+            fieldId: contextFieldId,
+          }
+
+    const cropName = cropId ? this.cropSystem.getCropName(cropId) : undefined
+    const displayName = buildWorkOrderDisplayName({
+      taskKind: automationTask,
+      scope,
+      cropName,
+    })
+
+    this.createAndAssignWorkOrder({
+      displayName,
+      taskKind: automationTask,
+      cropId,
+      scope,
+      commandOwner: CommandOwner.Gps,
+      assignedMachineId: machineId,
+    })
   }
 
+  createAndAssignWorkOrder(params: {
+    displayName: string
+    taskKind: AutomationTaskKind
+    cropId?: string
+    scope: WorkOrderScope
+    commandOwner: CommandOwner
+    assignedMachineId: MachineId
+    workerId?: string | null
+  }): boolean {
+    const { assignedMachineId } = params
+    if (this.isMachineBusy(assignedMachineId)) {
+      return false
+    }
+    if (this.workOrderSystem.getActiveOrderForMachine(assignedMachineId)) {
+      return false
+    }
+
+    const pendingFieldIds = resolveWorkOrderFieldQueue(
+      params.scope,
+      params.taskKind,
+      params.cropId,
+      assignedMachineId,
+      this.getWorkOrderEligibility(),
+    )
+    if (pendingFieldIds.length === 0) {
+      return false
+    }
+
+    const order = this.workOrderSystem.createOrder(
+      {
+        displayName: params.displayName,
+        taskKind: params.taskKind,
+        cropId: params.cropId,
+        scope: params.scope,
+        commandOwner: params.commandOwner,
+        assignedMachineId,
+        workerId: params.workerId ?? null,
+        createdAtDay: this.world.currentDay,
+      },
+      pendingFieldIds,
+    )
+    if (!order) {
+      return false
+    }
+
+    this.eventLog.recordWorkOrderCreated(order.displayName, this.world.currentDay)
+    this.machineAutomationRegistry.setAutomation(
+      assignedMachineId,
+      params.commandOwner,
+      order.id,
+    )
+    this.advanceWorkOrder(assignedMachineId)
+    this.autoSave()
+    this.notifyListeners()
+    return true
+  }
+
+  cancelWorkOrder(workOrderId: string): void {
+    const order = this.workOrderSystem.get(workOrderId)
+    if (!order || order.status !== WorkOrderStatus.Active) {
+      return
+    }
+
+    const machineId = order.assignedMachineId
+    if (machineId) {
+      const controller = this.machineRegistry.get(machineId)
+      if (controller?.isBusy()) {
+        controller.cancelActiveCommand()
+      }
+      this.machineAutomationRegistry.clearAutomation(machineId)
+    }
+
+    this.workOrderSystem.cancelOrder(workOrderId)
+    this.eventLog.recordWorkOrderCancelled(order.displayName, this.world.currentDay)
+    this.autoSave()
+    this.notifyListeners()
+  }
+
+  /** @deprecated Use createAndAssignWorkOrder */
   startGpsFieldWork(
     machineId: MachineId,
     fieldId: string,
     taskKind: AutomationTaskKind,
     cropId?: string,
   ): boolean {
-    if (this.isMachineBusy(machineId)) {
-      return false
-    }
-
-    const command = buildFieldWorkCommand(fieldId, taskKind, cropId)
-    if (!command) {
-      return false
-    }
-
-    const session = {
-      owner: CommandOwner.Gps,
+    const scope: WorkOrderScope = {
+      kind: WorkOrderScopeKind.Single,
       fieldId,
+    }
+    const cropName = cropId ? this.cropSystem.getCropName(cropId) : undefined
+    return this.createAndAssignWorkOrder({
+      displayName: buildWorkOrderDisplayName({
+        taskKind,
+        scope,
+        cropName,
+      }),
       taskKind,
       cropId,
-      startedAtDay: this.world.currentDay,
-    }
-    this.machineAutomationRegistry.setAutomation(
-      machineId,
-      CommandOwner.Gps,
-      session,
-    )
-
-    const accepted = this.issueMachineCommand(machineId, command, {
+      scope,
       commandOwner: CommandOwner.Gps,
+      assignedMachineId: machineId,
     })
-    if (!accepted) {
-      this.machineAutomationRegistry.clearAutomation(machineId)
-    }
-    return accepted
   }
 
   cancelMachineCommand(machineId: MachineId): void {
+    const workOrderId = this.machineAutomationRegistry.getActiveWorkOrderId(machineId)
+    if (workOrderId) {
+      this.cancelWorkOrder(workOrderId)
+      return
+    }
+
     const controller = this.machineRegistry.get(machineId)
     if (!controller) {
       return
     }
 
-    const wasGps =
-      this.machineAutomationRegistry.getCommandOwner(machineId) ===
-      CommandOwner.Gps
-    const wasBusy = controller.isBusy()
-
     controller.cancelActiveCommand()
-
-    if (wasGps && wasBusy) {
-      const catalog = getMachineCatalogEntry(machineId)
-      this.eventLog.recordGpsWorkCancelled(
-        catalog?.name ?? machineId,
-        this.world.currentDay,
-      )
-    }
-
     this.machineAutomationRegistry.clearAutomation(machineId)
     this.autoSave()
     this.notifyListeners()
@@ -1139,10 +1243,12 @@ export class Game implements IDisposable {
     const commandOwner = context?.commandOwner ?? CommandOwner.Player
 
     if (commandOwner === CommandOwner.Player) {
-      if (this.isMachineBusy(machineId)) {
+      if (
+        this.isMachineBusy(machineId) ||
+        this.machineAutomationRegistry.getActiveWorkOrderId(machineId)
+      ) {
         this.cancelMachineCommand(machineId)
       }
-      this.machineAutomationRegistry.clearAutomation(machineId)
     } else if (this.isMachineBusy(machineId)) {
       return false
     }
@@ -1153,7 +1259,7 @@ export class Game implements IDisposable {
         this.machineAutomationRegistry.setAutomation(
           machineId,
           commandOwner,
-          this.machineAutomationRegistry.getSession(machineId),
+          this.machineAutomationRegistry.getActiveWorkOrderId(machineId),
         )
       }
       this.autoSave()
@@ -1195,6 +1301,12 @@ export class Game implements IDisposable {
     this.machinePresentation.setSelectedMachine(null)
     this.syncFieldVisuals()
     this.autoSave()
+    this.notifyListeners()
+  }
+
+  toggleFieldSelection(fieldId: string): void {
+    this.fieldSystem.toggleFieldSelection(fieldId)
+    this.syncFieldVisuals()
     this.notifyListeners()
   }
 
@@ -1260,9 +1372,25 @@ export class Game implements IDisposable {
     }
   }
 
-  private reconcileMachineAutomation(machineId: MachineId): void {
-    const session = this.machineAutomationRegistry.getSession(machineId)
-    if (!session || session.owner !== CommandOwner.Gps) {
+  /**
+   * Reserved — future global work-order orchestration (priorities, manager mode).
+   * Phase 16C advances orders per machine via advanceWorkOrder on controller onChange.
+   */
+  private evaluateWorkOrders(): void {
+    // No-op in Phase 16C.
+  }
+
+  private advanceWorkOrder(machineId: MachineId): void {
+    this.evaluateWorkOrders()
+
+    const workOrderId =
+      this.machineAutomationRegistry.getActiveWorkOrderId(machineId)
+    if (!workOrderId) {
+      return
+    }
+
+    let order = this.workOrderSystem.get(workOrderId)
+    if (!order || order.status !== WorkOrderStatus.Active) {
       return
     }
 
@@ -1271,19 +1399,127 @@ export class Game implements IDisposable {
       return
     }
 
-    const field = this.fieldSystem.getField(session.fieldId)
-    const catalog = getMachineCatalogEntry(machineId)
-    const cropName = session.cropId
-      ? this.cropSystem.getCropName(session.cropId)
-      : undefined
+    const machineName =
+      getMachineCatalogEntry(machineId)?.name ?? machineId
 
-    this.eventLog.recordGpsWorkCompleted(
-      catalog?.name ?? machineId,
-      field?.name ?? session.fieldId,
-      formatAutomationTaskLabel(session.taskKind, cropName),
+    if (order.currentFieldId) {
+      const completedFieldId = order.currentFieldId
+      const field = this.fieldSystem.getField(completedFieldId)
+      this.workOrderSystem.completeFieldLeg(workOrderId, completedFieldId)
+      this.eventLog.recordWorkOrderFieldCompleted(
+        order.displayName,
+        field?.name ?? completedFieldId,
+        this.world.currentDay,
+      )
+      order = this.workOrderSystem.get(workOrderId)!
+    }
+
+    while (order.pendingFieldIds.length > 0) {
+      const nextFieldId = order.pendingFieldIds[0]!
+      if (
+        !this.canMachineWorkField(
+          machineId,
+          nextFieldId,
+          order.taskKind,
+          order.cropId,
+        )
+      ) {
+        this.workOrderSystem.skipField(workOrderId, nextFieldId)
+        order = this.workOrderSystem.get(workOrderId)!
+        continue
+      }
+
+      const command = buildFieldWorkCommand(
+        nextFieldId,
+        order.taskKind,
+        order.cropId,
+      )
+      if (!command) {
+        this.workOrderSystem.skipField(workOrderId, nextFieldId)
+        order = this.workOrderSystem.get(workOrderId)!
+        continue
+      }
+
+      if (order.startedAtDay === null) {
+        this.workOrderSystem.markStarted(workOrderId, this.world.currentDay)
+        this.eventLog.recordWorkOrderStarted(
+          order.displayName,
+          machineName,
+          this.world.currentDay,
+        )
+      }
+
+      this.workOrderSystem.beginFieldLeg(workOrderId, nextFieldId)
+      const accepted = this.issueMachineCommand(machineId, command, {
+        commandOwner: order.commandOwner,
+      })
+      if (!accepted) {
+        this.workOrderSystem.skipField(workOrderId, nextFieldId)
+        order = this.workOrderSystem.get(workOrderId)!
+        continue
+      }
+      return
+    }
+
+    this.workOrderSystem.completeOrder(workOrderId)
+    this.eventLog.recordWorkOrderCompleted(
+      order.displayName,
+      machineName,
       this.world.currentDay,
     )
     this.machineAutomationRegistry.clearAutomation(machineId)
+    this.workOrderSystem.clearCompletedAndCancelled()
+  }
+
+  private getWorkOrderEligibility(): WorkOrderFieldEligibility {
+    return {
+      canWorkField: (machineId, fieldId, taskKind, cropId) =>
+        this.canMachineWorkField(machineId, fieldId, taskKind, cropId),
+      isFieldUsable: (fieldId) => {
+        const ownership = this.ownershipSystem.getOwnership(fieldId)
+        return (
+          ownership === FieldOwnership.Owned ||
+          ownership === FieldOwnership.Leased
+        )
+      },
+    }
+  }
+
+  private canMachineWorkField(
+    machineId: MachineId,
+    fieldId: string,
+    taskKind: AutomationTaskKind,
+    cropId?: string,
+  ): boolean {
+    switch (taskKind) {
+      case 'plow':
+        return this.fieldSystem.canPlow(fieldId)
+      case 'seed':
+        return cropId
+          ? this.fieldSystem.canSeed(fieldId, cropId)
+          : this.fieldSystem.canSeedField(fieldId)
+      case 'harvest': {
+        if (!this.fieldSystem.canHarvest(fieldId)) {
+          return false
+        }
+        const harvestCropId = this.fieldSystem.getFieldCropId(fieldId)
+        if (!harvestCropId) {
+          return false
+        }
+        if (
+          !this.capabilityResolver.canHarvestCrop(machineId, harvestCropId)
+        ) {
+          return false
+        }
+        return this.canHarvestIntoBin(machineId, harvestCropId, fieldId)
+      }
+      case 'fertilize':
+        return this.fieldSystem.canFertilize(fieldId)
+      case 'spray':
+        return this.fieldSystem.canSpray(fieldId)
+      default:
+        return false
+    }
   }
 
   private wireMachineController(controller: IMachineController): void {
@@ -1293,7 +1529,7 @@ export class Game implements IDisposable {
     }
 
     system.setOnChange?.(() => {
-      this.reconcileMachineAutomation(controller.machineId)
+      this.advanceWorkOrder(controller.machineId)
       this.autoSave()
       this.notifyListeners()
     })
@@ -1432,6 +1668,7 @@ export class Game implements IDisposable {
     this.interactionContextMenu = null
     this.machinePresentation.setSelectedMachine(null)
     this.machineAutomationRegistry.clearAll()
+    this.workOrderSystem.clear()
     this.eventLog.clear()
     this.eventLog.recordFarmReset(this.world.currentDay)
     this.syncFieldVisuals()
@@ -1654,6 +1891,7 @@ export class Game implements IDisposable {
     this.cornCombineJobSystem.applySave(machines[MachineId.CornCombine1])
     this.farmStoreSystem.applySave(saved.farmStore)
     this.machineAutomationRegistry.applySave(saved.machineAutomation)
+    this.workOrderSystem.applySave(saved.workOrders)
     this.pendingPurchasedMachineSave = machines
     this.attachmentSystem.applySave(
       this.saveGameService.normalizeAttachmentsSave(saved.attachments),
@@ -1683,13 +1921,17 @@ export class Game implements IDisposable {
   private reconcileAutomationAfterLoad(): void {
     for (const controller of this.machineRegistry.getAll()) {
       const machineId = controller.machineId
-      const session = this.machineAutomationRegistry.getSession(machineId)
-      if (!session || session.owner !== CommandOwner.Gps) {
+      const workOrderId =
+        this.machineAutomationRegistry.getActiveWorkOrderId(machineId)
+      if (!workOrderId) {
         continue
       }
-
+      if (!this.workOrderSystem.get(workOrderId)) {
+        this.machineAutomationRegistry.clearAutomation(machineId)
+        continue
+      }
       if (!controller.isBusy()) {
-        this.reconcileMachineAutomation(machineId)
+        this.advanceWorkOrder(machineId)
       }
     }
   }
@@ -1716,6 +1958,7 @@ export class Game implements IDisposable {
       attachments: this.attachmentSystem.toSaveData(),
       farmStore: this.farmStoreSystem.toSaveData(),
       machineAutomation: this.machineAutomationRegistry.toSaveData(),
+      workOrders: this.workOrderSystem.toSaveData(),
       eventLog: [...this.eventLog.getEntries()],
       eventLogNextId: this.eventLog.getNextId(),
     }
@@ -1812,6 +2055,7 @@ export class Game implements IDisposable {
       currentDay: this.world.currentDay,
       gameSpeed: this.world.gameSpeed,
       selectedFieldId: this.fieldSystem.getSelectedFieldId(),
+      selectedFieldIds: this.fieldSystem.getSelectedFieldIds(),
       selectedEntity: this.selectedEntity,
       fieldContextMenu: this.fieldContextMenu,
       fieldWorkModeMenu: this.fieldWorkModeMenu,
@@ -1839,10 +2083,39 @@ export class Game implements IDisposable {
           this.machineAutomationRegistry.getCommandOwner(machineId),
         getEffectiveCapabilities: (machineId) =>
           this.capabilityResolver.getEffectiveCapabilities(machineId),
+        getWorkOrderForMachine: (machineId) =>
+          this.buildWorkOrderSnapshotForMachine(machineId),
       }),
+      activeWorkOrder: this.buildActiveWorkOrderSnapshot(),
       eventLog: this.eventLog.getEntries(),
       moneyGain: this.eventLog.getLatestMoneyGain(),
     }
+  }
+
+  private buildWorkOrderSnapshotForMachine(
+    machineId: MachineId,
+  ): WorkOrderSnapshot | null {
+    const workOrderId =
+      this.machineAutomationRegistry.getActiveWorkOrderId(machineId)
+    if (!workOrderId) {
+      return null
+    }
+    const order = this.workOrderSystem.get(workOrderId)
+    if (!order || order.status !== WorkOrderStatus.Active) {
+      return null
+    }
+    return this.workOrderSystem.toSnapshot(order, (fieldId) => {
+      const field = this.fieldSystem.getField(fieldId)
+      return field?.name ?? fieldId
+    })
+  }
+
+  private buildActiveWorkOrderSnapshot(): WorkOrderSnapshot | null {
+    const machineId = this.getSelectedMachineId()
+    if (!machineId) {
+      return null
+    }
+    return this.buildWorkOrderSnapshotForMachine(machineId)
   }
 
   private getSelectedMachineId(): MachineId | null {

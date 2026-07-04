@@ -13,6 +13,9 @@ import {
   DEFAULT_ATTACHMENT_SPAWNS,
   getAttachmentCatalogEntry,
 } from '@/config/attachment-catalog.ts'
+import type { WorkOrderSaveData } from '@/types/work-order.ts'
+import { WorkOrderScopeKind, WorkOrderStatus } from '@/types/work-order.ts'
+import { CommandOwner } from '@/types/machine-automation.ts'
 import type { MachineAutomationSaveData } from '@/types/machine-automation.ts'
 import { MachineId } from '@/types/machine.ts'
 import { AttachmentLifecycleState, AttachmentWorkPosition } from '@/types/attachment.ts'
@@ -38,7 +41,7 @@ import type {
 
 type LegacySaveData = Omit<
   GameSaveData,
-  'machines' | 'attachments' | 'farmStore' | 'machineAutomation'
+  'machines' | 'attachments' | 'farmStore' | 'machineAutomation' | 'workOrders'
 > & {
   version?: number
   machine?: MachineSaveData
@@ -46,6 +49,7 @@ type LegacySaveData = Omit<
   attachments?: AttachmentsSaveData
   farmStore?: FarmStoreSaveData
   machineAutomation?: MachineAutomationSaveData[]
+  workOrders?: WorkOrderSaveData[]
 }
 
 export class SaveGameService {
@@ -125,6 +129,12 @@ export class SaveGameService {
         return null
       }
       return this.repairSave(this.migrateFromV11(data as LegacySaveData))
+    }
+    if (data.version === 12) {
+      if (!this.isValidCoreSave(data)) {
+        return null
+      }
+      return this.repairSave(this.migrateFromV12(data as LegacySaveData))
     }
     if (!this.isValidCoreSave(data)) {
       return null
@@ -427,6 +437,64 @@ export class SaveGameService {
       eventLog: data.eventLog,
       eventLogNextId: data.eventLogNextId,
       machineAutomation: this.normalizeMachineAutomationSave(data.machineAutomation),
+      workOrders: this.normalizeWorkOrdersSave(data.workOrders),
+    }
+  }
+
+  private normalizeWorkOrdersSave(saved: unknown): WorkOrderSaveData[] {
+    if (!Array.isArray(saved)) {
+      return []
+    }
+    return saved.filter(
+      (entry): entry is WorkOrderSaveData =>
+        !!entry &&
+        typeof entry === 'object' &&
+        typeof (entry as WorkOrderSaveData).id === 'string' &&
+        (entry as WorkOrderSaveData).status === WorkOrderStatus.Active,
+    )
+  }
+
+  private migrateFromV12(data: LegacySaveData): LegacySaveData {
+    const workOrders: WorkOrderSaveData[] = []
+    const machineAutomation: MachineAutomationSaveData[] = []
+
+    for (const entry of data.machineAutomation ?? []) {
+      const session = entry.session
+      if (session && entry.commandOwner === CommandOwner.Gps && session.fieldId) {
+        const workOrderId = `work_order_migrated_${entry.machineId}`
+        const isCurrentLeg = session.fieldId
+        workOrders.push({
+          id: workOrderId,
+          displayName: session.taskKind,
+          taskKind: session.taskKind,
+          cropId: session.cropId,
+          scope: { kind: WorkOrderScopeKind.Single, fieldId: session.fieldId },
+          executionStrategy: 'catalog_order',
+          status: WorkOrderStatus.Active,
+          assignedMachineId: entry.machineId,
+          commandOwner: CommandOwner.Gps,
+          workerId: null,
+          pendingFieldIds: [],
+          completedFieldIds: [],
+          currentFieldId: isCurrentLeg,
+          createdAtDay: session.startedAtDay,
+          startedAtDay: session.startedAtDay,
+        })
+        machineAutomation.push({
+          machineId: entry.machineId,
+          commandOwner: CommandOwner.Gps,
+          activeWorkOrderId: workOrderId,
+        })
+      } else if (entry.activeWorkOrderId) {
+        machineAutomation.push(entry)
+      }
+    }
+
+    return {
+      ...data,
+      version: SAVE_VERSION,
+      workOrders,
+      machineAutomation,
     }
   }
 

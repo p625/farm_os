@@ -7,6 +7,7 @@ import {
   type TerrainHeightfield,
 } from '@/studio/terrain/TerrainHeightmap.ts'
 import { getTerrainSurfaceColor } from '@/studio/terrain/TerrainSurfacePalette.ts'
+import { surfaceIndexToMeshVertex } from '@/studio/terrain/TerrainGridMapping.ts'
 
 export interface SyncTerrainMeshOptions {
   /** Recompute mesh normals (skip during live paint for responsiveness). */
@@ -37,12 +38,13 @@ function writeSurfaceColors(
 ): void {
   for (let j = 0; j < resolution; j++) {
     for (let i = 0; i < resolution; i++) {
-      const vertex = j * resolution + i
-      const [r, g, b] = getTerrainSurfaceColor(surfaces[vertex])
-      colors[vertex * 4] = r
-      colors[vertex * 4 + 1] = g
-      colors[vertex * 4 + 2] = b
-      colors[vertex * 4 + 3] = 1
+      const surfaceIndex = j * resolution + i
+      const meshVertex = surfaceIndexToMeshVertex(i, j, resolution)
+      const [r, g, b] = getTerrainSurfaceColor(surfaces[surfaceIndex])
+      colors[meshVertex * 4] = r
+      colors[meshVertex * 4 + 1] = g
+      colors[meshVertex * 4 + 2] = b
+      colors[meshVertex * 4 + 3] = 1
     }
   }
 }
@@ -93,16 +95,18 @@ export function syncTerrainMeshField(
   if (updateAllPositions) {
     for (let j = 0; j < resolution; j++) {
       for (let i = 0; i < resolution; i++) {
-        const vertex = j * resolution + i
-        positions[vertex * 3 + 1] = heights[vertex] - baseY
+        const surfaceIndex = j * resolution + i
+        const meshVertex = surfaceIndexToMeshVertex(i, j, resolution)
+        positions[meshVertex * 3 + 1] = heights[surfaceIndex] - baseY
       }
     }
     positionsDirty = true
   } else if (positionBounds) {
     for (let j = posMinJ; j <= posMaxJ; j++) {
       for (let i = posMinI; i <= posMaxI; i++) {
-        const vertex = j * resolution + i
-        positions[vertex * 3 + 1] = heights[vertex] - baseY
+        const surfaceIndex = j * resolution + i
+        const meshVertex = surfaceIndexToMeshVertex(i, j, resolution)
+        positions[meshVertex * 3 + 1] = heights[surfaceIndex] - baseY
       }
     }
     positionsDirty = true

@@ -10,6 +10,7 @@ import {
   resolveGpsAvailable,
   type FleetMachineSnapshot,
 } from '@/types/machine-fleet.ts'
+import type { WorkOrderSnapshot } from '@/types/work-order.ts'
 import { CommandOwner } from '@/types/machine-automation.ts'
 import {
   MachineTemplateId,
@@ -147,6 +148,7 @@ export function buildFleetSnapshots(options: {
   getCropName: (cropId: string) => string
   getCommandOwner: (machineId: MachineId) => CommandOwner
   getEffectiveCapabilities: (machineId: MachineId) => readonly MachineCapability[]
+  getWorkOrderForMachine: (machineId: MachineId) => WorkOrderSnapshot | null
 }): readonly FleetMachineSnapshot[] {
   const {
     machineRegistry,
@@ -156,6 +158,7 @@ export function buildFleetSnapshots(options: {
     getCropName,
     getCommandOwner,
     getEffectiveCapabilities,
+    getWorkOrderForMachine,
   } = options
 
   const snapshots: FleetMachineSnapshot[] = []
@@ -206,6 +209,7 @@ export function buildFleetSnapshots(options: {
       gpsAvailable: resolveGpsAvailable(capabilities),
       workerName: null,
       fuelLabel: '—',
+      workOrder: getWorkOrderForMachine(machineId),
     })
   }
 

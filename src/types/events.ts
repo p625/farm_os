@@ -17,6 +17,11 @@ export const GameEventKind = {
   ProductPurchased: 'product_purchased',
   GpsWorkCompleted: 'gps_work_completed',
   GpsWorkCancelled: 'gps_work_cancelled',
+  WorkOrderCreated: 'work_order_created',
+  WorkOrderStarted: 'work_order_started',
+  WorkOrderFieldCompleted: 'work_order_field_completed',
+  WorkOrderCompleted: 'work_order_completed',
+  WorkOrderCancelled: 'work_order_cancelled',
 } as const
 
 export type GameEventKind =

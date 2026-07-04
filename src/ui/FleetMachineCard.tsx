@@ -143,6 +143,28 @@ export function FleetMachineCard({
             <dd>{jobLabel}</dd>
           </div>
         ) : null}
+        {machine.workOrder ? (
+          <div className="fleet-machine-card__row">
+            <dt>Work order</dt>
+            <dd>{machine.workOrder.displayName}</dd>
+          </div>
+        ) : null}
+        {machine.workOrder ? (
+          <div className="fleet-machine-card__row">
+            <dt>Order progress</dt>
+            <dd>
+              {machine.workOrder.completedFieldCount}/
+              {machine.workOrder.totalFieldCount} (
+              {machine.workOrder.remainingArea} ha left)
+            </dd>
+          </div>
+        ) : null}
+        {machine.workOrder?.currentFieldName ? (
+          <div className="fleet-machine-card__row">
+            <dt>Current field</dt>
+            <dd>{machine.workOrder.currentFieldName}</dd>
+          </div>
+        ) : null}
         <div className="fleet-machine-card__row">
           <dt>Fuel</dt>
           <dd>{machine.fuelLabel}</dd>
@@ -161,7 +183,7 @@ export function FleetMachineCard({
             onCancelGps?.()
           }}
         >
-          Cancel GPS
+          Cancel work order
         </button>
       ) : null}
     </button>

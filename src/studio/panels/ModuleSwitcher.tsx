@@ -7,7 +7,7 @@ interface ModuleSwitcherProps {
   store: StudioStore
 }
 
-const ACTIVE_MODULES: StudioModuleId[] = ['transform', 'terrain']
+const ACTIVE_MODULES: StudioModuleId[] = ['transform', 'terrain', 'roads']
 
 export function ModuleSwitcher({ store }: ModuleSwitcherProps) {
   const { activeModuleId } = useStudioStore(store)

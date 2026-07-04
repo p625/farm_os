@@ -6,6 +6,7 @@ import { StudioLighting } from '@/studio/core/StudioLighting.ts'
 import { StudioManipulator } from '@/studio/core/StudioManipulator.ts'
 import { StudioSelection } from '@/studio/core/StudioSelection.ts'
 import { StudioTerrainEditor } from '@/studio/core/StudioTerrainEditor.ts'
+import { StudioRoadEditor } from '@/studio/core/StudioRoadEditor.ts'
 import type { StudioStore } from '@/studio/core/StudioStore.ts'
 import { getStudioMetadata } from '@/studio/io/MapSceneBuilder.ts'
 
@@ -21,6 +22,7 @@ export class StudioEngine {
   private readonly selection = new StudioSelection()
   private manipulator: StudioManipulator | null = null
   private terrainEditor: StudioTerrainEditor | null = null
+  private roadEditor: StudioRoadEditor | null = null
 
   constructor(canvas: HTMLCanvasElement, store: StudioStore) {
     this.canvas = canvas
@@ -60,9 +62,14 @@ export class StudioEngine {
       onCommit: () => this.refreshMap(),
     })
     this.terrainEditor = new StudioTerrainEditor(this.canvas, editorDeps)
+    this.roadEditor = new StudioRoadEditor(this.canvas, {
+      ...editorDeps,
+      onRefresh: () => this.refreshMap(),
+    })
 
     this.manipulator.attach()
     this.terrainEditor.attach()
+    this.roadEditor.attach()
     this.syncModules()
 
     window.addEventListener('resize', this.onResize)
@@ -100,6 +107,22 @@ export class StudioEngine {
   syncModules(): void {
     this.manipulator?.syncSelection(this.scene)
     this.terrainEditor?.syncModuleState(this.scene)
+    this.roadEditor?.syncModuleState(this.scene)
+  }
+
+  deleteSelectedRoad(): boolean {
+    if (this.store.getSnapshot().activeModuleId !== 'roads') {
+      return false
+    }
+    const selection = this.store.getSnapshot().roadSelection
+    if (!selection) {
+      return false
+    }
+    if (!this.store.deleteRoad(selection.roadId)) {
+      return false
+    }
+    this.refreshMap()
+    return true
   }
 
   deleteSelectedObject(): boolean {
@@ -139,8 +162,10 @@ export class StudioEngine {
     this.engine?.stopRenderLoop()
     this.manipulator?.detach()
     this.terrainEditor?.detach()
+    this.roadEditor?.detach()
     this.manipulator = null
     this.terrainEditor = null
+    this.roadEditor = null
 
     window.removeEventListener('resize', this.onResize)
 

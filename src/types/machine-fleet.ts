@@ -7,6 +7,7 @@ import type { MachineTemplateId } from '@/types/machine-template.ts'
 import type { MachineId } from '@/types/machine.ts'
 import type { MachineCapability } from '@/types/machine.ts'
 import { TractorState, type TractorJobSnapshot, type TractorSnapshot } from '@/types/tractor.ts'
+import type { WorkOrderSnapshot } from '@/types/work-order.ts'
 import { machineSupportsGpsFieldWork } from '@systems/MachineAutomationRegistry.ts'
 
 export const MachineFleetStatus = {
@@ -41,10 +42,11 @@ export interface FleetMachineSnapshot {
   selected: boolean
   commandOwner: CommandOwner
   gpsAvailable: boolean
-  /** Reserved — Phase 16C worker display name. */
+  /** Reserved — Phase 16E worker display name. */
   workerName: null
   /** Reserved — future fuel system. Display only. */
   fuelLabel: '—'
+  workOrder: WorkOrderSnapshot | null
 }
 
 export function deriveMachineFleetStatus(

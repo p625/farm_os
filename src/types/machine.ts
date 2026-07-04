@@ -96,7 +96,8 @@ export interface FieldContextMenuSnapshot {
 
 export const FieldWorkModeActionKind = {
   PerformManually: 'perform_manually',
-  AutomaticGps: 'automatic_gps',
+  GpsThisField: 'gps_this_field',
+  GpsSelectedFields: 'gps_selected_fields',
   Cancel: 'cancel',
 } as const
 

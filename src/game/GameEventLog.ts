@@ -149,6 +149,50 @@ export class GameEventLog {
     )
   }
 
+  recordWorkOrderCreated(displayName: string, day: number): void {
+    this.push(
+      `Work order created: ${displayName}.`,
+      GameEventKind.WorkOrderCreated,
+      day,
+    )
+  }
+
+  recordWorkOrderStarted(displayName: string, machineName: string, day: number): void {
+    this.push(
+      `Work order started: ${displayName} (${machineName}).`,
+      GameEventKind.WorkOrderStarted,
+      day,
+    )
+  }
+
+  recordWorkOrderFieldCompleted(
+    displayName: string,
+    fieldName: string,
+    day: number,
+  ): void {
+    this.push(
+      `Work order field done: ${displayName} — ${fieldName}.`,
+      GameEventKind.WorkOrderFieldCompleted,
+      day,
+    )
+  }
+
+  recordWorkOrderCompleted(displayName: string, machineName: string, day: number): void {
+    this.push(
+      `Work order completed: ${displayName} (${machineName}).`,
+      GameEventKind.WorkOrderCompleted,
+      day,
+    )
+  }
+
+  recordWorkOrderCancelled(displayName: string, day: number): void {
+    this.push(
+      `Work order cancelled: ${displayName}.`,
+      GameEventKind.WorkOrderCancelled,
+      day,
+    )
+  }
+
   restore(entries: readonly GameLogEntry[], nextId: number): void {
     this.entries = [...entries].slice(0, MAX_ENTRIES)
     this.nextId = Math.max(1, nextId)

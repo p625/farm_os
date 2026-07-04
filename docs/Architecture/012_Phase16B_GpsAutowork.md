@@ -96,5 +96,7 @@ If a combine cannot continue (e.g. full grain bin), architecture allows a future
 |-----------|---------|
 | 16A | Fleet Overview |
 | 16B | GPS Autowork |
-| 16C | Farm Workers |
-| 16D | Farm Manager |
+| 16C | Work Orders (GPS executor) |
+| 16D | Block scope UI |
+| 16E | Farm Workers |
+| 16F | Farm Manager |

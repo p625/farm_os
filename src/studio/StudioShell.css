@@ -193,6 +193,58 @@
   box-shadow: 0 0 0 1px #4a8a54;
 }
 
+.studio-road-type-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-bottom: 0.5rem;
+}
+
+.studio-road-type {
+  display: grid;
+  grid-template-columns: 1.4rem 1fr auto;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.35rem 0.45rem;
+  border: 1px solid #2a343d;
+  border-radius: 6px;
+  background: #141a1f;
+  color: #c8d4dc;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  font-size: 0.78rem;
+}
+
+.studio-road-type:hover {
+  border-color: #3d4a54;
+  background: #1a2228;
+}
+
+.studio-road-type--active {
+  border-color: #4a8a54;
+  background: #1e2d22;
+}
+
+.studio-road-type__swatch {
+  width: 1.2rem;
+  height: 1.2rem;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.studio-road-type__width {
+  font-size: 0.68rem;
+  color: #6a7d8a;
+}
+
+.studio-road-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-top: 0.35rem;
+}
+
 .studio-surface-swatch__label {
   position: absolute;
   left: 0;

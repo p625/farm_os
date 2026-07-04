@@ -5,6 +5,7 @@ import type { FieldLifecycleState } from '@/types/field.ts'
 import type { FieldCropCare } from '@/types/crop-care.ts'
 import type { FieldOwnership } from '@/types/ownership.ts'
 import type { MachineAutomationSaveData } from '@/types/machine-automation.ts'
+import type { WorkOrderSaveData } from '@/types/work-order.ts'
 
 export interface FieldSaveData {
   id: string
@@ -141,4 +142,5 @@ export interface GameSaveData {
   eventLog: GameLogEntry[]
   eventLogNextId: number
   machineAutomation: MachineAutomationSaveData[]
+  workOrders: WorkOrderSaveData[]
 }

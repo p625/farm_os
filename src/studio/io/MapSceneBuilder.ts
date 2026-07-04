@@ -14,9 +14,20 @@ import {
   syncTerrainMeshField,
   type SyncTerrainMeshOptions,
 } from '@/studio/terrain/TerrainMeshSync.ts'
-import { ensureTerrainHeightfield } from '@/studio/terrain/TerrainHeightmap.ts'
+import { ensureTerrainHeightfield, applyTerrainHeightToPoint, sampleTerrainHeightBilinear } from '@/studio/terrain/TerrainHeightmap.ts'
 import type { TerrainHeightfield } from '@/studio/terrain/TerrainHeightmap.ts'
+import { createRoadRibbonMesh, ROAD_SURFACE_OFFSET, snapRoadPointsToTerrain } from '@/studio/road/RoadMeshBuilder.ts'
+import { parseRoadProperties } from '@/types/road.ts'
+import type { RoadControlPoint, RoadKind } from '@/types/road.ts'
 import type { MapObject, StudioLayerId, WorldMapDocument } from '@/types/world-map.ts'
+
+export const STUDIO_ROAD_POINT_KEY = 'farmosStudioRoadPoint'
+
+export interface StudioRoadPointMetadata {
+  roadId: string
+  pointIndex: number
+  isDraft?: boolean
+}
 
 export const STUDIO_METADATA_KEY = 'farmosStudio'
 
@@ -73,6 +84,11 @@ export class MapSceneBuilder {
     object: MapObject,
     map: WorldMapDocument,
   ): void {
+    if (object.layer === 'roads' && object.kind === 'road') {
+      this.createRoadObjectMesh(scene, root, object, map)
+      return
+    }
+
     const shape = object.shape ?? {
       type: 'box' as const,
       width: 1,
@@ -151,6 +167,142 @@ export class MapSceneBuilder {
       mapObject: object,
     }
     mesh.metadata = { [STUDIO_METADATA_KEY]: metadata }
+  }
+
+  private createRoadObjectMesh(
+    scene: Scene,
+    root: TransformNode,
+    object: MapObject,
+    map: WorldMapDocument,
+  ): void {
+    const props = parseRoadProperties(object.properties)
+    if (!props) {
+      return
+    }
+
+    const sampler = this.createTerrainHeightSampler(map)
+    const mesh = createRoadRibbonMesh(
+      scene,
+      `studio_${object.id}`,
+      props.points,
+      props.roadKind,
+      sampler,
+    )
+    if (!mesh) {
+      return
+    }
+
+    mesh.parent = root
+    const metadata: StudioMeshMetadata = {
+      objectId: object.id,
+      layer: 'roads',
+      kind: 'road',
+      mapObject: object,
+    }
+    mesh.metadata = { [STUDIO_METADATA_KEY]: metadata }
+  }
+
+  snapRoadPoints(
+    map: WorldMapDocument,
+    points: readonly RoadControlPoint[],
+  ): RoadControlPoint[] {
+    const sampler = this.createTerrainHeightSampler(map)
+    return snapRoadPointsToTerrain(points, sampler)
+  }
+
+  createTerrainHeightSampler(
+    map: WorldMapDocument,
+  ): (worldX: number, worldZ: number) => number {
+    const ground = map.objects.find((entry) => entry.id === 'terrain_ground')
+    const field = ensureTerrainHeightfield(map.terrain)
+    const originX = ground?.transform.position.x ?? 0
+    const originZ = ground?.transform.position.z ?? 0
+    const baseY = ground?.transform.position.y ?? 0
+    return (worldX: number, worldZ: number) =>
+      sampleTerrainHeightBilinear(field, originX, originZ, baseY, worldX, worldZ)
+  }
+
+  sampleTerrainPoint(
+    map: WorldMapDocument,
+    worldX: number,
+    worldZ: number,
+  ): RoadControlPoint {
+    const ground = map.objects.find((entry) => entry.id === 'terrain_ground')
+    const field = ensureTerrainHeightfield(map.terrain)
+    const originX = ground?.transform.position.x ?? 0
+    const originZ = ground?.transform.position.z ?? 0
+    const baseY = ground?.transform.position.y ?? 0
+    return applyTerrainHeightToPoint(
+      field,
+      originX,
+      originZ,
+      baseY,
+      worldX,
+      worldZ,
+      ROAD_SURFACE_OFFSET,
+    )
+  }
+
+  refreshRoadMesh(scene: Scene, map: WorldMapDocument, roadId: string): void {
+    this.lastMap = map
+    const object = map.objects.find((entry) => entry.id === roadId)
+    if (!object) {
+      return
+    }
+    this.upsertObjectMesh(scene, object)
+  }
+
+  refreshRoadDraftMesh(
+    scene: Scene,
+    map: WorldMapDocument,
+    points: readonly RoadControlPoint[],
+    roadKind: RoadKind,
+    draftId = '__road_draft__',
+  ): void {
+    const existing = findStudioMeshByObjectId(scene, draftId)
+    existing?.dispose(false, true)
+
+    if (points.length < 2) {
+      return
+    }
+
+    const root =
+      this.rootNode ??
+      (scene.getTransformNodeByName('studio_map_root') as TransformNode | null)
+    if (!root) {
+      return
+    }
+
+    const sampler = this.createTerrainHeightSampler(map)
+    const mesh = createRoadRibbonMesh(
+      scene,
+      `studio_${draftId}`,
+      points,
+      roadKind,
+      sampler,
+    )
+    if (!mesh) {
+      return
+    }
+
+    mesh.parent = root
+    mesh.metadata = {
+      [STUDIO_METADATA_KEY]: {
+        objectId: draftId,
+        layer: 'roads',
+        kind: 'road_draft',
+        mapObject: {
+          id: draftId,
+          layer: 'roads',
+          kind: 'road_draft',
+          transform: { position: { x: 0, y: 0, z: 0 } },
+        },
+      },
+    }
+  }
+
+  disposeRoadDraftMesh(scene: Scene): void {
+    findStudioMeshByObjectId(scene, '__road_draft__')?.dispose(false, true)
   }
 
   upsertObjectMesh(scene: Scene, object: MapObject): void {
