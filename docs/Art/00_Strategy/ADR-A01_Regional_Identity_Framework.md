@@ -31,6 +31,9 @@ Toto **není** finální rozhodnutí. Je to metodika, podle které bude region v
 Art Bible (ústava)
        │
        ▼
+World Identity Statement — filozofie světa (Vision Lock)
+       │
+       ▼
 ADR-A01 Framework (tento dokument) — kritéria, kandidáti, matice
        │
        ▼
@@ -51,7 +54,7 @@ Odblokování Environment Bible, Lighting Guide, …
 
 ### Proč toto rozhodnutí existuje
 
-Po [Art Bible](Art_Bible.md) je regionální identita **druhým nejdůležitějším kreativním rozhodnutím** celého FarmOS. Art Bible definuje *jaký typ* světa hra je — klidný management simulátor s believable evropskou farmou. ADR-A01 definuje *který konkrétní vizuální svět* tato věta popisuje.
+Po [Art Bible](Art_Bible.md) a schváleném [World Identity Statement](World_Identity_Statement.md) je regionální identita **dalším klíčovým rozhodnutím** celého FarmOS. Art Bible definuje *jaký typ* světa hra je. World Identity Statement definuje *jaký charakter světa* vytváříme. ADR-A01 definuje *který konkrétní evropský vizuální svět* tyto dokumenty naplňuje.
 
 Bez uzavřeného ADR-A01 každý artist interpretuje „evropskou farmu" jinak. Jeden modeluje alpskou stodolu, druhý polský silážní válec, třetí francouzský mlýn. Výsledek není svět — je to koláž.
 
@@ -461,6 +464,7 @@ Tyto otázky **musí být zodpovězeny** před uzavřením ADR-A01. Odpovědi se
 ## Proces schválení (checklist)
 
 - [ ] Art Bible ve stavu Approved nebo Frozen
+- [ ] [World Identity Statement](World_Identity_Statement.md) ve stavu Approved
 - [ ] Otevřené otázky Q1–Q14 zodpovězeny
 - [ ] Rozhodovací matice vyplněna a vážený součet spočítán
 - [ ] In / Out list vytvořen
@@ -472,7 +476,8 @@ Tyto otázky **musí být zodpovězeny** před uzavřením ADR-A01. Odpovědi se
 
 ## Související dokumenty
 
-- [Art_Bible.md](Art_Bible.md) — nadřazená autorita
+- [Art_Bible.md](Art_Bible.md) — nadřazená ústava
+- [World_Identity_Statement.md](World_Identity_Statement.md) — Vision Lock před tímto ADR
 - [00_INDEX.md](../00_INDEX.md) — preprodukční roadmapa
 - [01_ART_DECISION_LOG.md](../01_ART_DECISION_LOG.md) — zápis rozhodnutí po schválení
 

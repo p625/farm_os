@@ -8,6 +8,21 @@ export const TRACTOR_HOME = {
 
 export const TRACTOR_HOME_ROTATION_Y = -Math.PI / 6
 
+export const GRAIN_COMBINE_HOME = {
+  x: 22,
+  y: 0,
+  z: 10,
+} as const
+
+export const CORN_COMBINE_HOME = {
+  x: 30,
+  y: 0,
+  z: 10,
+} as const
+
+export const GRAIN_COMBINE_HOME_ROTATION_Y = -Math.PI / 6
+export const CORN_COMBINE_HOME_ROTATION_Y = -Math.PI / 6
+
 export const EQUIPMENT_YARD_SPAWN_POSITIONS: Record<
   string,
   { x: number; y: number; z: number }
@@ -15,6 +30,8 @@ export const EQUIPMENT_YARD_SPAWN_POSITIONS: Record<
   plow_1: { x: 10, y: 0, z: 24 },
   seeder_1: { x: 18, y: 0, z: 24 },
   trailer_1: { x: 26, y: 0, z: 24 },
+  grain_header_1: { x: 12, y: 0, z: 30 },
+  corn_header_1: { x: 24, y: 0, z: 30 },
 }
 
 export const ATTACHMENT_SLOT_OFFSETS: Record<

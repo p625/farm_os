@@ -20,6 +20,7 @@ export interface AttachmentCatalogEntry {
   behavior: AttachmentBehaviorValue
   workingWidth: number
   providesCapabilities?: readonly MachineCapabilityValue[]
+  supportedCropIds?: readonly string[]
 }
 
 export const ATTACHMENT_CATALOG: readonly AttachmentCatalogEntry[] = [
@@ -57,6 +58,7 @@ export const ATTACHMENT_CATALOG: readonly AttachmentCatalogEntry[] = [
     behavior: AttachmentBehavior.Passive,
     workingWidth: 6,
     providesCapabilities: [MachineCapability.Harvest],
+    supportedCropIds: ['wheat', 'barley', 'canola', 'soybean'],
   },
   {
     id: AttachmentCatalogId.CornHeader,
@@ -66,6 +68,7 @@ export const ATTACHMENT_CATALOG: readonly AttachmentCatalogEntry[] = [
     behavior: AttachmentBehavior.Passive,
     workingWidth: 6,
     providesCapabilities: [MachineCapability.Harvest],
+    supportedCropIds: ['corn'],
   },
 ] as const
 
@@ -78,6 +81,8 @@ export const DEFAULT_ATTACHMENT_SPAWNS: readonly DefaultAttachmentSpawn[] = [
   { id: AttachmentId.Plow1, catalogId: AttachmentCatalogId.Plow },
   { id: AttachmentId.Seeder1, catalogId: AttachmentCatalogId.Seeder },
   { id: AttachmentId.Trailer1, catalogId: AttachmentCatalogId.Wagon },
+  { id: AttachmentId.GrainHeader1, catalogId: AttachmentCatalogId.GrainHeader },
+  { id: AttachmentId.CornHeader1, catalogId: AttachmentCatalogId.CornHeader },
 ] as const
 
 const catalogById = new Map(
@@ -94,4 +99,12 @@ export function getAttachmentDisplayName(
   catalogId: AttachmentCatalogIdValue,
 ): string {
   return getAttachmentCatalogEntry(catalogId)?.name ?? catalogId
+}
+
+export function headerSupportsCrop(
+  catalogId: AttachmentCatalogIdValue,
+  cropId: string,
+): boolean {
+  const entry = getAttachmentCatalogEntry(catalogId)
+  return entry?.supportedCropIds?.includes(cropId) ?? false
 }

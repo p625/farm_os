@@ -243,12 +243,28 @@ export class FieldSystem extends GameSystem {
   }
 
   harvestField(fieldId: string): boolean {
-    if (!this.isFieldUsable(fieldId) || !this.cropSystem) {
+    const result = this.completeHarvest(fieldId)
+    if (!result) {
       return false
     }
+
+    return (
+      this.inventorySystem?.addCrop(
+        result.cropId,
+        result.yield,
+        this.world.currentDay,
+      ) ?? false
+    )
+  }
+
+  completeHarvest(fieldId: string): { cropId: string; yield: number } | null {
+    if (!this.isFieldUsable(fieldId) || !this.cropSystem) {
+      return null
+    }
+
     const field = this.fields.get(fieldId)
     if (!field || field.state !== States.Harvestable) {
-      return false
+      return null
     }
 
     const cropId = this.cropSystem.normalizePlantedCropId(
@@ -256,21 +272,27 @@ export class FieldSystem extends GameSystem {
       field.state,
     )
     if (!cropId) {
-      return false
+      return null
     }
 
     const yieldAmount = this.cropSystem.getYield(cropId)
-
-    if (!this.inventorySystem?.addCrop(cropId, yieldAmount, this.world.currentDay)) {
-      return false
-    }
 
     field.state = States.Grass
     field.growthPercent = 0
     field.cropId = null
     field.daysGrown = 0
     this.notifyChange()
-    return true
+
+    return { cropId, yield: yieldAmount }
+  }
+
+  getFieldCropId(fieldId: string): string | null {
+    const field = this.fields.get(fieldId)
+    if (!field) {
+      return null
+    }
+
+    return this.cropSystem?.normalizePlantedCropId(field.cropId, field.state) ?? null
   }
 
   dispose(): void {

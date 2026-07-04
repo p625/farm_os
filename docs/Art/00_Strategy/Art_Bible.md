@@ -223,7 +223,8 @@ Technická architektura: [`docs/Architecture/`](../Architecture/README.md) — a
 | Pořadí | Akce |
 |--------|------|
 | 1 | Schválit tuto Art Bible (Draft → Approved) |
-| 2 | Workshop dle [ADR-A01 Framework](00_Strategy/ADR-A01_Regional_Identity_Framework.md) → Accepted v Decision Log |
+| 1b | Schválit [World Identity Statement](World_Identity_Statement.md) — Vision Lock |
+| 2 | Workshop dle [ADR-A01 Framework](ADR-A01_Regional_Identity_Framework.md) → Accepted v Decision Log |
 | 3 | Dokončit [Environment Bible](../01_Domain_Bibles/Environment_Bible.md) |
 | 4 | Dokončit [Lighting Guide](../02_Production_Guidelines/Lighting_Guide.md) |
 | 5 | Finalizovat [Color Script](Color_Script.md) |
@@ -233,6 +234,7 @@ Technická architektura: [`docs/Architecture/`](../Architecture/README.md) — a
 ## Související dokumenty
 
 - [00_INDEX.md](../00_INDEX.md) — preprodukční roadmapa
+- [World_Identity_Statement.md](World_Identity_Statement.md) — Vision Lock, filozofie světa
 - [ADR-A01 Framework](ADR-A01_Regional_Identity_Framework.md) — rozhodovací metodika
 - [01_ART_DECISION_LOG.md](../01_ART_DECISION_LOG.md) — zápis finálního rozhodnutí
 - [Environment_Bible.md](../01_Domain_Bibles/Environment_Bible.md)

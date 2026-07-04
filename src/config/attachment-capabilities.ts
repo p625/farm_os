@@ -60,7 +60,15 @@ export function formatMachineCapability(
 export function getFieldWorkRequirementHint(
   fieldState: string,
   effectiveCapabilities: readonly MachineCapabilityValue[],
+  options?: {
+    cropId?: string | null
+    harvestIncompatibilityMessage?: string | null
+  },
 ): string | null {
+  if (options?.harvestIncompatibilityMessage) {
+    return options.harvestIncompatibilityMessage
+  }
+
   if (
     fieldState === States.Grass &&
     !effectiveCapabilities.includes(MachineCapability.Plow)
@@ -76,7 +84,12 @@ export function getFieldWorkRequirementHint(
   }
 
   if (fieldState === States.Harvestable) {
-    return 'This crop requires a harvesting machine.'
+    if (!effectiveCapabilities.includes(MachineCapability.Harvest)) {
+      return 'This crop requires a harvesting machine.'
+    }
+    if (options?.cropId) {
+      return 'Attach a compatible header to harvest this crop.'
+    }
   }
 
   return null

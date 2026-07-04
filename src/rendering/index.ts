@@ -9,6 +9,7 @@ export { CropPresentation } from './CropPresentation.ts'
 export { ProductionPresentation } from './ProductionPresentation.ts'
 export { OwnershipPresentation } from './OwnershipPresentation.ts'
 export { TractorPresentation } from './TractorPresentation.ts'
+export { MachinePresentation } from './MachinePresentation.ts'
 export {
   MachineInputPresentation,
   TractorInputPresentation,

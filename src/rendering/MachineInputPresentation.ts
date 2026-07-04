@@ -6,7 +6,7 @@ import {
   type Vector3,
 } from '@babylonjs/core'
 import type { Game } from '@core/Game.ts'
-import { DEFAULT_MACHINE_ID } from '@/config/machine-catalog.ts'
+import { DEFAULT_MACHINE_ID, isKnownMachineSceneNode } from '@/config/machine-catalog.ts'
 import { FIELD_IDS } from '@/config/field-catalog.ts'
 import { FIELD_POSITIONS } from '@/config/farm-layout.ts'
 import {
@@ -16,10 +16,10 @@ import {
 import {
   SelectedEntityKind,
   type MachineCommand,
+  type MachineId,
 } from '@/types/machine.ts'
 import type { AttachmentIdValue } from '@/types/attachment.ts'
 
-const TRACTOR_NODE_NAME = 'tractor'
 const TERRAIN_MESH_NAME = 'terrain'
 const FARMYARD_MESH_NAME = 'farmyard'
 const RIGHT_CLICK_DRAG_THRESHOLD_PX = 6
@@ -125,8 +125,9 @@ export class MachineInputPresentation {
   }
 
   private handleLeftClick(mesh: AbstractMesh): void {
-    if (this.isTractorMesh(mesh)) {
-      this.game?.selectMachine(DEFAULT_MACHINE_ID)
+    const machineId = this.resolveMachineId(mesh)
+    if (machineId) {
+      this.game?.selectMachine(machineId)
     }
   }
 
@@ -136,10 +137,14 @@ export class MachineInputPresentation {
     screenX: number,
     screenY: number,
   ): void {
-    const snapshot = this.game?.getSnapshot()
-    if (snapshot?.selectedEntity.kind !== SelectedEntityKind.Machine) {
+    const machineId = this.getSelectedMachineId()
+    if (!machineId) {
       return
     }
+
+    const snapshot = this.game?.getSnapshot()
+    const machineSnapshot = snapshot?.selectedMachine
+    const machinePosition = machineSnapshot?.position ?? { x: 0, z: 0 }
 
     const attachmentId = mesh ? getAttachmentIdFromMesh(mesh) : null
     if (attachmentId) {
@@ -154,7 +159,7 @@ export class MachineInputPresentation {
     const fieldId = this.resolveFieldTarget(
       mesh,
       point,
-      snapshot.tractor.position,
+      machinePosition,
     )
     if (fieldId) {
       this.game?.openFieldContextMenu(fieldId, screenX, screenY)
@@ -170,7 +175,15 @@ export class MachineInputPresentation {
       task: { kind: 'none' },
     }
 
-    this.game?.issueMachineCommand(DEFAULT_MACHINE_ID, command)
+    this.game?.issueMachineCommand(machineId, command)
+  }
+
+  private getSelectedMachineId(): MachineId | null {
+    const snapshot = this.game?.getSnapshot()
+    if (snapshot?.selectedEntity.kind !== SelectedEntityKind.Machine) {
+      return null
+    }
+    return snapshot.selectedEntity.machineId
   }
 
   private resolveFieldTarget(
@@ -217,7 +230,7 @@ export class MachineInputPresentation {
         event.clientX,
         event.clientY,
         (mesh) =>
-          !this.isTractorMesh(mesh) &&
+          !this.isMachineMesh(mesh) &&
           !isAttachmentMesh(mesh) &&
           !this.isFarmyardMesh(mesh),
       )
@@ -247,7 +260,7 @@ export class MachineInputPresentation {
     includeAttachments: boolean,
   ): PickPredicate {
     return (mesh) => {
-      if (this.isTractorMesh(mesh)) {
+      if (this.isMachineMesh(mesh)) {
         return false
       }
       if (this.isFarmyardMesh(mesh)) {
@@ -301,15 +314,24 @@ export class MachineInputPresentation {
     }
   }
 
-  private isTractorMesh(mesh: AbstractMesh): boolean {
+  private isMachineMesh(mesh: AbstractMesh): boolean {
+    return this.resolveMachineId(mesh) !== null
+  }
+
+  private resolveMachineId(mesh: AbstractMesh): MachineId | null {
     let current: AbstractMesh | null = mesh
     while (current) {
-      if (current.name === TRACTOR_NODE_NAME) {
-        return true
+      const machineId = isKnownMachineSceneNode(current.name)
+      if (machineId) {
+        return machineId
       }
       current = current.parent as AbstractMesh | null
     }
-    return false
+    return null
+  }
+
+  private isTractorMesh(mesh: AbstractMesh): boolean {
+    return this.resolveMachineId(mesh) === DEFAULT_MACHINE_ID
   }
 
   private isTerrainMesh(mesh: AbstractMesh): boolean {

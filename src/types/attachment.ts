@@ -51,6 +51,8 @@ export const AttachmentId = {
   Plow1: 'plow_1',
   Seeder1: 'seeder_1',
   Trailer1: 'trailer_1',
+  GrainHeader1: 'grain_header_1',
+  CornHeader1: 'corn_header_1',
 } as const
 
 export type AttachmentIdValue =

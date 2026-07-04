@@ -13,12 +13,33 @@ import type { ShopUpgradeSnapshot } from '@/types/shop.ts'
 import type { GameLogEntry, MoneyGainEffect } from '@/types/events.ts'
 import {
   EMPTY_SELECTED_ENTITY,
+  MachineId,
   type FieldContextMenuSnapshot,
+  type MachineCapability as MachineCapabilityValue,
+  type MachineId as MachineIdValue,
   type SelectedEntitySnapshot,
 } from '@/types/machine.ts'
-import type { AttachmentContextMenuSnapshot, MachineAttachmentsSnapshot } from '@/types/attachment.ts'
-import type { MachineCapability as MachineCapabilityValue } from '@/types/machine.ts'
-import { TractorState, type TractorSnapshot } from '@/types/tractor.ts'
+import type {
+  AttachmentContextMenuSnapshot,
+  MachineAttachmentsSnapshot,
+} from '@/types/attachment.ts'
+import type { GrainBinSnapshot } from '@/types/grain-bin.ts'
+import {
+  TractorState,
+  type TractorJobSnapshot,
+  type TractorSnapshot,
+} from '@/types/tractor.ts'
+
+export interface SelectedMachineSnapshot {
+  machineId: MachineIdValue
+  machineName: string
+  state: TractorState
+  activeJob: TractorJobSnapshot | null
+  workProgress: number
+  position: { x: number; y: number; z: number }
+  rotationY: number
+  grainBin: GrainBinSnapshot | null
+}
 
 export interface GameSnapshot {
   money: number
@@ -36,11 +57,24 @@ export interface GameSnapshot {
   processedMarketPrices: readonly ProcessedMarketPriceSnapshot[]
   mill: ProductionBuildingSnapshot
   shopUpgrades: readonly ShopUpgradeSnapshot[]
-  tractor: TractorSnapshot
+  selectedMachine: SelectedMachineSnapshot
   machineAttachments: MachineAttachmentsSnapshot | null
   effectiveCapabilities: readonly MachineCapabilityValue[]
+  headerSupportedCrops: readonly string[]
+  harvestCompatibilityHint: string | null
   eventLog: readonly GameLogEntry[]
   moneyGain: MoneyGainEffect | null
+}
+
+const DEFAULT_SELECTED_MACHINE: SelectedMachineSnapshot = {
+  machineId: MachineId.Tractor1,
+  machineName: 'Tractor',
+  state: TractorState.Idle,
+  activeJob: null,
+  workProgress: 0,
+  position: { x: 6, y: 0, z: 10 },
+  rotationY: -Math.PI / 6,
+  grainBin: null,
 }
 
 export const EMPTY_GAME_SNAPSHOT: GameSnapshot = {
@@ -71,15 +105,29 @@ export const EMPTY_GAME_SNAPSHOT: GameSnapshot = {
     recipeLabel: '10 Wheat → 8 Flour',
   },
   shopUpgrades: [],
-  tractor: {
-    state: TractorState.Idle,
-    activeJob: null,
-    workProgress: 0,
-    position: { x: 6, y: 0, z: 10 },
-    rotationY: -Math.PI / 6,
-  },
+  selectedMachine: DEFAULT_SELECTED_MACHINE,
   machineAttachments: null,
   effectiveCapabilities: [],
+  headerSupportedCrops: [],
+  harvestCompatibilityHint: null,
   eventLog: [],
   moneyGain: null,
+}
+
+export function buildSelectedMachineSnapshot(
+  machineId: MachineIdValue,
+  machineName: string,
+  operation: TractorSnapshot,
+  grainBin: GrainBinSnapshot | null,
+): SelectedMachineSnapshot {
+  return {
+    machineId,
+    machineName,
+    state: operation.state,
+    activeJob: operation.activeJob,
+    workProgress: operation.workProgress,
+    position: operation.position,
+    rotationY: operation.rotationY,
+    grainBin,
+  }
 }

@@ -8,7 +8,6 @@ import { ChooseCropRadialMenu } from './ChooseCropRadialMenu.tsx'
 import { RadialContextMenu } from './RadialContextMenu.tsx'
 import { AttachmentRadialMenu } from './AttachmentRadialMenu.tsx'
 import { AttachmentRadialActionKind } from '@/types/attachment.ts'
-import { DEFAULT_MACHINE_ID } from '@/config/machine-catalog.ts'
 import './GameShell.css'
 
 export function GameShell() {
@@ -171,6 +170,13 @@ export function GameShell() {
           onDismiss={() => game.closeAttachmentContextMenu()}
           onAction={(action) => {
             const menu = snapshot.attachmentContextMenu!
+            const machineId =
+              snapshot.selectedEntity.kind === 'machine'
+                ? snapshot.selectedEntity.machineId
+                : null
+            if (!machineId) {
+              return
+            }
             switch (action) {
               case AttachmentRadialActionKind.Attach: {
                 const slotId = menu.slotId
@@ -178,7 +184,7 @@ export function GameShell() {
                   return
                 }
                 game.attachAttachment(
-                  DEFAULT_MACHINE_ID,
+                  machineId,
                   slotId,
                   menu.attachmentId,
                 )
@@ -189,7 +195,7 @@ export function GameShell() {
                 if (!slotId) {
                   return
                 }
-                game.detachAttachment(DEFAULT_MACHINE_ID, slotId)
+                game.detachAttachment(machineId, slotId)
                 break
               }
               case AttachmentRadialActionKind.Cancel:

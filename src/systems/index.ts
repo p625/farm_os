@@ -17,3 +17,9 @@ export {
   formatTractorState,
   formatJobType,
 } from './TractorJobSystem.ts'
+export {
+  CombineJobSystem,
+  GrainCombineJobSystem,
+  CornCombineJobSystem,
+} from './CombineJobSystem.ts'
+export { GrainBin } from './GrainBin.ts'

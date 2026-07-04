@@ -11,7 +11,7 @@
 | **Backup** | Art Director |
 | **Review** | Kvartálně |
 | **Poslední změna** | 2026-07-04 |
-| **Blokováno** | [Art Bible](../00_Strategy/Art_Bible.md), [ADR-A01 Framework](../00_Strategy/ADR-A01_Regional_Identity_Framework.md) (status Accepted) |
+| **Blokováno** | [Art Bible](../00_Strategy/Art_Bible.md), [World Identity Statement](../00_Strategy/World_Identity_Statement.md), [ADR-A01 Framework](../00_Strategy/ADR-A01_Regional_Identity_Framework.md) (Accepted) |
 | **Blokuje** | Terrain, Vegetation, Sky/Weather, Seasonal |
 
 ---

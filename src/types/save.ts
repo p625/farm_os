@@ -1,4 +1,5 @@
 import type { GameLogEntry } from '@/types/events.ts'
+import type { GrainBinSaveData } from '@/types/grain-bin.ts'
 import type { FieldLifecycleState } from '@/types/field.ts'
 import type { FieldOwnership } from '@/types/ownership.ts'
 
@@ -88,6 +89,7 @@ export interface MachineSaveData {
   activeWork: MachineActiveWorkSaveData | null
   workTimer: number
   workDuration: number
+  grainBin?: GrainBinSaveData
 }
 
 export interface AttachmentContainerSaveData {

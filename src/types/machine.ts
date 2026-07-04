@@ -1,5 +1,7 @@
 export const MachineId = {
   Tractor1: 'tractor_1',
+  GrainCombine1: 'grain_combine_1',
+  CornCombine1: 'corn_combine_1',
 } as const
 
 export type MachineId = (typeof MachineId)[keyof typeof MachineId]

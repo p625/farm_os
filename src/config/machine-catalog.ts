@@ -21,6 +21,8 @@ export interface MachineCatalogEntry {
   name: string
   capabilities: readonly MachineCapabilityValue[]
   slots: readonly MachineSlotDefinition[]
+  sceneNodeName: string
+  bodyMeshName: string
 }
 
 export const MACHINE_CATALOG: readonly MachineCatalogEntry[] = [
@@ -45,6 +47,46 @@ export const MACHINE_CATALOG: readonly MachineCatalogEntry[] = [
         acceptedTypes: [AttachmentType.Trailer],
       },
     ],
+    sceneNodeName: 'tractor',
+    bodyMeshName: 'tractorBody',
+  },
+  {
+    id: MachineId.GrainCombine1,
+    name: 'Grain Combine',
+    capabilities: [MachineCapability.Move],
+    slots: [
+      {
+        id: MachineSlotId.HeaderSlot,
+        label: 'Header',
+        acceptedTypes: [AttachmentType.Header],
+      },
+      {
+        id: MachineSlotId.TrailerHitch,
+        label: 'Trailer Hitch',
+        acceptedTypes: [AttachmentType.Trailer],
+      },
+    ],
+    sceneNodeName: 'grain_combine_1',
+    bodyMeshName: 'grain_combine_1_body',
+  },
+  {
+    id: MachineId.CornCombine1,
+    name: 'Corn Combine',
+    capabilities: [MachineCapability.Move],
+    slots: [
+      {
+        id: MachineSlotId.HeaderSlot,
+        label: 'Header',
+        acceptedTypes: [AttachmentType.Header],
+      },
+      {
+        id: MachineSlotId.TrailerHitch,
+        label: 'Trailer Hitch',
+        acceptedTypes: [AttachmentType.Trailer],
+      },
+    ],
+    sceneNodeName: 'corn_combine_1',
+    bodyMeshName: 'corn_combine_1_body',
   },
 ] as const
 
@@ -78,4 +120,17 @@ export function slotAcceptsAttachmentType(
 ): boolean {
   const slot = getMachineSlots(machineId).find((entry) => entry.id === slotId)
   return slot?.acceptedTypes.includes(attachmentType) ?? false
+}
+
+export function isKnownMachineSceneNode(nodeName: string): MachineId | null {
+  for (const entry of MACHINE_CATALOG) {
+    if (entry.sceneNodeName === nodeName) {
+      return entry.id
+    }
+  }
+  return null
+}
+
+export function getMachineBodyMeshName(machineId: MachineId): string {
+  return getMachineCatalogEntry(machineId)?.bodyMeshName ?? `${machineId}_body`
 }

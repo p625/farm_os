@@ -6,9 +6,11 @@ export interface IMachineController {
   readonly machineId: MachineId
   issueCommand(command: MachineCommand): boolean
   getCapabilities(): readonly MachineCapability[]
+  isBusy(): boolean
   toSnapshot(): TractorSnapshot
   toSaveData(): MachineSaveData
   applySave(saved: MachineSaveData): void
   getPosition(): Readonly<{ x: number; y: number; z: number }>
   getRotationY(): number
+  getGrainBinSnapshot?(): import('@/types/grain-bin.ts').GrainBinSnapshot | null
 }

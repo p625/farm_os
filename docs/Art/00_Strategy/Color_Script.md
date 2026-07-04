@@ -39,7 +39,7 @@
 Finální paleta **musí vycházet ze schváleného** [Lighting Guide](../02_Production_Guidelines/Lighting_Guide.md).
 
 ```text
-Art Bible → Environment Bible → Lighting Guide → Color Script → implementace
+Art Bible → World Identity Statement → Environment Bible → Lighting Guide → Color Script → implementace
 ```
 
 Světlo určuje vzhled materiálů. Barvy definované bez světla jsou nevalidní. Dokud není Lighting Guide ve stavu Approved, platí pouze sekce „Prototyp" níže — ne finální paleta.

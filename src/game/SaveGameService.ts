@@ -3,6 +3,10 @@ import { FIELD_CATALOG } from '@/config/field-catalog.ts'
 import {
   TRACTOR_HOME,
   TRACTOR_HOME_ROTATION_Y,
+  GRAIN_COMBINE_HOME,
+  GRAIN_COMBINE_HOME_ROTATION_Y,
+  CORN_COMBINE_HOME,
+  CORN_COMBINE_HOME_ROTATION_Y,
   EQUIPMENT_YARD_SPAWN_POSITIONS,
 } from '@/config/farm-layout.ts'
 import {
@@ -18,6 +22,7 @@ import { FieldOwnership } from '@/types/ownership.ts'
 import { ProductionBuildingId, ProductionBuildingState } from '@/types/production.ts'
 import { FieldLifecycleState as States } from '@/types/field.ts'
 import { TractorState } from '@/types/tractor.ts'
+import { DEFAULT_GRAIN_BIN_CAPACITY, type GrainBinSaveData } from '@/types/grain-bin.ts'
 import type {
   AttachmentsSaveData,
   GameSaveData,
@@ -99,8 +104,11 @@ export class SaveGameService {
     return this.repairSave(data as LegacySaveData)
   }
 
-  normalizeMachineSave(machine: unknown): MachineSaveData {
-    const defaults = this.emptyMachine()
+  normalizeMachineSave(
+    machine: unknown,
+    machineId: MachineId = MachineId.Tractor1,
+  ): MachineSaveData {
+    const defaults = this.emptyMachineFor(machineId)
 
     if (!machine || typeof machine !== 'object') {
       return defaults
@@ -155,8 +163,15 @@ export class SaveGameService {
       return defaults
     }
 
-    return {
-      machineId: MachineId.Tractor1,
+    const savedMachineId =
+      saved.machineId === MachineId.Tractor1 ||
+      saved.machineId === MachineId.GrainCombine1 ||
+      saved.machineId === MachineId.CornCombine1
+        ? saved.machineId
+        : machineId
+
+    const result: MachineSaveData = {
+      machineId: savedMachineId,
       position,
       rotationY,
       state,
@@ -164,6 +179,36 @@ export class SaveGameService {
       activeWork,
       workTimer,
       workDuration,
+    }
+
+    if (savedMachineId !== MachineId.Tractor1) {
+      result.grainBin = this.normalizeGrainBin(saved.grainBin)
+    }
+
+    return result
+  }
+
+  private normalizeGrainBin(bin: unknown): GrainBinSaveData {
+    if (!bin || typeof bin !== 'object') {
+      return this.emptyGrainBin()
+    }
+
+    const saved = bin as Partial<GrainBinSaveData>
+    const capacity =
+      typeof saved.capacity === 'number' && saved.capacity > 0
+        ? saved.capacity
+        : DEFAULT_GRAIN_BIN_CAPACITY
+    const quantity =
+      typeof saved.quantity === 'number' && saved.quantity >= 0
+        ? saved.quantity
+        : 0
+    const cropId =
+      typeof saved.cropId === 'string' && quantity > 0 ? saved.cropId : null
+
+    return {
+      capacity,
+      quantity,
+      cropId,
     }
   }
 
@@ -366,17 +411,21 @@ export class SaveGameService {
   }
 
   resolveMachinesSave(data: LegacySaveData): MachinesSaveData {
-    if (data.machines && typeof data.machines === 'object') {
-      const tractor = data.machines[MachineId.Tractor1]
-      return {
-        [MachineId.Tractor1]: this.normalizeMachineSave(
-          tractor ?? data.machine,
-        ),
-      }
-    }
+    const legacyTractor = data.machines?.[MachineId.Tractor1] ?? data.machine
 
     return {
-      [MachineId.Tractor1]: this.normalizeMachineSave(data.machine),
+      [MachineId.Tractor1]: this.normalizeMachineSave(
+        legacyTractor,
+        MachineId.Tractor1,
+      ),
+      [MachineId.GrainCombine1]: this.normalizeMachineSave(
+        data.machines?.[MachineId.GrainCombine1],
+        MachineId.GrainCombine1,
+      ),
+      [MachineId.CornCombine1]: this.normalizeMachineSave(
+        data.machines?.[MachineId.CornCombine1],
+        MachineId.CornCombine1,
+      ),
     }
   }
 
@@ -646,15 +695,55 @@ export class SaveGameService {
   }
 
   private emptyMachine(): MachineSaveData {
+    return this.emptyMachineFor(MachineId.Tractor1)
+  }
+
+  private emptyMachineFor(machineId: MachineId): MachineSaveData {
+    if (machineId === MachineId.Tractor1) {
+      return {
+        machineId: MachineId.Tractor1,
+        position: { ...TRACTOR_HOME },
+        rotationY: TRACTOR_HOME_ROTATION_Y,
+        state: TractorState.Idle,
+        activeCommand: null,
+        activeWork: null,
+        workTimer: 0,
+        workDuration: 1.5,
+      }
+    }
+
+    if (machineId === MachineId.GrainCombine1) {
+      return {
+        machineId: MachineId.GrainCombine1,
+        position: { ...GRAIN_COMBINE_HOME },
+        rotationY: GRAIN_COMBINE_HOME_ROTATION_Y,
+        state: TractorState.Idle,
+        activeCommand: null,
+        activeWork: null,
+        workTimer: 0,
+        workDuration: 2,
+        grainBin: this.emptyGrainBin(),
+      }
+    }
+
     return {
-      machineId: MachineId.Tractor1,
-      position: { ...TRACTOR_HOME },
-      rotationY: TRACTOR_HOME_ROTATION_Y,
+      machineId: MachineId.CornCombine1,
+      position: { ...CORN_COMBINE_HOME },
+      rotationY: CORN_COMBINE_HOME_ROTATION_Y,
       state: TractorState.Idle,
       activeCommand: null,
       activeWork: null,
       workTimer: 0,
-      workDuration: 1.5,
+      workDuration: 2,
+      grainBin: this.emptyGrainBin(),
+    }
+  }
+
+  private emptyGrainBin(): GrainBinSaveData {
+    return {
+      capacity: DEFAULT_GRAIN_BIN_CAPACITY,
+      quantity: 0,
+      cropId: null,
     }
   }
 

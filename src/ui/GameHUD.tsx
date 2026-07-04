@@ -66,7 +66,7 @@ export function GameHUD({ game, snapshot }: GameHUDProps) {
     (field) => field.id === snapshot.selectedFieldId,
   )
 
-  const tractorBusy = snapshot.tractor.state !== TractorState.Idle
+  const machineBusy = snapshot.selectedMachine.state !== TractorState.Idle
   const fieldUsable = selectedField?.usable ?? false
   const isAvailableField =
     selectedField?.ownership === FieldOwnership.Available
@@ -79,12 +79,12 @@ export function GameHUD({ game, snapshot }: GameHUDProps) {
   )
 
   const canPlow =
-    !tractorBusy &&
+    !machineBusy &&
     fieldUsable &&
     selectedField?.state === States.Grass &&
     hasPlowCapability
   const canChooseCrop =
-    !tractorBusy &&
+    !machineBusy &&
     fieldUsable &&
     selectedField?.state === States.Plowed &&
     hasSeedCapability
@@ -93,10 +93,14 @@ export function GameHUD({ game, snapshot }: GameHUDProps) {
   )
 
   const fieldWorkHint =
-    selectedField && fieldUsable && !tractorBusy
+    selectedField && fieldUsable && !machineBusy
       ? getFieldWorkRequirementHint(
           selectedField.state,
           snapshot.effectiveCapabilities,
+          {
+            cropId: selectedField.cropId,
+            harvestIncompatibilityMessage: snapshot.harvestCompatibilityHint,
+          },
         )
       : null
 
@@ -109,13 +113,13 @@ export function GameHUD({ game, snapshot }: GameHUDProps) {
     selectedField !== undefined &&
     snapshot.money >= selectedField.leasePrice
 
-  const activeJob = snapshot.tractor.activeJob
+  const activeJob = snapshot.selectedMachine.activeJob
 
   return (
     <aside className="game-hud">
       <header className="game-hud__header">
         <h1 className="game-hud__title">FarmOS</h1>
-        <p className="game-hud__subtitle">Phase 12B — Equipment-Driven Gameplay</p>
+        <p className="game-hud__subtitle">Phase 12C — Harvest Machines</p>
       </header>
 
       <section className="game-hud__panel">
@@ -169,7 +173,7 @@ export function GameHUD({ game, snapshot }: GameHUDProps) {
           </div>
           <div className="game-hud__stat">
             <dt>State</dt>
-            <dd>{formatTractorState(snapshot.tractor.state)}</dd>
+            <dd>{formatTractorState(snapshot.selectedMachine.state)}</dd>
           </div>
           <div className="game-hud__stat">
             <dt>Capabilities</dt>
@@ -190,10 +194,10 @@ export function GameHUD({ game, snapshot }: GameHUDProps) {
                   {activeJob.fieldName}
                 </dd>
               </div>
-              {snapshot.tractor.state === TractorState.Working ? (
+              {snapshot.selectedMachine.state === TractorState.Working ? (
                 <div className="game-hud__stat">
                   <dt>Work</dt>
-                  <dd>{Math.round(snapshot.tractor.workProgress * 100)}%</dd>
+                  <dd>{Math.round(snapshot.selectedMachine.workProgress * 100)}%</dd>
                 </div>
               ) : null}
             </>
@@ -201,41 +205,62 @@ export function GameHUD({ game, snapshot }: GameHUDProps) {
           <p className="game-hud__hint">
             {snapshot.selectedEntity.kind === 'machine'
               ? 'Right-click terrain to move. Right-click a field to open work actions.'
-              : 'Click the tractor to select it for manual movement.'}
+              : 'Click a machine to select it for manual movement.'}
           </p>
         )}
         </dl>
-        {snapshot.tractor.state === TractorState.Working ? (
+        {snapshot.selectedMachine.state === TractorState.Working ? (
           <div className="game-hud__progress">
             <div
               className="game-hud__progress-fill"
-              style={{ width: `${snapshot.tractor.workProgress * 100}%` }}
+              style={{ width: `${snapshot.selectedMachine.workProgress * 100}%` }}
             />
           </div>
         ) : null}
-        {snapshot.machineAttachments ? (
+          {snapshot.machineAttachments ? (
           <dl className="game-hud__stats game-hud__stats--attachments">
             <div className="game-hud__stat">
-              <dt>Rear implement</dt>
+              <dt>Header</dt>
               <dd>
                 {snapshot.machineAttachments.slots.find(
-                  (slot) => slot.slotId === 'rear_hitch',
-                )?.attachmentName ?? 'Empty'}
+                  (slot) => slot.slotId === 'header_slot',
+                )?.attachmentName ??
+                  snapshot.machineAttachments.slots.find(
+                    (slot) => slot.slotId === 'rear_hitch',
+                  )?.attachmentName ??
+                  'Empty'}
               </dd>
             </div>
+            {snapshot.headerSupportedCrops.length > 0 ? (
+              <div className="game-hud__stat">
+                <dt>Supported crops</dt>
+                <dd>{snapshot.headerSupportedCrops.join(', ')}</dd>
+              </div>
+            ) : null}
+            {snapshot.selectedMachine.grainBin ? (
+              <>
+                <div className="game-hud__stat">
+                  <dt>Grain bin</dt>
+                  <dd>
+                    {snapshot.selectedMachine.grainBin.quantity > 0
+                      ? `${snapshot.selectedMachine.grainBin.quantity} ${snapshot.selectedMachine.grainBin.cropName ?? 'units'}`
+                      : 'Empty'}
+                  </dd>
+                </div>
+                <div className="game-hud__stat">
+                  <dt>Bin capacity</dt>
+                  <dd>
+                    {snapshot.selectedMachine.grainBin.quantity} /{' '}
+                    {snapshot.selectedMachine.grainBin.capacity}
+                  </dd>
+                </div>
+              </>
+            ) : null}
             <div className="game-hud__stat">
               <dt>Trailer</dt>
               <dd>
                 {snapshot.machineAttachments.slots.find(
                   (slot) => slot.slotId === 'trailer_hitch',
-                )?.attachmentName ?? 'Empty'}
-              </dd>
-            </div>
-            <div className="game-hud__stat">
-              <dt>Front hitch</dt>
-              <dd>
-                {snapshot.machineAttachments.slots.find(
-                  (slot) => slot.slotId === 'front_hitch',
                 )?.attachmentName ?? 'Empty'}
               </dd>
             </div>
@@ -357,7 +382,7 @@ export function GameHUD({ game, snapshot }: GameHUDProps) {
               </button>
             </div>
             <p className="game-hud__hint game-hud__hint--primary">
-              Select tractor, then right-click a field to work it.
+              Select a machine, then right-click a field to work it.
             </p>
             {fieldWorkHint ? (
               <p className="game-hud__hint">{fieldWorkHint}</p>
@@ -367,9 +392,9 @@ export function GameHUD({ game, snapshot }: GameHUDProps) {
                 Earn more money to afford crop seeds.
               </p>
             ) : null}
-            {tractorBusy ? (
+            {machineBusy ? (
               <p className="game-hud__hint">
-                Tractor is busy — wait for the current job.
+                Machine is busy — wait for the current job.
               </p>
             ) : null}
             {selectedField && !fieldUsable ? (

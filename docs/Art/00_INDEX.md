@@ -2,14 +2,14 @@
 
 | | |
 |--|--|
-| **Verze** | v0.3.0 |
+| **Verze** | v0.5.0 |
 | **Status** | Draft |
 | **Tier** | T0 |
 | **Vlastník** | Art Director |
 | **Backup** | TBD |
 | **Review** | Při každé změně struktury docs |
 | **Poslední změna** | 2026-07-04 |
-| **Fáze projektu** | **Preprodukce** |
+| **Fáze projektu** | **Preprodukce → Vertical Slice (Map 01)** |
 
 ---
 
@@ -17,6 +17,8 @@
 
 | Verze | Datum | Autor | Shrnutí |
 |-------|-------|-------|---------|
+| v0.5.0 | 2026-07-04 | — | Map 01 Design Bible — první hratelná mapa (Vertical Slice) |
+| v0.4.0 | 2026-07-04 | — | World Identity Statement — Vision Lock ve Fázi 1 |
 | v0.3.0 | 2026-07-04 | — | Odkaz na ADR-A01 Decision Framework |
 | v0.2.0 | 2026-07-04 | — | AAA preprodukční roadmapa |
 | v0.1.0 | 2026-07-04 | — | Iniciální struktura art dokumentace |
@@ -38,7 +40,7 @@ FarmOS je ve **preprodukci**. Dokumentace se dokončuje ve čtyřech fázích. *
 ```text
 ┌─────────────────────────────────────────────────────────────────┐
 │  FÁZE 1 — Creative Direction          ← AKTUÁLNÍ PRIORITA       │
-│  Art Bible → ADR-A01 → Environment → Lighting → Color Script    │
+│  Art Bible → World Identity → ADR-A01 → Environment → Lighting → Color │
 ├─────────────────────────────────────────────────────────────────┤
 │  FÁZE 2 — World Building                                        │
 │  Vegetation → Material → Terrain → Sky/Weather → Seasonal       │
@@ -58,6 +60,7 @@ FarmOS je ve **preprodukci**. Dokumentace se dokončuje ve čtyřech fázích. *
 | Pořadí | Dokument | Stav | Blokuje |
 |--------|----------|------|---------|
 | 1 | [Art_Bible.md](00_Strategy/Art_Bible.md) | Draft | vše ostatní |
+| 1b | [World_Identity_Statement.md](00_Strategy/World_Identity_Statement.md) | Draft | ADR-A01 workshop, Environment |
 | 2 | [ADR-A01](01_ART_DECISION_LOG.md#adr-a01--regionální-identita-farmy) · [Framework](00_Strategy/ADR-A01_Regional_Identity_Framework.md) | Proposed (framework ready) | Environment, Building, Vegetation, Terrain |
 | 3 | [Environment_Bible.md](01_Domain_Bibles/Environment_Bible.md) | Draft | Terrain, Vegetation, Sky/Weather |
 | 4 | [Lighting_Guide.md](02_Production_Guidelines/Lighting_Guide.md) | Draft | Color Script, Material, VFX |
@@ -102,6 +105,21 @@ Teprve po uzamčení Art Direction (Fáze 1–3).
 
 **[RULE]** Produční dokumenty v preprodukci **neřešíme**. Jejich předčasné dokončení vytváří falešnou jistotu bez uzamčeného vizuálního směru.
 
+### Vertical Slice — Map 01 (`Maps/`)
+
+První hratelná mapa — přechod z art preprodukce do návrhu světa.
+
+| Dokument | Stav | Účel |
+|----------|------|------|
+| [Map_01_Design_Bible.md](Maps/Map_01_Design_Bible.md) | Draft | SoT návrhu první mapy |
+| Map_01_Landscape_Layout (TBD) | — | Topografie, layout |
+| Map_01_POI_Guide (TBD) | — | Detail POI |
+| Map_01_Vegetation (TBD) | — | Vegetace mapy |
+| Map_01_Lighting (TBD) | — | Světlo mapy |
+| Map_01_Asset_List (TBD) | — | Asset katalog VS |
+
+Viz [Maps/README.md](Maps/README.md).
+
 ### Podpůrné dokumenty (průběžně, neblokující)
 
 | Dokument | Fáze použití |
@@ -124,7 +142,11 @@ Teprve po uzamčení Art Direction (Fáze 1–3).
                     └──────────┬──────────┘
                                │
                     ┌──────────▼──────────┐
-                    │     Art Bible         │  ← vizuální autorita (Fáze 1)
+                    │     Art Bible         │
+                    └──────────┬──────────┘
+                               │
+                    ┌──────────▼──────────┐
+                    │ World Identity Stmt   │  ← Vision Lock (Fáze 1)
                     └──────────┬──────────┘
                                │
               ┌────────────────┼────────────────┐
@@ -153,9 +175,11 @@ Teprve po uzamčení Art Direction (Fáze 1–3).
 | Otázka | Jediný zdroj pravdy |
 |--------|---------------------|
 | Technická architektura hry | `docs/Architecture/` (Freeze v1.0) |
+| Jaký svět vytváříme (filozofie, realismus, idealizace)? | [World Identity Statement](00_Strategy/World_Identity_Statement.md) |
 | Proč má svět vypadat takto? | Game Bible → [Art Bible](00_Strategy/Art_Bible.md) |
 | Jaká je celková nálada a vizuální filozofie? | [Art Bible](00_Strategy/Art_Bible.md) |
-| Region, krajina, biomy, horizont? | [ADR-A01](01_ART_DECISION_LOG.md) + [Framework](00_Strategy/ADR-A01_Regional_Identity_Framework.md) + [Environment Bible](01_Domain_Bibles/Environment_Bible.md) |
+| Návrh první hratelné mapy | [Map_01_Design_Bible](Maps/Map_01_Design_Bible.md) |
+| Makro krajina (cross-map) | [Environment Bible](01_Domain_Bibles/Environment_Bible.md) |
 | Jak svítí scéna? | [Lighting Guide](02_Production_Guidelines/Lighting_Guide.md) |
 | Jaké barvy a jejich význam? | [Color Script](00_Strategy/Color_Script.md) |
 | Jak vypadá architektura? | [Building Style Guide](01_Domain_Bibles/Building_Style_Guide.md) |
@@ -212,6 +236,7 @@ Tier popisuje **kde soubor leží**, ne **kdy ho dokončit**. Pořadí dokončen
 | Dokument | Vlastník |
 |----------|----------|
 | [Art_Bible.md](00_Strategy/Art_Bible.md) | Art Director |
+| [World_Identity_Statement.md](00_Strategy/World_Identity_Statement.md) | Art Director |
 | [ADR-A01 Regionální identita](01_ART_DECISION_LOG.md#adr-a01--regionální-identita-farmy) | Art Director |
 | [ADR-A01 Decision Framework](00_Strategy/ADR-A01_Regional_Identity_Framework.md) | Art Director |
 | [Environment_Bible.md](01_Domain_Bibles/Environment_Bible.md) | Environment Lead |
@@ -269,6 +294,7 @@ Grafický vývoj **nesmí pokračovat do produkce assetů**, dokud nejsou schvá
 | Dokument | Proč blokuje |
 |----------|--------------|
 | **Art Bible** | Bez ústavy chybí rozhodovací kritéria pro vše |
+| **World Identity Statement** | Bez Vision Lock nelze objektivně hodnotit regiony v ADR-A01 |
 | **ADR-A01** | [Framework](00_Strategy/ADR-A01_Regional_Identity_Framework.md) připraven; čeká se na workshop a **Accepted** v Decision Log |
 | **Environment Bible** | Největší vizuální plocha hry — krajina musí být definována dříve než assety |
 | **Lighting Guide** | Barvy a materiály bez světla jsou nevalidní |
@@ -315,11 +341,12 @@ Grafický vývoj **nesmí pokračovat do produkce assetů**, dokud nejsou schvá
 ## Rychlý start (preprodukce)
 
 1. Přečti [Art Bible](00_Strategy/Art_Bible.md) — ústava grafiky.
-2. Projdi [ADR-A01 Framework](00_Strategy/ADR-A01_Regional_Identity_Framework.md) — rozhodovací workshop před výběrem regionu.
-3. Po ADR-A01: [Environment Bible](01_Domain_Bibles/Environment_Bible.md).
-4. Po Environment: [Lighting Guide](02_Production_Guidelines/Lighting_Guide.md) → pak [Color Script](00_Strategy/Color_Script.md).
-5. **Nepřeskakuj na** [Asset Pipeline Spec](02_Production_Guidelines/Asset_Pipeline_Spec.md) — to je Fáze 4.
-6. Inspirace: [Mood Reference Library](00_Strategy/Mood_Reference_Library.md) — ne jako pravidla.
+2. Schválit [World Identity Statement](00_Strategy/World_Identity_Statement.md) — Vision Lock před výběrem regionu.
+3. Projdi [ADR-A01 Framework](00_Strategy/ADR-A01_Regional_Identity_Framework.md) — rozhodovací workshop.
+4. Po ADR-A01 Accepted: [Environment Bible](01_Domain_Bibles/Environment_Bible.md).
+5. Po Environment: [Lighting Guide](02_Production_Guidelines/Lighting_Guide.md) → [Color Script](00_Strategy/Color_Script.md).
+6. **Nepřeskakuj na** [Asset Pipeline Spec](02_Production_Guidelines/Asset_Pipeline_Spec.md) — Fáze 4.
+7. Inspirace: [Mood Reference Library](00_Strategy/Mood_Reference_Library.md) — ne jako pravidla.
 
 ---
 

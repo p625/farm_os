@@ -32,6 +32,7 @@ export class FarmSceneBuilder {
     this.createBarn(scene)
     this.createMill(scene)
     this.createTractor(scene)
+    this.createCombines(scene)
   }
 
   private createTerrain(scene: Scene): void {
@@ -267,5 +268,91 @@ export class FarmSceneBuilder {
     exhaust.position = new Vector3(0.5, 2.2, 0.2)
     exhaust.parent = root
     exhaust.material = wheelMaterial
+  }
+
+  private createCombines(scene: Scene): void {
+    this.createCombine(
+      scene,
+      'grain_combine_1',
+      new Vector3(22, 0, 10),
+      -Math.PI / 6,
+      new Color3(0.75, 0.55, 0.12),
+      new Color3(0.85, 0.2, 0.12),
+    )
+    this.createCombine(
+      scene,
+      'corn_combine_1',
+      new Vector3(30, 0, 10),
+      -Math.PI / 6,
+      new Color3(0.7, 0.5, 0.1),
+      new Color3(0.2, 0.55, 0.2),
+    )
+  }
+
+  private createCombine(
+    scene: Scene,
+    nodeName: string,
+    position: Vector3,
+    rotationY: number,
+    bodyColor: Color3,
+    accentColor: Color3,
+  ): void {
+    const root = new TransformNode(nodeName, scene)
+    root.position = position
+    root.rotation.y = rotationY
+
+    const bodyMaterial = new StandardMaterial(`${nodeName}_body_mat`, scene)
+    bodyMaterial.diffuseColor = bodyColor
+
+    const accentMaterial = new StandardMaterial(`${nodeName}_accent_mat`, scene)
+    accentMaterial.diffuseColor = accentColor
+
+    const wheelMaterial = new StandardMaterial(`${nodeName}_wheel_mat`, scene)
+    wheelMaterial.diffuseColor = TRACTOR_WHEEL_COLOR
+
+    const body = MeshBuilder.CreateBox(
+      `${nodeName}_body`,
+      { width: 3.2, height: 2.4, depth: 5.5 },
+      scene,
+    )
+    body.position = new Vector3(0, 1.4, 0)
+    body.parent = root
+    body.material = bodyMaterial
+    body.receiveShadows = true
+
+    const cab = MeshBuilder.CreateBox(
+      `${nodeName}_cab`,
+      { width: 1.8, height: 1.6, depth: 1.8 },
+      scene,
+    )
+    cab.position = new Vector3(0, 2.8, -1.2)
+    cab.parent = root
+    cab.material = accentMaterial
+
+    const hopper = MeshBuilder.CreateBox(
+      `${nodeName}_hopper`,
+      { width: 2.4, height: 1.2, depth: 2.2 },
+      scene,
+    )
+    hopper.position = new Vector3(0, 3.2, 0.8)
+    hopper.parent = root
+    hopper.material = bodyMaterial
+
+    for (const [index, [x, z]] of [
+      [-1.3, 1.8],
+      [1.3, 1.8],
+      [-1.3, -1.8],
+      [1.3, -1.8],
+    ].entries()) {
+      const wheel = MeshBuilder.CreateCylinder(
+        `${nodeName}_wheel_${index}`,
+        { height: 0.55, diameter: 1.2 },
+        scene,
+      )
+      wheel.rotation.z = Math.PI / 2
+      wheel.position = new Vector3(x, 0.6, z)
+      wheel.parent = root
+      wheel.material = wheelMaterial
+    }
   }
 }
