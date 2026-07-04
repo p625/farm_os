@@ -12,6 +12,7 @@ import {
   type WorkOrderScope,
   type WorkOrderSnapshot,
   type WorkOrderId,
+  getWorkOrderScopeBlockId,
 } from '@/types/work-order.ts'
 
 export interface WorkOrderFieldEligibility {
@@ -342,6 +343,7 @@ export class WorkOrderSystem {
       totalFieldCount,
       remainingArea: sumFieldAreas(remainingIds),
       totalArea: sumFieldAreas(allFieldIds),
+      blockId: getWorkOrderScopeBlockId(order.scope),
     }
   }
 

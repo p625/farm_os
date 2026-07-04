@@ -89,7 +89,7 @@ import {
   resolveWorkOrderFieldQueue,
   type WorkOrderFieldEligibility,
 } from '@systems/WorkOrderSystem.ts'
-import { WorkOrderScopeKind, WorkOrderStatus } from '@/types/work-order.ts'
+import { WorkOrderScopeKind, WorkOrderStatus, getWorkOrderScopeBlockId } from '@/types/work-order.ts'
 import type { WorkOrderScope, WorkOrderSnapshot } from '@/types/work-order.ts'
 import { getInteractionPointDefinition } from '@/config/interaction-point-catalog.ts'
 import {
@@ -432,6 +432,9 @@ export class Game implements IDisposable {
     if (this.fieldSystem.getSelectedFieldIds().length > 0) {
       actions.push(FieldWorkModeActionKind.GpsSelectedFields)
     }
+    if (getFieldCatalogEntry(fieldId)?.blockId) {
+      actions.push(FieldWorkModeActionKind.GpsEntireBlock)
+    }
     actions.push(FieldWorkModeActionKind.Cancel)
     this.fieldWorkModeMenu = {
       fieldId,
@@ -479,7 +482,7 @@ export class Game implements IDisposable {
     taskKind: FieldRadialActionKind,
     options?: {
       cropId?: string
-      gpsScope?: 'this_field' | 'selected_fields'
+      gpsScope?: 'this_field' | 'selected_fields' | 'entire_block'
     },
   ): void {
     const machineId = this.getSelectedMachineId()
@@ -496,16 +499,33 @@ export class Game implements IDisposable {
 
     const gpsScope = options?.gpsScope ?? 'this_field'
     const cropId = options?.cropId
-    const scope: WorkOrderScope =
-      gpsScope === 'selected_fields'
-        ? {
-            kind: WorkOrderScopeKind.Fields,
-            fieldIds: this.fieldSystem.getSelectedFieldIds(),
-          }
-        : {
-            kind: WorkOrderScopeKind.Single,
-            fieldId: contextFieldId,
-          }
+    let scope: WorkOrderScope
+
+    switch (gpsScope) {
+      case 'selected_fields':
+        scope = {
+          kind: WorkOrderScopeKind.Fields,
+          fieldIds: this.fieldSystem.getSelectedFieldIds(),
+        }
+        break
+      case 'entire_block': {
+        const blockId = getFieldCatalogEntry(contextFieldId)?.blockId
+        if (!blockId) {
+          return
+        }
+        scope = {
+          kind: WorkOrderScopeKind.Block,
+          blockId,
+        }
+        break
+      }
+      default:
+        scope = {
+          kind: WorkOrderScopeKind.Single,
+          fieldId: contextFieldId,
+        }
+        break
+    }
 
     const cropName = cropId ? this.cropSystem.getCropName(cropId) : undefined
     const displayName = buildWorkOrderDisplayName({
@@ -597,7 +617,9 @@ export class Game implements IDisposable {
     }
 
     this.workOrderSystem.cancelOrder(workOrderId)
-    this.eventLog.recordWorkOrderCancelled(order.displayName, this.world.currentDay)
+    this.eventLog.recordWorkOrderCancelled(order.displayName, this.world.currentDay, {
+      blockId: getWorkOrderScopeBlockId(order.scope),
+    })
     this.autoSave()
     this.notifyListeners()
   }
@@ -1401,6 +1423,10 @@ export class Game implements IDisposable {
 
     const machineName =
       getMachineCatalogEntry(machineId)?.name ?? machineId
+    const workOrderEventContext = {
+      commandOwner: order.commandOwner,
+      blockId: getWorkOrderScopeBlockId(order.scope),
+    }
 
     if (order.currentFieldId) {
       const completedFieldId = order.currentFieldId
@@ -1410,6 +1436,7 @@ export class Game implements IDisposable {
         order.displayName,
         field?.name ?? completedFieldId,
         this.world.currentDay,
+        workOrderEventContext,
       )
       order = this.workOrderSystem.get(workOrderId)!
     }
@@ -1446,6 +1473,7 @@ export class Game implements IDisposable {
           order.displayName,
           machineName,
           this.world.currentDay,
+          workOrderEventContext,
         )
       }
 
@@ -1466,6 +1494,7 @@ export class Game implements IDisposable {
       order.displayName,
       machineName,
       this.world.currentDay,
+      workOrderEventContext,
     )
     this.machineAutomationRegistry.clearAutomation(machineId)
     this.workOrderSystem.clearCompletedAndCancelled()

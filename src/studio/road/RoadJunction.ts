@@ -7,6 +7,12 @@ import { sampleRoadSpline, type SplineSample } from '@/studio/road/RoadSpline.ts
 const CONTROL_SNAP_RADIUS = 2.5
 const BASE_SPLINE_SNAP_RADIUS = 6
 const SPLINE_SAMPLES_PER_SEGMENT = 24
+const EDGE_OVERLAP_FACTOR = 0.55
+
+export interface JunctionMeshContext {
+  map: WorldMapDocument
+  roadId?: string
+}
 
 export function isAsphaltKind(kind: RoadKind): boolean {
   return kind === 'asphalt_wide' || kind === 'asphalt_narrow'
@@ -16,22 +22,100 @@ export function resolveJunctionJoin(
   newRoadKind: RoadKind,
   existingRoadKind: RoadKind,
 ): RoadPointJunction['join'] {
+  if (newRoadKind === existingRoadKind) {
+    return 'merge'
+  }
   if (isAsphaltKind(newRoadKind) && isAsphaltKind(existingRoadKind)) {
     return 'merge'
   }
   return 'edge'
 }
 
-export function getJunctionTrimDistance(junction: RoadPointJunction): number {
-  if (junction.join === 'merge') {
-    return 0
-  }
-  return getRoadTypeDefinition(junction.roadKind).width * 0.5
-}
-
 export function snapSearchRadius(newRoadKind: RoadKind): number {
   const ownHalf = getRoadTypeDefinition(newRoadKind).width * 0.5
   return Math.max(BASE_SPLINE_SNAP_RADIUS, ownHalf + 5)
+}
+
+function planarUnitDir(
+  from: { x: number; z: number },
+  to: { x: number; z: number },
+): { x: number; z: number } {
+  const dx = to.x - from.x
+  const dz = to.z - from.z
+  const length = Math.hypot(dx, dz)
+  if (length < 1e-4) {
+    return { x: 0, z: 1 }
+  }
+  return { x: dx / length, z: dz / length }
+}
+
+function edgeOverlapFill(ownHalf: number, partnerHalf: number): number {
+  return Math.min(ownHalf * EDGE_OVERLAP_FACTOR, partnerHalf * 0.22)
+}
+
+function meshOffsetAtEndpoint(
+  junction: RoadPointJunction,
+  ownRoadKind: RoadKind,
+): number {
+  if (junction.join === 'merge') {
+    // End ribbon at junction center — no miter past partner (avoids bleed on far side).
+    return 0
+  }
+
+  const ownHalf = getRoadTypeDefinition(ownRoadKind).width * 0.5
+  const partnerHalf = getRoadTypeDefinition(junction.roadKind).width * 0.5
+  const overlap = edgeOverlapFill(ownHalf, partnerHalf)
+  return Math.max(0, partnerHalf - overlap)
+}
+
+/** Mesh-only adjustment: merge ends at centerline; edge trims with overlap fill. */
+export function adjustControlPointsForJunctionMesh(
+  points: readonly RoadControlPoint[],
+  roadKind: RoadKind,
+  _context?: JunctionMeshContext,
+): RoadControlPoint[] {
+  if (points.length < 2) {
+    return points.map((point) => ({ ...point }))
+  }
+
+  const result = points.map((point) => ({ ...point }))
+
+  const startJunction = result[0].junction
+  if (startJunction) {
+    const intoRoad = planarUnitDir(result[0], result[1])
+    const offset = meshOffsetAtEndpoint(startJunction, roadKind)
+    result[0].x += intoRoad.x * offset
+    result[0].z += intoRoad.z * offset
+  }
+
+  const endIndex = result.length - 1
+  const endJunction = result[endIndex].junction
+  if (endJunction) {
+    const intoRoad = planarUnitDir(result[endIndex], result[endIndex - 1])
+    const offset = meshOffsetAtEndpoint(endJunction, roadKind)
+    result[endIndex].x += intoRoad.x * offset
+    result[endIndex].z += intoRoad.z * offset
+  }
+
+  if (
+    Math.hypot(
+      result[0].x - result[endIndex].x,
+      result[0].z - result[endIndex].z,
+    ) < 0.05 &&
+    result.length === 2
+  ) {
+    return points.map((point) => ({ ...point }))
+  }
+
+  return result
+}
+
+export function trimControlPointsForMesh(
+  points: readonly RoadControlPoint[],
+  roadKind: RoadKind,
+  context?: JunctionMeshContext,
+): RoadControlPoint[] {
+  return adjustControlPointsForJunctionMesh(points, roadKind, context)
 }
 
 export interface RoadSnapHit {
@@ -135,64 +219,6 @@ export function trySnapRoadPoint(
       join: resolveJunctionJoin(newRoadKind, snap.roadKind),
     },
   }
-}
-
-function planarUnitDir(
-  from: { x: number; z: number },
-  to: { x: number; z: number },
-): { x: number; z: number } {
-  const dx = to.x - from.x
-  const dz = to.z - from.z
-  const length = Math.hypot(dx, dz)
-  if (length < 1e-4) {
-    return { x: 0, z: 1 }
-  }
-  return { x: dx / length, z: dz / length }
-}
-
-/** Mesh-only trim: keeps junction anchor on centerline, shortens ribbon past road edges. */
-export function trimControlPointsForMesh(
-  points: readonly RoadControlPoint[],
-  _roadKind: RoadKind,
-): RoadControlPoint[] {
-  if (points.length < 2) {
-    return points.map((point) => ({ ...point }))
-  }
-
-  const result = points.map((point) => ({ ...point }))
-
-  const startJunction = result[0].junction
-  if (startJunction) {
-    const trim = getJunctionTrimDistance(startJunction)
-    if (trim > 0) {
-      const outgoing = planarUnitDir(result[0], result[1])
-      result[0].x += outgoing.x * trim
-      result[0].z += outgoing.z * trim
-    }
-  }
-
-  const endIndex = result.length - 1
-  const endJunction = result[endIndex].junction
-  if (endJunction) {
-    const trim = getJunctionTrimDistance(endJunction)
-    if (trim > 0) {
-      const incoming = planarUnitDir(result[endIndex], result[endIndex - 1])
-      result[endIndex].x += incoming.x * trim
-      result[endIndex].z += incoming.z * trim
-    }
-  }
-
-  if (
-    Math.hypot(
-      result[0].x - result[endIndex].x,
-      result[0].z - result[endIndex].z,
-    ) < 0.05 &&
-    result.length === 2
-  ) {
-    return points.map((point) => ({ ...point }))
-  }
-
-  return result
 }
 
 export function isJunctionPoint(point: RoadControlPoint): boolean {

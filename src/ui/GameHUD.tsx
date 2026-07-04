@@ -212,21 +212,36 @@ export function GameHUD({ game, snapshot }: GameHUDProps) {
         ) : (
           <>
             <dl className="game-hud__stats">
-              {gpsActive && snapshot.activeWorkOrder ? (
-                <div className="game-hud__stat game-hud__stat--gps">
-                  <dt>Work order</dt>
-                  <dd>{snapshot.activeWorkOrder.displayName}</dd>
-                </div>
-              ) : null}
               {snapshot.activeWorkOrder ? (
-                <div className="game-hud__stat">
-                  <dt>Order progress</dt>
-                  <dd>
-                    {snapshot.activeWorkOrder.completedFieldCount}/
-                    {snapshot.activeWorkOrder.totalFieldCount} fields (
-                    {snapshot.activeWorkOrder.remainingArea} ha left)
-                  </dd>
-                </div>
+                <>
+                  <div className="game-hud__stat game-hud__stat--gps">
+                    <dt>Work order</dt>
+                    <dd>{snapshot.activeWorkOrder.displayName}</dd>
+                  </div>
+                  {snapshot.activeWorkOrder.blockId ? (
+                    <div className="game-hud__stat">
+                      <dt>Block</dt>
+                      <dd>Block {snapshot.activeWorkOrder.blockId}</dd>
+                    </div>
+                  ) : null}
+                  <div className="game-hud__stat">
+                    <dt>Remaining</dt>
+                    <dd>
+                      {snapshot.activeWorkOrder.remainingFieldCount} /{' '}
+                      {snapshot.activeWorkOrder.totalFieldCount} fields
+                    </dd>
+                  </div>
+                  <div className="game-hud__stat">
+                    <dt>Remaining area</dt>
+                    <dd>{snapshot.activeWorkOrder.remainingArea} ha</dd>
+                  </div>
+                  {snapshot.activeWorkOrder.currentFieldName ? (
+                    <div className="game-hud__stat">
+                      <dt>Current field</dt>
+                      <dd>{snapshot.activeWorkOrder.currentFieldName}</dd>
+                    </div>
+                  ) : null}
+                </>
               ) : null}
               {gpsActive ? (
                 <div className="game-hud__stat game-hud__stat--gps">

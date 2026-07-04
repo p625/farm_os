@@ -12,12 +12,14 @@ interface FieldWorkModeRadialMenuProps {
   onPerformManually: () => void
   onGpsThisField: () => void
   onGpsSelectedFields: () => void
+  onGpsEntireBlock: () => void
 }
 
 const ACTION_LABELS: Record<FieldWorkModeActionKind, string> = {
   [FieldWorkModeActionKind.PerformManually]: 'Perform Manually',
   [FieldWorkModeActionKind.GpsThisField]: 'This field (GPS)',
   [FieldWorkModeActionKind.GpsSelectedFields]: 'Selected fields (GPS)',
+  [FieldWorkModeActionKind.GpsEntireBlock]: 'Entire Block (GPS)',
   [FieldWorkModeActionKind.Cancel]: 'Cancel',
 }
 
@@ -30,6 +32,7 @@ export function FieldWorkModeRadialMenu({
   onPerformManually,
   onGpsThisField,
   onGpsSelectedFields,
+  onGpsEntireBlock,
 }: FieldWorkModeRadialMenuProps) {
   const actionCount = menu.actions.length
   const startAngle = -Math.PI / 2
@@ -84,6 +87,9 @@ export function FieldWorkModeRadialMenu({
                   break
                 case FieldWorkModeActionKind.GpsSelectedFields:
                   onGpsSelectedFields()
+                  break
+                case FieldWorkModeActionKind.GpsEntireBlock:
+                  onGpsEntireBlock()
                   break
                 case FieldWorkModeActionKind.Cancel:
                   onDismiss()

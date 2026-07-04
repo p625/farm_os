@@ -4,8 +4,15 @@ import {
   type GameLogEntry,
   type MoneyGainEffect,
 } from '@/types/events.ts'
+import type { FieldBlockId } from '@/config/map-01-layout.ts'
+import { CommandOwner } from '@/types/machine-automation.ts'
 
 const MAX_ENTRIES = 20
+
+export interface WorkOrderEventContext {
+  commandOwner?: CommandOwner
+  blockId?: FieldBlockId | null
+}
 
 export class GameEventLog {
   private entries: GameLogEntry[] = []
@@ -157,40 +164,52 @@ export class GameEventLog {
     )
   }
 
-  recordWorkOrderStarted(displayName: string, machineName: string, day: number): void {
-    this.push(
-      `Work order started: ${displayName} (${machineName}).`,
-      GameEventKind.WorkOrderStarted,
-      day,
-    )
+  recordWorkOrderStarted(
+    displayName: string,
+    machineName: string,
+    day: number,
+    context?: WorkOrderEventContext,
+  ): void {
+    const message =
+      context?.commandOwner === CommandOwner.Gps
+        ? `GPS started ${displayName}.`
+        : `Work order started: ${displayName} (${machineName}).`
+    this.push(message, GameEventKind.WorkOrderStarted, day)
   }
 
   recordWorkOrderFieldCompleted(
     displayName: string,
     fieldName: string,
     day: number,
+    context?: WorkOrderEventContext,
   ): void {
-    this.push(
-      `Work order field done: ${displayName} — ${fieldName}.`,
-      GameEventKind.WorkOrderFieldCompleted,
-      day,
-    )
+    const message = context?.blockId
+      ? `Completed ${fieldName}.`
+      : `Work order field done: ${displayName} — ${fieldName}.`
+    this.push(message, GameEventKind.WorkOrderFieldCompleted, day)
   }
 
-  recordWorkOrderCompleted(displayName: string, machineName: string, day: number): void {
-    this.push(
-      `Work order completed: ${displayName} (${machineName}).`,
-      GameEventKind.WorkOrderCompleted,
-      day,
-    )
+  recordWorkOrderCompleted(
+    displayName: string,
+    machineName: string,
+    day: number,
+    context?: WorkOrderEventContext,
+  ): void {
+    const message = context?.blockId
+      ? `Completed Block ${context.blockId}.`
+      : `Work order completed: ${displayName} (${machineName}).`
+    this.push(message, GameEventKind.WorkOrderCompleted, day)
   }
 
-  recordWorkOrderCancelled(displayName: string, day: number): void {
-    this.push(
-      `Work order cancelled: ${displayName}.`,
-      GameEventKind.WorkOrderCancelled,
-      day,
-    )
+  recordWorkOrderCancelled(
+    displayName: string,
+    day: number,
+    context?: WorkOrderEventContext,
+  ): void {
+    const message = context?.blockId
+      ? `Cancelled Block ${context.blockId}.`
+      : `Work order cancelled: ${displayName}.`
+    this.push(message, GameEventKind.WorkOrderCancelled, day)
   }
 
   restore(entries: readonly GameLogEntry[], nextId: number): void {

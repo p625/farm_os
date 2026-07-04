@@ -47,7 +47,7 @@ type WorkOrderExecutionStrategy =
 |-------|-------|-------------|
 | `single` | 16C | Field radial — **This field (GPS)** |
 | `fields` | 16C | Field radial — **Selected fields (GPS)** |
-| `block` | 16D | Block radial — entire block |
+| `block` | 16D | Field radial — **Entire Block (GPS)** |
 | `eligible` | 16F | Work Orders panel — all eligible fields |
 | `area` | **Reserved** — documentation only |
 
@@ -91,7 +91,7 @@ Phase 16C advances orders per machine on controller `onChange` via `advanceWorkO
 | Phase | Deliverable |
 |-------|-------------|
 | **16C** | Work order types, `WorkOrderSystem`, GPS refactor, save v13, HUD/Fleet summary |
-| **16D** | Block + eligible scope UI, block radial |
+| **16D** | Block scope UI, block GPS from field radial |
 | **16E** | `WorkerRegistry`, worker picker, `commandOwner: worker` |
 | **16F** | Work Orders panel, ETA, notifications |
 

@@ -98,6 +98,7 @@ export const FieldWorkModeActionKind = {
   PerformManually: 'perform_manually',
   GpsThisField: 'gps_this_field',
   GpsSelectedFields: 'gps_selected_fields',
+  GpsEntireBlock: 'gps_entire_block',
   Cancel: 'cancel',
 } as const
 

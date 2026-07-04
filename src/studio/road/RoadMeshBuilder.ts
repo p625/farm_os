@@ -2,7 +2,10 @@ import type { Scene } from '@babylonjs/core'
 import { Color3, Mesh, StandardMaterial, VertexBuffer } from '@babylonjs/core'
 import type { RoadControlPoint } from '@/types/road.ts'
 import type { RoadKind } from '@/types/road.ts'
-import { trimControlPointsForMesh } from '@/studio/road/RoadJunction.ts'
+import {
+  adjustControlPointsForJunctionMesh,
+  type JunctionMeshContext,
+} from '@/studio/road/RoadJunction.ts'
 import { getRoadTypeDefinition } from '@/studio/road/RoadTypePalette.ts'
 import { sampleRoadSpline } from '@/studio/road/RoadSpline.ts'
 
@@ -16,13 +19,14 @@ export function createRoadRibbonMesh(
   points: readonly RoadControlPoint[],
   roadKind: RoadKind,
   sampleHeight?: TerrainHeightSampler,
+  junctionContext?: JunctionMeshContext,
 ): Mesh | null {
   if (points.length < 2) {
     return null
   }
 
   const roadType = getRoadTypeDefinition(roadKind)
-  const meshPoints = trimControlPointsForMesh(points, roadKind)
+  const meshPoints = adjustControlPointsForJunctionMesh(points, roadKind, junctionContext)
   let samples = sampleRoadSpline(meshPoints, 10)
   if (samples.length < 2) {
     return null

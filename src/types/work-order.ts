@@ -95,6 +95,7 @@ export interface WorkOrderSnapshot {
   totalFieldCount: number
   remainingArea: number
   totalArea: number
+  blockId: FieldBlockId | null
 }
 
 export interface WorkOrderSaveData {
@@ -119,4 +120,13 @@ export { AutomationTaskKind as WorkOrderTaskKindEnum } from '@/types/machine-aut
 
 export function isActiveWorkOrderStatus(status: WorkOrderStatus): boolean {
   return status === WorkOrderStatus.Active
+}
+
+export function getWorkOrderScopeBlockId(
+  scope: WorkOrderScope,
+): FieldBlockId | null {
+  if (scope.kind === WorkOrderScopeKind.Block) {
+    return scope.blockId
+  }
+  return null
 }

@@ -187,6 +187,7 @@ export class MapSceneBuilder {
       props.points,
       props.roadKind,
       sampler,
+      { map, roadId: object.id },
     )
     if (!mesh) {
       return
@@ -280,6 +281,7 @@ export class MapSceneBuilder {
       points,
       roadKind,
       sampler,
+      { map, roadId: draftId },
     )
     if (!mesh) {
       return

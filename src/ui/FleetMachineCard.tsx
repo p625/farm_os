@@ -149,12 +149,18 @@ export function FleetMachineCard({
             <dd>{machine.workOrder.displayName}</dd>
           </div>
         ) : null}
+        {machine.workOrder?.blockId ? (
+          <div className="fleet-machine-card__row">
+            <dt>Block</dt>
+            <dd>Block {machine.workOrder.blockId}</dd>
+          </div>
+        ) : null}
         {machine.workOrder ? (
           <div className="fleet-machine-card__row">
-            <dt>Order progress</dt>
+            <dt>Remaining</dt>
             <dd>
-              {machine.workOrder.completedFieldCount}/
-              {machine.workOrder.totalFieldCount} (
+              {machine.workOrder.remainingFieldCount}/
+              {machine.workOrder.totalFieldCount} fields (
               {machine.workOrder.remainingArea} ha left)
             </dd>
           </div>

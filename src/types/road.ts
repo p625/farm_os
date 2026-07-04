@@ -11,7 +11,7 @@ export type RoadKind = (typeof ROAD_KINDS)[number]
 export interface RoadPointJunction {
   roadId: string
   roadKind: RoadKind
-  /** merge = centerline join (asphalt↔asphalt); edge = stop at partner road width */
+  /** merge = same kind / asphalt↔asphalt, full-width join; edge = stop at partner edge with overlap fill */
   join: 'merge' | 'edge'
 }
 

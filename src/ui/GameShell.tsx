@@ -32,7 +32,7 @@ interface PendingSeedWork {
   screenX: number
   screenY: number
   useGps: boolean
-  gpsScope: 'this_field' | 'selected_fields'
+  gpsScope: 'this_field' | 'selected_fields' | 'entire_block'
 }
 
 export function GameShell({ onSwitchToStudio }: GameShellProps) {
@@ -237,6 +237,24 @@ export function GameShell({ onSwitchToStudio }: GameShellProps) {
             }
             game.performFieldWorkGps(menu.fieldId, menu.taskKind, {
               gpsScope: 'selected_fields',
+            })
+          }}
+          onGpsEntireBlock={() => {
+            const menu = snapshot.fieldWorkModeMenu!
+            if (menu.taskKind === FieldRadialActionKind.Seed) {
+              const anchor = clampRadialAnchor(menu.screenX, menu.screenY)
+              setPendingSeed({
+                fieldId: menu.fieldId,
+                screenX: anchor.x,
+                screenY: anchor.y,
+                useGps: true,
+                gpsScope: 'entire_block',
+              })
+              game.closeFieldWorkModeMenu()
+              return
+            }
+            game.performFieldWorkGps(menu.fieldId, menu.taskKind, {
+              gpsScope: 'entire_block',
             })
           }}
         />
